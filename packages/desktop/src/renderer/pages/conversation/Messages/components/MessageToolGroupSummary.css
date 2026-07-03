@@ -65,8 +65,11 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
+  padding: 10px 14px;
   margin-top: 6px;
   margin-left: 20px;
+  background: color-mix(in srgb, var(--aou-1) 50%, #fff);
+  border-radius: 8px;
 }
 
 [data-theme='dark'] .tool-group-summary__body {
