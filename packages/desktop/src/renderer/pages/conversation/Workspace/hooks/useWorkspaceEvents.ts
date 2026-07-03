@@ -1,6 +1,6 @@
 /**
  * @license
- * Copyright 2025 AionUi (aionui.com)
+ * Copyright 2025 LingAI (lingai.com)
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -120,7 +120,7 @@ export function useWorkspaceEvents(options: UseWorkspaceEventsOptions) {
    * Listen to agent response stream - auto refresh workspace (throttled)
    */
   useEffect(() => {
-    const isNonFileSystemTool = (name: string) => /^mcp__aionui-team-|^team_/.test(name);
+    const isNonFileSystemTool = (name: string) => /^mcp__lingai-team-|^team_/.test(name);
 
     const handleResponse = (data: { type: string; data?: unknown; conversation_id?: string }) => {
       if (data.conversation_id && data.conversation_id !== conversation_id) return;

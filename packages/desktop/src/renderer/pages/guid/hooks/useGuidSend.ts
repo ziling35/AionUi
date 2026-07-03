@@ -1,11 +1,11 @@
 /**
  * @license
- * Copyright 2025 AionUi (aionui.com)
+ * Copyright 2025 LingAI (lingai.com)
  * SPDX-License-Identifier: Apache-2.0
  */
 
 import { ipcBridge } from '@/common';
-import type { IMcpServer, TProviderWithModel } from '@/common/config/storage';
+import type { IMcpServer, TChatConversation, TProviderWithModel } from '@/common/config/storage';
 import { toSessionMcpServer } from '@/renderer/hooks/mcp/catalog';
 import { emitter } from '@/renderer/utils/emitter';
 import { updateWorkspaceTime } from '@/renderer/utils/workspace/workspaceHistory';
@@ -64,7 +64,7 @@ export type GuidSendResult = {
 };
 
 /**
- * Hook that manages the send logic for ACP and Aion CLI conversations.
+ * Hook that manages the send logic for ACP and AI CLI conversations.
  */
 export const useGuidSend = (deps: GuidSendDeps): GuidSendResult => {
   const {
@@ -179,14 +179,8 @@ export const useGuidSend = (deps: GuidSendDeps): GuidSendResult => {
           updateWorkspaceTime(finalWorkspace);
         }
 
-        if (assistantConversationId) {
-          await Promise.all([
-            swrMutate(`guid.assistant.detail.${assistantConversationId}.${localeKey}`),
-            swrMutate('assistants.list'),
-          ]);
-        }
-
-        emitter.emit('chat.history.refresh');
+        // Pre-populate SWR cache so the conversation page doesn't re-fetch
+        swrMutate<TChatConversation>(`conversation/${conversation.id}`, conversation, false);
 
         const initialMessage = {
           input,
@@ -194,9 +188,19 @@ export const useGuidSend = (deps: GuidSendDeps): GuidSendResult => {
         };
         sessionStorage.setItem(`aionrs_initial_message_${conversation.id}`, JSON.stringify(initialMessage));
 
+        // Navigate immediately — don't block on SWR revalidation or sidebar refresh
         await navigate(`/conversation/${conversation.id}`);
+
+        // Fire-and-forget: revalidate assistant data and refresh sidebar after navigation
+        if (assistantConversationId) {
+          void Promise.all([
+            swrMutate(`guid.assistant.detail.${assistantConversationId}.${localeKey}`),
+            swrMutate('assistants.list'),
+          ]);
+        }
+        emitter.emit('chat.history.refresh');
       } catch (error: unknown) {
-        console.error('Failed to create Aion CLI conversation:', error);
+        console.error('Failed to create AI CLI conversation:', error);
         throw error;
       }
       return;
@@ -228,14 +232,8 @@ export const useGuidSend = (deps: GuidSendDeps): GuidSendResult => {
         updateWorkspaceTime(finalWorkspace);
       }
 
-      if (assistantConversationId) {
-        await Promise.all([
-          swrMutate(`guid.assistant.detail.${assistantConversationId}.${localeKey}`),
-          swrMutate('assistants.list'),
-        ]);
-      }
-
-      emitter.emit('chat.history.refresh');
+      // Pre-populate SWR cache so the conversation page doesn't re-fetch
+      swrMutate<TChatConversation>(`conversation/${conversation.id}`, conversation, false);
 
       const initialMessage = {
         input,
@@ -243,7 +241,17 @@ export const useGuidSend = (deps: GuidSendDeps): GuidSendResult => {
       };
       sessionStorage.setItem(`acp_initial_message_${conversation.id}`, JSON.stringify(initialMessage));
 
+      // Navigate immediately — don't block on SWR revalidation or sidebar refresh
       await navigate(`/conversation/${conversation.id}`);
+
+      // Fire-and-forget: revalidate assistant data and refresh sidebar after navigation
+      if (assistantConversationId) {
+        void Promise.all([
+          swrMutate(`guid.assistant.detail.${assistantConversationId}.${localeKey}`),
+          swrMutate('assistants.list'),
+        ]);
+      }
+      emitter.emit('chat.history.refresh');
     } catch (error: unknown) {
       console.error('Failed to create ACP conversation:', error);
       throw error;

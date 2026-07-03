@@ -1,6 +1,6 @@
 /**
  * @license
- * Copyright 2025 AionUi (aionui.com)
+ * Copyright 2025 LingAI (lingai.com)
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -15,6 +15,7 @@ import * as path from 'path';
 import { jsonrepair } from 'jsonrepair';
 import type OpenAI from 'openai';
 import { ClientFactory, type RotatingClient } from '@/common/api/ClientFactory';
+import { OpenAIRotatingClient } from '@/common/api/OpenAIRotatingClient';
 import type { TProviderWithModel } from '@/common/config/storage';
 import type { UnifiedChatCompletionResponse } from '@/common/api/RotatingApiClient';
 import { IMAGE_EXTENSIONS, MIME_TYPE_MAP, MIME_TO_EXT_MAP, DEFAULT_IMAGE_EXTENSION } from '@/common/config/constants';
@@ -79,11 +80,11 @@ export function getFileExtensionFromDataUrl(dataUrl: string): string {
   return DEFAULT_IMAGE_EXTENSION;
 }
 
-export async function saveGeneratedImage(base64Data: string, workspaceDir: string): Promise<string> {
+export async function saveGeneratedImage(base64Data: string, outputDir: string): Promise<string> {
   const timestamp = Date.now();
   const fileExtension = getFileExtensionFromDataUrl(base64Data);
   const file_name = `img-${timestamp}${fileExtension}`;
-  const file_path = path.join(workspaceDir, file_name);
+  const file_path = path.join(outputDir, file_name);
 
   const base64WithoutPrefix = base64Data.replace(/^data:image\/[^;]+;base64,/, '');
   const imageBuffer = Buffer.from(base64WithoutPrefix, 'base64');
@@ -172,17 +173,32 @@ export interface ImageGenResult {
 
 /**
  * Core image generation function shared between MCP server and Gemini tool.
+ *
+ * Strategy:
+ * 1. **Generation (no input images)**: Try the OpenAI Images API
+ *    (`/v1/images/generations`) first. This is the standard endpoint for
+ *    DALL-E, gpt-image-*, and compatible providers. If the provider does
+ *    not support it (e.g. Gemini chat-based image models), fall back to
+ *    Chat Completions.
+ * 2. **Editing (with input images)**: Try a direct fetch to
+ *    `/v1/images/edits` with a JSON body first (supported by some
+ *    providers like wisart). If that fails, fall back to Chat
+ *    Completions with multimodal content parts.
  */
 export async function executeImageGeneration(
   params: ImageGenParams,
   provider: TProviderWithModel,
   workspaceDir: string,
   proxy?: string,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  outputDir?: string
 ): Promise<ImageGenResult> {
   if (signal?.aborted) {
     return { success: false, text: 'Image generation was cancelled.', error: 'cancelled' };
   }
+
+  // Use outputDir for saving generated images; fall back to workspaceDir for backward compat.
+  const saveDir = outputDir || workspaceDir;
 
   try {
     // Parse image URIs
@@ -197,6 +213,139 @@ export async function executeImageGeneration(
     }
 
     const hasImages = imageUris.length > 0;
+
+    // Create the rotating client — shared by both API paths
+    const rotatingClient: RotatingClient = await ClientFactory.createRotatingClient(provider, {
+      proxy,
+      rotatingOptions: { maxRetries: 3, retryDelay: 1000 },
+    });
+
+    // ── Path A: Try Images API first ───────────────────────────
+    if (!hasImages) {
+      // Generation: POST /v1/images/generations
+      try {
+        // createImage is only available on OpenAIRotatingClient
+        if (!('createImage' in rotatingClient)) {
+          throw new Error('Images API not supported for this provider type');
+        }
+        const imageResponse = await (rotatingClient as OpenAIRotatingClient).createImage(
+          {
+            model: provider.use_model,
+            prompt: params.prompt,
+            n: 1,
+            response_format: 'b64_json',
+          },
+          { signal, timeout: API_TIMEOUT_MS }
+        );
+
+        const b64Data = imageResponse?.data?.[0]?.b64_json;
+        if (b64Data) {
+          const dataUrl = `data:image/png;base64,${b64Data}`;
+          const imagePath = await saveGeneratedImage(dataUrl, saveDir);
+          const relativeImagePath = path.relative(saveDir, imagePath);
+          const responseText = imageResponse?.data?.[0]?.revised_prompt || 'Image generated successfully.';
+          return {
+            success: true,
+            text: `${responseText}\n\nGenerated image saved to: ${imagePath}`,
+            imagePath,
+            relativeImagePath,
+          };
+        }
+      } catch (imagesApiError) {
+        console.warn(
+          '[ImageGen] Images API failed, falling back to Chat Completions:',
+          imagesApiError instanceof Error ? imagesApiError.message : String(imagesApiError)
+        );
+      }
+    } else {
+      // Editing: Try direct fetch to /v1/images/edits with JSON body
+      try {
+        const processedImages = await Promise.allSettled(imageUris.map((uri) => processImageUri(uri, workspaceDir)));
+        const successful: ImageContent[] = [];
+        const errors: string[] = [];
+
+        processedImages.forEach((result, index) => {
+          if (result.status === 'fulfilled' && result.value) {
+            successful.push(result.value);
+          } else {
+            const error = result.status === 'rejected' ? result.reason : 'Unknown error';
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            errors.push(`Image ${index + 1} (${imageUris[index]}): ${errorMessage}`);
+          }
+        });
+
+        if (successful.length === 0) {
+          return {
+            success: false,
+            text: `Error: Failed to process any images. Errors:\n${errors.join('\n')}`,
+            error: errors.join('\n'),
+          };
+        }
+
+        // If OpenAIRotatingClient has editImage, use it to ensure proper proxy and multipart handling
+        if ('editImage' in rotatingClient) {
+          const firstImageContent = successful[0];
+          const firstUri = imageUris[0];
+          const fullPath = path.isAbsolute(firstUri) ? firstUri : path.join(workspaceDir, firstUri);
+          
+          let fileStream: any = undefined;
+          try {
+            await fs.promises.access(fullPath, fs.constants.F_OK);
+            fileStream = fs.createReadStream(fullPath);
+          } catch {
+             throw new Error('Image edit requires a local file path for OpenAI SDK.');
+          }
+
+          // Pass X-Aion-Model header so admin-api can extract the model ID even if body is multipart buffer
+          const editRes = await (rotatingClient as OpenAIRotatingClient).editImage(
+            {
+              model: provider.use_model,
+              prompt: params.prompt,
+              image: fileStream,
+              response_format: 'b64_json',
+            },
+            { 
+              signal, 
+              timeout: API_TIMEOUT_MS,
+              headers: { 'X-Aion-Model': provider.use_model }
+            }
+          );
+
+          const b64Data = editRes?.data?.[0]?.b64_json;
+          if (b64Data) {
+            const dataUrl = `data:image/png;base64,${b64Data}`;
+            const imagePath = await saveGeneratedImage(dataUrl, saveDir);
+            const relativeImagePath = path.relative(saveDir, imagePath);
+            const responseText = editRes?.data?.[0]?.revised_prompt || 'Image edited successfully.';
+            return {
+              success: true,
+              text: `${responseText}\n\nEdited image saved to: ${imagePath}`,
+              imagePath,
+              relativeImagePath,
+            };
+          } else if (editRes?.data?.[0]?.url) {
+            const url = editRes.data[0].url;
+            return {
+              success: true,
+              text: `Image edited successfully. URL: ${url}`,
+            };
+          }
+        } else {
+          throw new Error('Images API not supported for this provider type');
+        }
+        // If edits endpoint fails, fall through to Chat Completions
+        console.warn('[ImageGen] Images edits API failed, falling back to Chat Completions');
+      } catch (editsApiError) {
+        console.warn(
+          '[ImageGen] Images edits API error, falling back to Chat Completions:',
+          editsApiError instanceof Error ? editsApiError.message : String(editsApiError)
+        );
+      }
+    }
+
+    // ── Path B: Fall back to Chat Completions ──────────────────
+    // This path works for providers that support image generation via
+    // chat (e.g. Gemini flash-image models).
     let enhancedPrompt: string;
     if (hasImages) {
       enhancedPrompt = `Analyze/Edit image: ${params.prompt}`;
@@ -206,10 +355,8 @@ export async function executeImageGeneration(
 
     const contentParts: OpenAI.Chat.Completions.ChatCompletionContentPart[] = [{ type: 'text', text: enhancedPrompt }];
 
-    // Process image URIs
     if (hasImages) {
       const imageResults = await Promise.allSettled(imageUris.map((uri) => processImageUri(uri, workspaceDir)));
-
       const successful: ImageContent[] = [];
       const errors: string[] = [];
 
@@ -235,12 +382,6 @@ export async function executeImageGeneration(
     }
 
     const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [{ role: 'user', content: contentParts }];
-
-    // Create client and call API
-    const rotatingClient: RotatingClient = await ClientFactory.createRotatingClient(provider, {
-      proxy,
-      rotatingOptions: { maxRetries: 3, retryDelay: 1000 },
-    });
 
     const completion: UnifiedChatCompletionResponse = await rotatingClient.createChatCompletion(
       { model: provider.use_model, messages: messages as any },
@@ -298,14 +439,9 @@ export async function executeImageGeneration(
 
     const firstImage = images[0];
     if (firstImage.type === 'image_url' && firstImage.image_url?.url) {
-      const imagePath = await saveGeneratedImage(firstImage.image_url.url, workspaceDir);
-      const relativeImagePath = path.relative(workspaceDir, imagePath);
+      const imagePath = await saveGeneratedImage(firstImage.image_url.url, saveDir);
+      const relativeImagePath = path.relative(saveDir, imagePath);
 
-      // Strip any inline base64 data URLs from the human-readable text before
-      // returning. The image is already saved to disk and referenced by path,
-      // so re-emitting hundreds of MB of base64 in the MCP tool response just
-      // forces the parent process to ship that payload through framed TCP again
-      // (which is where the 2026-04-14 commit-charge blow-up happened).
       const cleanText = responseText.replace(
         /!\[[^\]]*\]\(data:image\/[^;]+;base64,[^)]+\)/g,
         '[embedded image extracted]'

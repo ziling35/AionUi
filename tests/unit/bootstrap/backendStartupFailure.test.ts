@@ -11,8 +11,8 @@ describe('classifyBackendStartupFailure', () => {
     error.details = {
       stage: 'early_exit',
       stderrTail:
-        "/opt/AionUi/resources/bundled-aioncore/linux-x64/aioncore.bin: /lib/x86_64-linux-gnu/libc.so.6: version `GLIBC_2.34' not found\n" +
-        "/opt/AionUi/resources/bundled-aioncore/linux-x64/aioncore.bin: /lib/x86_64-linux-gnu/libc.so.6: version `GLIBC_2.32' not found",
+        "/opt/LingAI/resources/bundled-aioncore/linux-x64/aioncore.bin: /lib/x86_64-linux-gnu/libc.so.6: version `GLIBC_2.34' not found\n" +
+        "/opt/LingAI/resources/bundled-aioncore/linux-x64/aioncore.bin: /lib/x86_64-linux-gnu/libc.so.6: version `GLIBC_2.32' not found",
     };
 
     expect(classifyBackendStartupFailure(error)).toEqual({
@@ -63,7 +63,7 @@ describe('classifyBackendStartupFailure', () => {
       backendBoundaryCode: 'BOOTSTRAP_DATA_INIT_FAILED',
       backendBoundaryStage: 'database.migration',
       stderrTail:
-        'BOOTSTRAP_DATA_INIT_FAILED stage=database.migration databasePath=/db/aionui-backend.db: failed to initialize application data',
+        'BOOTSTRAP_DATA_INIT_FAILED stage=database.migration databasePath=/db/lingai-backend.db: failed to initialize application data',
     };
 
     expect(classifyBackendStartupFailure(error)).toEqual({
@@ -241,7 +241,7 @@ describe('classifyBackendStartupFailure', () => {
   });
 
   it('classifies packaged macOS architecture mismatches separately from generic startup failures', () => {
-    const error = new Error('AionUi package architecture does not match this Mac') as Error & {
+    const error = new Error('LingAI package architecture does not match this Mac') as Error & {
       details?: Record<string, unknown>;
     };
     error.details = {

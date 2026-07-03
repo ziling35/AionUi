@@ -72,13 +72,23 @@ export function normalizeToolGroup(message: IMessageToolGroup): NormalizedToolCa
       input = description;
     }
 
+    const outputText = getResultDisplayText(result_display);
+    let imagePath: string | undefined;
+    if (typeof outputText === 'string') {
+      const match = outputText.match(/saved to:\s*([^\r\n]+?\.(?:png|jpe?g|webp|gif|bmp|tiff|svg))/i);
+      if (match && match[1]) {
+        imagePath = match[1].trim();
+      }
+    }
+
     return {
       key: call_id,
       name,
       status: normalizeToolGroupStatus(status),
       description: desc,
       input,
-      output: getResultDisplayText(result_display),
+      output: outputText,
+      imagePath,
     };
   });
 }
@@ -167,6 +177,7 @@ export function normalizeAcpToolCall(message: IMessageAcpToolCall): NormalizedTo
 
   const keyParam = buildParamSummary(update.kind, rawInput);
 
+  const imagePath = getAcpImagePath(update);
   return {
     key: update.tool_call_id,
     name: update.title,
@@ -177,7 +188,7 @@ export function normalizeAcpToolCall(message: IMessageAcpToolCall): NormalizedTo
     truncated: content?._compact?.truncated === true,
     messageId: message.id,
     conversationId: message.conversation_id,
-    imagePath: getAcpImagePath(update),
+    imagePath,
   };
 }
 
@@ -206,6 +217,14 @@ export function normalizeToolCall(message: IMessageToolCall): NormalizedToolCall
       ? formatValue(args)
       : undefined;
 
+  let imagePath: string | undefined;
+  if (typeof output === 'string') {
+    const match = output.match(/saved to:\s*([^\r\n]+?\.(?:png|jpe?g|webp|gif|bmp|tiff|svg))/i);
+    if (match && match[1]) {
+      imagePath = match[1].trim();
+    }
+  }
+
   return {
     key: call_id,
     name,
@@ -213,6 +232,7 @@ export function normalizeToolCall(message: IMessageToolCall): NormalizedToolCall
     description: description || undefined,
     input: displayInput,
     output,
+    imagePath,
   };
 }
 

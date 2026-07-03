@@ -1,13 +1,13 @@
 /**
  * @license
- * Copyright 2025 AionUi (aionui.com)
+ * Copyright 2025 LingAI (lingai.com)
  * SPDX-License-Identifier: Apache-2.0
  */
 
 import { ipcBridge } from '@/common';
 import type { IProvider } from '@/common/config/storage';
 import { Button, Divider, Message, Popconfirm, Collapse, Tag, Switch, Tooltip } from '@arco-design/web-react';
-import { DeleteFour, Info, Minus, Plus, Write, Heartbeat } from '@icon-park/react';
+import { DeleteFour, Info, Minus, Plus, Write, Heartbeat, Lock, Refresh } from '@icon-park/react';
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import AddModelModal from '@/renderer/pages/settings/components/AddModelModal';
@@ -17,9 +17,17 @@ import EditModeModal from '@/renderer/pages/settings/components/EditModeModal';
 import AionScrollArea from '@/renderer/components/base/AionScrollArea';
 import TalkToButlerButton from '@/renderer/components/base/TalkToButlerButton';
 import { useProvidersQuery } from '@/renderer/hooks/agent/useModelProviderList';
+import { useUser } from '@/renderer/hooks/context/UserContext';
 import { useSettingsViewMode } from '../settingsViewContext';
 import { consumePendingDeepLink } from '@/renderer/hooks/system/useDeepLink';
+import { CLOUD_PROVIDER_ID } from '@/renderer/api/config';
 import '../model-provider.css';
+
+/**
+ * Platform-managed providers are synced from the admin server and must not be
+ * edited, deleted, or modified by end users. They are read-only in the UI.
+ */
+const isPlatformProvider = (provider: IProvider): boolean => provider.id === CLOUD_PROVIDER_ID;
 
 /**
  * 获取协议显示标签颜色
@@ -100,6 +108,7 @@ const ModelModalContent: React.FC = () => {
   const [collapseKey, setCollapseKey] = useState<Record<string, boolean>>({});
   const [healthCheckLoading, setHealthCheckLoading] = useState<Record<string, boolean>>({});
   const { data, mutate } = useProvidersQuery();
+  const { refreshCloudModels, isCloudSyncing } = useUser();
   const [message, messageContext] = Message.useMessage();
 
   /**
@@ -376,7 +385,7 @@ const ModelModalContent: React.FC = () => {
             <p className='text-14px text-t-secondary text-center max-w-400px'>
               {t('settings.needHelpConfigGuide')}
               <a
-                href='https://github.com/iOfficeAI/AionUi/wiki/LLM-Configuration'
+                href='https://github.com/iOfficeAI/LingAI/wiki/LLM-Configuration'
                 target='_blank'
                 rel='noopener noreferrer'
                 className='text-[rgb(var(--primary-6))] hover:text-[rgb(var(--primary-5))] underline ml-4px'
@@ -391,6 +400,7 @@ const ModelModalContent: React.FC = () => {
             {(data || []).map((platform: IProvider) => {
               const key = platform.id;
               const isExpanded = collapseKey[platform.id] ?? false;
+              const readOnly = isPlatformProvider(platform);
               return (
                 <Collapse
                   activeKey={isExpanded ? ['image-generation'] : []}
@@ -413,9 +423,16 @@ const ModelModalContent: React.FC = () => {
                     header={
                       <div className='group flex items-center justify-between w-full min-h-32px gap-8px min-w-0'>
                         <span
-                          className={`text-14px font-500 truncate min-w-0 transition-colors ${isExpanded ? 'text-t-primary' : 'text-2 group-hover:text-1'}`}
+                          className={`text-14px font-500 truncate min-w-0 transition-colors ${isExpanded ? 'text-t-primary' : 'text-2 group-hover:text-1'} flex items-center gap-4px`}
                         >
                           {platform.name}
+                          {readOnly && (
+                            <Tooltip
+                              content={t('settings.platformManaged', { defaultValue: 'Platform-managed, read-only' })}
+                            >
+                              <Lock theme='outline' size='12' className='text-t-tertiary' />
+                            </Tooltip>
+                          )}
                         </span>
                         <div
                           className='flex items-center gap-8px shrink-0'
@@ -433,47 +450,78 @@ const ModelModalContent: React.FC = () => {
                             >
                               {t('settings.modelCount')}（{(platform.models ?? []).length}）
                             </span>
-                            <span className='mx-6px'>|</span>
-                            <span
-                              className='cursor-pointer hover:text-t-primary transition-colors'
-                              onClick={() => editModalCtrl.open({ data: platform })}
-                            >
-                              {t('settings.apiKeyCount')}（{getApiKeyCount(platform.api_key)}）
-                            </span>
+                            {!readOnly && (
+                              <>
+                                <span className='mx-6px'>|</span>
+                                <span
+                                  className='cursor-pointer hover:text-t-primary transition-colors'
+                                  onClick={() => editModalCtrl.open({ data: platform })}
+                                >
+                                  {t('settings.apiKeyCount')}（{getApiKeyCount(platform.api_key)}）
+                                </span>
+                              </>
+                            )}
                           </span>
                           <span className='text-12px text-t-secondary whitespace-nowrap md:hidden'>
-                            {(platform.models ?? []).length} / {getApiKeyCount(platform.api_key)}
+                            {(platform.models ?? []).length}
+                            {!readOnly ? ` / ${getApiKeyCount(platform.api_key)}` : ''}
                           </span>
                           {/* 供应商启用开关 / Provider enable switch */}
-                          <Switch
-                            size='small'
-                            checked={getProviderState(platform).checked}
-                            onChange={() => toggleProviderEnabled(platform)}
-                          />
-                          <div className='flex items-center gap-4px'>
-                            <Button
-                              size='mini'
-                              className='model-provider-action-btn !w-28px !h-28px !min-w-28px text-t-secondary hover:text-t-primary'
-                              icon={<Plus size='14' />}
-                              onClick={() => addModelModalCtrl.open({ data: platform })}
+                          {!readOnly && (
+                            <Switch
+                              size='small'
+                              checked={getProviderState(platform).checked}
+                              onChange={() => toggleProviderEnabled(platform)}
                             />
-                            <Popconfirm
-                              title={t('settings.deleteAllModelConfirm')}
-                              onOk={() => removePlatform(platform.id)}
+                          )}
+                          {/* 云端模型刷新按钮 / Cloud model refresh button (platform-managed only) */}
+                          {readOnly && (
+                            <Tooltip
+                              content={t('settings.refreshCloudModels', {
+                                defaultValue: 'Refresh cloud models from server',
+                              })}
                             >
                               <Button
                                 size='mini'
                                 className='model-provider-action-btn !w-28px !h-28px !min-w-28px text-t-secondary hover:text-t-primary'
-                                icon={<Minus size='14' />}
+                                icon={<Refresh theme='outline' size='14' />}
+                                loading={isCloudSyncing}
+                                onClick={() => {
+                                  refreshCloudModels().then(() => {
+                                    message.success(
+                                      t('settings.cloudModelsRefreshed', { defaultValue: 'Cloud models refreshed' })
+                                    );
+                                  });
+                                }}
                               />
-                            </Popconfirm>
-                            <Button
-                              size='mini'
-                              className='model-provider-action-btn !w-28px !h-28px !min-w-28px text-t-secondary hover:text-t-primary'
-                              icon={<Write size='14' />}
-                              onClick={() => editModalCtrl.open({ data: platform })}
-                            />
-                          </div>
+                            </Tooltip>
+                          )}
+                          {!readOnly && (
+                            <div className='flex items-center gap-4px'>
+                              <Button
+                                size='mini'
+                                className='model-provider-action-btn !w-28px !h-28px !min-w-28px text-t-secondary hover:text-t-primary'
+                                icon={<Plus size='14' />}
+                                onClick={() => addModelModalCtrl.open({ data: platform })}
+                              />
+                              <Popconfirm
+                                title={t('settings.deleteAllModelConfirm')}
+                                onOk={() => removePlatform(platform.id)}
+                              >
+                                <Button
+                                  size='mini'
+                                  className='model-provider-action-btn !w-28px !h-28px !min-w-28px text-t-secondary hover:text-t-primary'
+                                  icon={<Minus size='14' />}
+                                />
+                              </Popconfirm>
+                              <Button
+                                size='mini'
+                                className='model-provider-action-btn !w-28px !h-28px !min-w-28px text-t-secondary hover:text-t-primary'
+                                icon={<Write size='14' />}
+                                onClick={() => editModalCtrl.open({ data: platform })}
+                              />
+                            </div>
+                          )}
                         </div>
                       </div>
                     }
@@ -540,15 +588,17 @@ const ModelModalContent: React.FC = () => {
                                 </Tag>
                               )}
 
-                              {/* 模型启用开关 / Model enable switch */}
-                              <Switch
-                                size='small'
-                                checked={isModelEnabled(platform, model)}
-                                onChange={(checked) => toggleModelEnabled(platform, model, checked)}
-                              />
+                              {/* 模型启用开关 / Model enable switch (hidden for platform-managed providers) */}
+                              {!readOnly && (
+                                <Switch
+                                  size='small'
+                                  checked={isModelEnabled(platform, model)}
+                                  onChange={(checked) => toggleModelEnabled(platform, model, checked)}
+                                />
+                              )}
                             </div>
 
-                            <div className='flex items-center gap-6px shrink-0'>
+                            <div className='flex items-center gap-12px shrink-0 ml-16px'>
                               {/* 心跳检测按钮 / Health check button */}
                               <Tooltip content={t('settings.healthCheck')}>
                                 <Button
@@ -560,41 +610,46 @@ const ModelModalContent: React.FC = () => {
                                 />
                               </Tooltip>
 
-                              <Popconfirm
-                                title={t('settings.deleteModelConfirm')}
-                                onOk={() => {
-                                  const newModels = platform.models.filter((item: string) => item !== model);
-                                  // 同时清理模型相关状态，避免删除后重加模型时复用脏状态
-                                  // Clean all per-model state to avoid stale state on re-add.
-                                  const newProtocols = { ...platform.model_protocols };
-                                  const newModelEnabled = { ...platform.model_enabled };
-                                  const newModelHealth = { ...platform.model_health };
-                                  delete newProtocols[model];
-                                  delete newModelEnabled[model];
-                                  delete newModelHealth[model];
+                              {/* 删除按钮（平台管理的 provider 不显示）/ Delete button (hidden for platform-managed) */}
+                              {!readOnly && (
+                                <Popconfirm
+                                  title={t('settings.deleteModelConfirm')}
+                                  onOk={() => {
+                                    const newModels = platform.models.filter((item: string) => item !== model);
+                                    // 同时清理模型相关状态，避免删除后重加模型时复用脏状态
+                                    // Clean all per-model state to avoid stale state on re-add.
+                                    const newProtocols = { ...platform.model_protocols };
+                                    const newModelEnabled = { ...platform.model_enabled };
+                                    const newModelHealth = { ...platform.model_health };
+                                    delete newProtocols[model];
+                                    delete newModelEnabled[model];
+                                    delete newModelHealth[model];
 
-                                  updatePlatform(
-                                    {
-                                      ...platform,
-                                      models: newModels,
-                                      model_protocols: Object.keys(newProtocols).length > 0 ? newProtocols : undefined,
-                                      model_enabled:
-                                        Object.keys(newModelEnabled).length > 0 ? newModelEnabled : undefined,
-                                      model_health: Object.keys(newModelHealth).length > 0 ? newModelHealth : undefined,
-                                    },
-                                    () => {}
-                                  );
-                                }}
-                              >
-                                <Button
-                                  size='mini'
-                                  className='!w-28px !h-28px !min-w-28px !bg-[var(--color-bg-1)] text-t-secondary hover:text-t-primary hover:!bg-[var(--fill-0)]'
-                                  icon={<DeleteFour theme='outline' size='18' strokeWidth={2} />}
-                                />
-                              </Popconfirm>
+                                    updatePlatform(
+                                      {
+                                        ...platform,
+                                        models: newModels,
+                                        model_protocols:
+                                          Object.keys(newProtocols).length > 0 ? newProtocols : undefined,
+                                        model_enabled:
+                                          Object.keys(newModelEnabled).length > 0 ? newModelEnabled : undefined,
+                                        model_health:
+                                          Object.keys(newModelHealth).length > 0 ? newModelHealth : undefined,
+                                      },
+                                      () => {}
+                                    );
+                                  }}
+                                >
+                                  <Button
+                                    size='mini'
+                                    className='!w-28px !h-28px !min-w-28px !bg-[var(--color-bg-1)] text-t-secondary hover:text-t-primary hover:!bg-[var(--fill-0)]'
+                                    icon={<DeleteFour theme='outline' size='18' strokeWidth={2} />}
+                                  />
+                                </Popconfirm>
+                              )}
                             </div>
+                            {index < arr.length - 1 && <Divider className='!my-0 !border-[var(--color-border-2)]/70' />}
                           </div>
-                          {index < arr.length - 1 && <Divider className='!my-0 !border-[var(--color-border-2)]/70' />}
                         </div>
                       );
                     })}

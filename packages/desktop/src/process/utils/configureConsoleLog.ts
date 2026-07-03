@@ -1,6 +1,6 @@
 /**
  * @license
- * Copyright 2025 AionUi (aionui.com)
+ * Copyright 2025 LingAI (lingai.com)
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -10,9 +10,9 @@
  * daily log files on disk.
  *
  * Log file location (managed by electron-log):
- *   - macOS:   ~/Library/Logs/AionUi/YYYY/MM/DD/YYYY-MM-DD.log
- *   - Windows: %USERPROFILE%\AppData\Roaming\AionUi\logs\YYYY\MM\DD\YYYY-MM-DD.log
- *   - Linux:   ~/.config/AionUi/logs/YYYY/MM/DD/YYYY-MM-DD.log
+ *   - macOS:   ~/Library/Logs/LingAI/YYYY/MM/DD/YYYY-MM-DD.log
+ *   - Windows: %USERPROFILE%\AppData\Roaming\LingAI\logs\YYYY\MM\DD\YYYY-MM-DD.log
+ *   - Linux:   ~/.config/LingAI/logs/YYYY/MM/DD/YYYY-MM-DD.log
  *
  * Users can share the relevant date's file for debugging (#1157).
  *

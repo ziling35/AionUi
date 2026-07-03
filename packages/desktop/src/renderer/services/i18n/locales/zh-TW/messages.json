@@ -11,6 +11,7 @@
   "copySuccess": "複製成功",
   "copyFailed": "複製失敗",
   "copyLastOutput.empty": "目前沒有可複製的回覆",
+  "fillSendboxForResend": "填入輸入框重新傳送",
   "copiedToClipboard": "已複製到剪貼簿",
   "downloadSuccess": "下載成功",
   "downloadFailed": "下載失敗",

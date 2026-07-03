@@ -1,6 +1,6 @@
 /**
  * @license
- * Copyright 2025 AionUi (aionui.com)
+ * Copyright 2025 LingAI (lingai.com)
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -17,15 +17,15 @@ const httpError = (status: number, code: string, error: string, details?: unknow
   });
 
 describe('buildSendFailureError', () => {
-  it('classifies 409 already-processing as AIONUI_CONVERSATION_BUSY (wait, not retry)', () => {
+  it('classifies 409 already-processing as LINGAI_CONVERSATION_BUSY (wait, not retry)', () => {
     const err = httpError(409, 'CONFLICT', 'Conflict: Conversation is already processing a message');
 
     const result = buildSendFailureError(err, 'Conflict: Conversation is already processing a message');
 
     expect(result).toEqual({
       message: 'Conflict: Conversation is already processing a message',
-      code: 'AIONUI_CONVERSATION_BUSY',
-      ownership: 'aionui',
+      code: 'LINGAI_CONVERSATION_BUSY',
+      ownership: 'lingai',
       detail: 'Conflict: Conversation is already processing a message',
       retryable: false,
       feedback_recommended: false,
@@ -84,7 +84,7 @@ describe('buildSendFailureError', () => {
     expect(result).toEqual({
       message: 'The existing workspace path "/tmp/Archive " is no longer supported for send or warmup.',
       code: 'WORKSPACE_PATH_RUNTIME_UNAVAILABLE',
-      ownership: 'aionui',
+      ownership: 'lingai',
       detail: 'The existing workspace path "/tmp/Archive " is no longer supported for send or warmup.',
       workspacePath: '/tmp/Archive ',
       retryable: false,
@@ -92,20 +92,20 @@ describe('buildSendFailureError', () => {
     });
   });
 
-  it('falls back to AIONUI_INTERNAL_ERROR for non-conflict 409 (different message)', () => {
+  it('falls back to LINGAI_INTERNAL_ERROR for non-conflict 409 (different message)', () => {
     const err = httpError(409, 'CONFLICT', 'Conflict: WebSocket not connected; nothing to cancel');
 
     const result = buildSendFailureError(err, 'Conflict: WebSocket not connected; nothing to cancel');
 
-    expect(result.code).toBe('AIONUI_INTERNAL_ERROR');
+    expect(result.code).toBe('LINGAI_INTERNAL_ERROR');
     expect(result.retryable).toBe(true);
   });
 
-  it('falls back to AIONUI_INTERNAL_ERROR for non-HTTP errors', () => {
+  it('falls back to LINGAI_INTERNAL_ERROR for non-HTTP errors', () => {
     const result = buildSendFailureError(new Error('boom'), 'boom');
 
-    expect(result.code).toBe('AIONUI_INTERNAL_ERROR');
-    expect(result.ownership).toBe('aionui');
+    expect(result.code).toBe('LINGAI_INTERNAL_ERROR');
+    expect(result.ownership).toBe('lingai');
     expect(result.retryable).toBe(true);
   });
 
@@ -114,7 +114,7 @@ describe('buildSendFailureError', () => {
 
     const result = buildSendFailureError(original, 'Something went wrong, please try again.');
 
-    expect(result.code).toBe('AIONUI_INTERNAL_ERROR');
+    expect(result.code).toBe('LINGAI_INTERNAL_ERROR');
     expect(result.rawError).toEqual({
       name: 'Error',
       message: 'connect ECONNREFUSED 127.0.0.1:8080',
@@ -128,7 +128,7 @@ describe('buildSendFailureError', () => {
 
     const result = buildSendFailureError(err, 'Conflict: WebSocket not connected; nothing to cancel');
 
-    expect(result.code).toBe('AIONUI_INTERNAL_ERROR');
+    expect(result.code).toBe('LINGAI_INTERNAL_ERROR');
     expect(result.rawError).toMatchObject({
       name: 'BackendHttpError',
       status: 409,

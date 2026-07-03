@@ -1,6 +1,6 @@
 /**
  * @license
- * Copyright 2025 AionUi (aionui.com)
+ * Copyright 2025 LingAI (lingai.com)
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -37,6 +37,8 @@ import { getConversationOrNull } from '@/renderer/pages/conversation/utils/conve
 import { getConversationRuntimeWorkspaceErrorMessage } from '@/renderer/pages/conversation/utils/conversationCreateError';
 import { getChatSurfaceWidthClass } from '@/renderer/pages/conversation/utils/chatSurfaceWidth';
 import { ensureConversationRuntime } from '@/renderer/pages/conversation/utils/ensureConversationRuntime';
+import { useUser } from '@/renderer/hooks/context/UserContext';
+import { CLOUD_PROVIDER_ID } from '@/renderer/api/config';
 import { usePreviewContext } from '@/renderer/pages/conversation/Preview';
 import { useTeamPermission } from '@/renderer/pages/team/hooks/TeamPermissionContext';
 import type { TeamSendBoxRuntime } from '@/renderer/pages/team/components/teamSendRuntime';
@@ -250,12 +252,21 @@ const AionrsSendBox: React.FC<{
     setUploadFile,
   });
 
+  const { isLoggedIn, showLoginModal } = useUser();
+
   const executeCommand = useCallback(
     async ({ input, files }: Pick<ConversationCommandQueueItem, 'input' | 'files'>) => {
       if (teamPermission) await teamPermission.warmupSession();
       if (!current_model?.use_model) {
         Message.warning(t('conversation.chat.noModelSelected'));
         throw new Error('No model selected');
+      }
+      // Block cloud models for unauthenticated users — the proxy gateway
+      // would return 401 anyway; show a friendlier prompt instead.
+      if (current_model?.id === CLOUD_PROVIDER_ID && !isLoggedIn) {
+        Message.warning(t('conversation.chat.loginRequired', { defaultValue: 'Please log in to use cloud models.' }));
+        showLoginModal();
+        throw new Error('Login required for cloud models');
       }
 
       const displayMessage = buildDisplayMessage(input, files, workspacePath);
@@ -295,10 +306,13 @@ const AionrsSendBox: React.FC<{
     [
       checkAndUpdateTitle,
       conversation_id,
+      current_model?.id,
       current_model?.use_model,
+      isLoggedIn,
       runtimeView,
       setActiveMsgId,
       setWaitingResponse,
+      showLoginModal,
       t,
       teamPermission,
       teamSendMessage,
@@ -642,7 +656,7 @@ const AionrsSendBox: React.FC<{
         placeholder={
           current_model?.use_model
             ? t('acp.sendbox.placeholder', {
-                backend: agent_name || 'AionCLI',
+                backend: agent_name || 'AI CLI',
                 defaultValue: `Send message to {{backend}}...`,
               })
             : t('conversation.chat.noModelSelected')

@@ -11,6 +11,7 @@
   "copySuccess": "성공적으로 복사됨",
   "copyFailed": "복사 실패",
   "copyLastOutput.empty": "아직 복사할 응답이 없습니다",
+  "fillSendboxForResend": "다시 보내기 위해 입력창에 채우기",
   "copiedToClipboard": "클립보드에 복사됨",
   "downloadSuccess": "다운로드 성공",
   "downloadFailed": "다운로드 실패",

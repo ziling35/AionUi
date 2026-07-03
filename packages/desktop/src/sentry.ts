@@ -1,6 +1,6 @@
 /**
  * @license
- * Copyright 2025 AionUi (aionui.com)
+ * Copyright 2025 LingAI (lingai.com)
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -83,11 +83,11 @@ function hasBackendStartupFailed(): boolean {
 }
 
 function isBackendStartupFailureEvent(event: { tags?: Record<string, unknown> }): boolean {
-  return event.tags?.['aionui.failure'] === 'backend_startup';
+  return event.tags?.['lingai.failure'] === 'backend_startup';
 }
 
 function isUserFeedbackEvent(event: { tags?: Record<string, unknown> }): boolean {
-  return event.tags?.type === 'user-feedback' || event.tags?.['aionui.installation_integrity.user_report'] === 'true';
+  return event.tags?.type === 'user-feedback' || event.tags?.['lingai.installation_integrity.user_report'] === 'true';
 }
 
 function isBackendStartupSecondaryEvent(event: { tags?: Record<string, unknown> }, haystacks: string[]): boolean {
@@ -190,12 +190,12 @@ function getInstallPathKind(resourcesPath: unknown): string | undefined {
   if (!pathValue) return undefined;
 
   const normalized = pathValue.replace(/\//g, '\\').toLowerCase();
-  if (normalized.includes('\\appdata\\local\\programs\\aionui\\resources')) {
+  if (normalized.includes('\\appdata\\local\\programs\\lingai\\resources')) {
     return 'user_local_programs';
   }
   if (
-    normalized.includes('\\program files\\aionui\\resources') ||
-    normalized.includes('\\program files (x86)\\aionui\\resources')
+    normalized.includes('\\program files\\lingai\\resources') ||
+    normalized.includes('\\program files (x86)\\lingai\\resources')
   ) {
     return 'program_files';
   }
@@ -233,62 +233,62 @@ export async function captureBackendStartupFailure(error: unknown): Promise<void
   });
   const autoUpdateDiagnostics = readAutoUpdateDiagnostics(app.getPath('userData'));
   Sentry.withScope((scope) => {
-    scope.setTag('aionui.failure', 'backend_startup');
-    scope.setTag('aionui.backend_startup.reason', failureInfo.reason);
+    scope.setTag('lingai.failure', 'backend_startup');
+    scope.setTag('lingai.backend_startup.reason', failureInfo.reason);
     if (failureInfo.runtime) {
-      scope.setTag('aionui.backend_startup.runtime', failureInfo.runtime);
+      scope.setTag('lingai.backend_startup.runtime', failureInfo.runtime);
     }
     if (failureInfo.packageArch) {
-      scope.setTag('aionui.backend_startup.package_arch', failureInfo.packageArch);
+      scope.setTag('lingai.backend_startup.package_arch', failureInfo.packageArch);
     }
     if (failureInfo.deviceArch) {
-      scope.setTag('aionui.backend_startup.device_arch', failureInfo.deviceArch);
+      scope.setTag('lingai.backend_startup.device_arch', failureInfo.deviceArch);
     }
     if (failureInfo.expectedDownloadArch) {
-      scope.setTag('aionui.backend_startup.expected_download_arch', failureInfo.expectedDownloadArch);
+      scope.setTag('lingai.backend_startup.expected_download_arch', failureInfo.expectedDownloadArch);
     }
     if (typeof failureInfo.isRosettaTranslated === 'boolean') {
-      scope.setTag('aionui.backend_startup.rosetta_translated', getBooleanTagValue(failureInfo.isRosettaTranslated));
+      scope.setTag('lingai.backend_startup.rosetta_translated', getBooleanTagValue(failureInfo.isRosettaTranslated));
     }
     if (typeof details?.stage === 'string') {
-      scope.setTag('aionui.backend_startup.stage', details.stage);
+      scope.setTag('lingai.backend_startup.stage', details.stage);
     }
     if (failureInfo.backendBoundaryCode) {
-      scope.setTag('aionui.backend_startup.boundary_code', failureInfo.backendBoundaryCode);
+      scope.setTag('lingai.backend_startup.boundary_code', failureInfo.backendBoundaryCode);
     }
     if (failureInfo.backendBoundaryStage) {
-      scope.setTag('aionui.backend_startup.boundary_stage', failureInfo.backendBoundaryStage);
+      scope.setTag('lingai.backend_startup.boundary_stage', failureInfo.backendBoundaryStage);
     }
     if (failureInfo.localDataIssueKind) {
-      scope.setTag('aionui.backend_startup.local_data_issue_kind', failureInfo.localDataIssueKind);
+      scope.setTag('lingai.backend_startup.local_data_issue_kind', failureInfo.localDataIssueKind);
     }
     if (failureInfo.incompleteInstallationKind) {
-      scope.setTag('aionui.backend_startup.incomplete_installation_kind', failureInfo.incompleteInstallationKind);
+      scope.setTag('lingai.backend_startup.incomplete_installation_kind', failureInfo.incompleteInstallationKind);
     }
     for (const [tag, value] of [
-      ['aionui.backend_startup.missing_bundled_dir', getBooleanTagValue(failureInfo.missingBundledAioncoreDir)],
-      ['aionui.backend_startup.missing_runtime_dir', getBooleanTagValue(failureInfo.missingRuntimeDir)],
-      ['aionui.backend_startup.missing_binary', getBooleanTagValue(failureInfo.missingBackendBinary)],
-      ['aionui.backend_startup.missing_hub_dir', getBooleanTagValue(failureInfo.missingHubDir)],
-      ['aionui.backend_startup.missing_pet_states_dir', getBooleanTagValue(failureInfo.missingPetStatesDir)],
-      ['aionui.backend_startup.missing_pwa_dir', getBooleanTagValue(failureInfo.missingPwaDir)],
-      ['aionui.backend_startup.install_path_kind', getInstallPathKind(details?.resourcesPath)],
-      ['aionui.backend_startup.last_update_status', getString(autoUpdateDiagnostics?.lastEvent?.status)],
+      ['lingai.backend_startup.missing_bundled_dir', getBooleanTagValue(failureInfo.missingBundledAioncoreDir)],
+      ['lingai.backend_startup.missing_runtime_dir', getBooleanTagValue(failureInfo.missingRuntimeDir)],
+      ['lingai.backend_startup.missing_binary', getBooleanTagValue(failureInfo.missingBackendBinary)],
+      ['lingai.backend_startup.missing_hub_dir', getBooleanTagValue(failureInfo.missingHubDir)],
+      ['lingai.backend_startup.missing_pet_states_dir', getBooleanTagValue(failureInfo.missingPetStatesDir)],
+      ['lingai.backend_startup.missing_pwa_dir', getBooleanTagValue(failureInfo.missingPwaDir)],
+      ['lingai.backend_startup.install_path_kind', getInstallPathKind(details?.resourcesPath)],
+      ['lingai.backend_startup.last_update_status', getString(autoUpdateDiagnostics?.lastEvent?.status)],
       [
-        'aionui.backend_startup.health_polling_delayed',
+        'lingai.backend_startup.health_polling_delayed',
         getBooleanTagValue(
           typeof details?.healthCheckPollingDelayed === 'boolean' ? details.healthCheckPollingDelayed : undefined
         ),
       ],
-      ['aionui.backend_startup.health_attempts_bucket', getHealthAttemptBucket(details?.healthCheckAttempts)],
+      ['lingai.backend_startup.health_attempts_bucket', getHealthAttemptBucket(details?.healthCheckAttempts)],
       [
-        'aionui.backend_startup.health_attempt_deficit_bucket',
+        'lingai.backend_startup.health_attempt_deficit_bucket',
         getHealthAttemptBucket(details?.healthCheckAttemptDeficit),
       ],
-      ['aionui.backend_startup.health_timeout_overrun_bucket', getDurationBucket(details?.healthCheckTimeoutOverrunMs)],
-      ['aionui.backend_startup.health_max_attempt_gap_bucket', getDurationBucket(details?.healthCheckMaxAttemptGapMs)],
+      ['lingai.backend_startup.health_timeout_overrun_bucket', getDurationBucket(details?.healthCheckTimeoutOverrunMs)],
+      ['lingai.backend_startup.health_max_attempt_gap_bucket', getDurationBucket(details?.healthCheckMaxAttemptGapMs)],
       [
-        'aionui.backend_startup.seconds_since_quit_and_install',
+        'lingai.backend_startup.seconds_since_quit_and_install',
         getSecondsSince(autoUpdateDiagnostics?.lastQuitAndInstallAt),
       ],
     ] as const) {
@@ -505,7 +505,7 @@ async function runStartupLogReport(): Promise<void> {
 
   Sentry.withScope((scope) => {
     scope.addAttachment({
-      filename: 'aionui-logs.log.gz',
+      filename: 'lingai-logs.log.gz',
       data: pack.gzipped,
       contentType: 'application/gzip',
     });

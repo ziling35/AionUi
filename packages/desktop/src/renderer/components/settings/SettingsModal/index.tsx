@@ -1,6 +1,6 @@
 /**
  * @license
- * Copyright 2025 AionUi (aionui.com)
+ * Copyright 2025 LingAI (lingai.com)
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -12,11 +12,12 @@ import { type IExtensionSettingsTab } from '@/common/adapter/ipcBridge';
 import { useExtI18n } from '@/renderer/hooks/system/useExtI18n';
 import { useExtensionSettingsTabs } from '@/renderer/hooks/system/useExtensionSettingsTabs';
 import { Tabs } from '@arco-design/web-react';
-import { Computer, Earth, Info, LinkCloud, Puzzle, Toolkit } from '@icon-park/react';
+import { Computer, Earth, Info, LinkCloud, Puzzle, Toolkit, Wallet } from '@icon-park/react';
 import classNames from 'classnames';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import AboutModalContent from './contents/AboutModalContent';
+import AccountModalContent from './contents/AccountModalContent';
 import AgentModalContent from './contents/AgentModalContent';
 import ExtensionSettingsTabContent from './contents/ExtensionSettingsTabContent';
 import ModelModalContent from './contents/ModelModalContent';
@@ -55,7 +56,7 @@ const RESIZE_DEBOUNCE_DELAY = 150;
 /**
  * 内置设置标签页类型 / Built-in settings tab type
  */
-export type BuiltinSettingTab = 'model' | 'agent' | 'tools' | 'webui' | 'system' | 'about';
+export type BuiltinSettingTab = 'model' | 'agent' | 'tools' | 'webui' | 'system' | 'about' | 'account';
 
 /**
  * 设置标签页类型（内置 + 扩展）/ Settings tab type (built-in + extension)
@@ -191,6 +192,11 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ visible, onCancel, defaul
     // Modal built-in tabs (subset — no display/agent route pages)
     const builtinItems: MenuItem[] = [
       {
+        key: 'account',
+        label: t('settings.account'),
+        icon: <Wallet theme='outline' size='20' fill={iconColors.secondary} />,
+      },
+      {
         key: 'model',
         label: t('settings.model'),
         icon: <LinkCloud theme='outline' size='20' fill={iconColors.secondary} />,
@@ -300,6 +306,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ visible, onCancel, defaul
   // Render built-in tab content (conditional)
   const renderBuiltinContent = () => {
     switch (activeTab) {
+      case 'account':
+        return <AccountModalContent />;
       case 'model':
         return <ModelModalContent />;
       case 'agent':

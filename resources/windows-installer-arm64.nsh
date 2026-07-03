@@ -3,84 +3,84 @@
 
 !include "x64.nsh"
 
-!ifndef AIONUI_APP_PROCESS_CHECK_DEFINED
-!define AIONUI_APP_PROCESS_CHECK_DEFINED
-!define AIONUI_APP_EXECUTABLE_FILENAME "AionUi.exe"
-!define AIONUI_PROCESS_CHECK_LOG "aionui-installer-process-check.log"
+!ifndef LINGAI_APP_PROCESS_CHECK_DEFINED
+!define LINGAI_APP_PROCESS_CHECK_DEFINED
+!define LINGAI_APP_EXECUTABLE_FILENAME "LingAI.exe"
+!define LINGAI_PROCESS_CHECK_LOG "lingai-installer-process-check.log"
 
 !ifndef BUILD_UNINSTALLER
-  Var /GLOBAL AionUiUninstallHadErrors
-  Var /GLOBAL AionUiUninstallLogResult
-  Var /GLOBAL AionUiVerifyResourceResult
+  Var /GLOBAL LingAIUninstallHadErrors
+  Var /GLOBAL LingAIUninstallLogResult
+  Var /GLOBAL LingAIVerifyResourceResult
 !endif
 
-!macro AIONUI_LOG_UNINSTALLER_REPAIR _PHASE
+!macro LINGAI_LOG_UNINSTALLER_REPAIR _PHASE
   nsExec::Exec `"$SYSDIR\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -ExecutionPolicy Bypass -Command "& { \
     $$ErrorActionPreference = 'SilentlyContinue'; \
-    $$log = Join-Path $$env:TEMP '${AIONUI_PROCESS_CHECK_LOG}'; \
+    $$log = Join-Path $$env:TEMP '${LINGAI_PROCESS_CHECK_LOG}'; \
     $$path = '$INSTDIR\${UNINSTALL_FILENAME}'; \
     $$item = Get-Item -LiteralPath $$path -ErrorAction SilentlyContinue; \
     $$version = if ($$item) { $$item.VersionInfo.ProductVersion } else { '' }; \
     $$length = if ($$item) { $$item.Length } else { '' }; \
     Add-Content -LiteralPath $$log -Encoding UTF8 -Value ('[' + (Get-Date -Format o) + '] uninstaller-repair phase=${_PHASE} instDir=$INSTDIR path=' + $$path + ' exists=' + [bool]$$item + ' version=' + $$version + ' length=' + $$length) \
   }"`
-  Pop $AionUiRepairLogResult
+  Pop $LingAIRepairLogResult
 !macroend
 
-!macro AIONUI_REPAIR_INSTALLED_UNINSTALLER
-  Var /GLOBAL AionUiInstalledUninstaller
-  Var /GLOBAL AionUiBundledUninstaller
-  Var /GLOBAL AionUiRepairLogResult
+!macro LINGAI_REPAIR_INSTALLED_UNINSTALLER
+  Var /GLOBAL LingAIInstalledUninstaller
+  Var /GLOBAL LingAIBundledUninstaller
+  Var /GLOBAL LingAIRepairLogResult
 
-  !insertmacro AIONUI_LOG_UNINSTALLER_REPAIR "before"
-  StrCpy $AionUiInstalledUninstaller "$INSTDIR\${UNINSTALL_FILENAME}"
+  !insertmacro LINGAI_LOG_UNINSTALLER_REPAIR "before"
+  StrCpy $LingAIInstalledUninstaller "$INSTDIR\${UNINSTALL_FILENAME}"
 
-  ${If} ${FileExists} "$AionUiInstalledUninstaller"
+  ${If} ${FileExists} "$LingAIInstalledUninstaller"
     InitPluginsDir
-    StrCpy $AionUiBundledUninstaller "$PLUGINSDIR\AionUi-fixed-uninstaller.exe"
+    StrCpy $LingAIBundledUninstaller "$PLUGINSDIR\LingAI-fixed-uninstaller.exe"
     SetOverwrite on
-    File "/oname=$PLUGINSDIR\AionUi-fixed-uninstaller.exe" "${UNINSTALLER_OUT_FILE}"
+    File "/oname=$PLUGINSDIR\LingAI-fixed-uninstaller.exe" "${UNINSTALLER_OUT_FILE}"
 
     ClearErrors
-    CopyFiles /SILENT "$AionUiBundledUninstaller" "$AionUiInstalledUninstaller"
+    CopyFiles /SILENT "$LingAIBundledUninstaller" "$LingAIInstalledUninstaller"
     ${If} ${Errors}
-      !insertmacro AIONUI_LOG_UNINSTALLER_REPAIR "copy-failed"
-      MessageBox MB_OK|MB_ICONEXCLAMATION "AionUi cannot update because the existing uninstaller is locked.$\r$\n$\r$\nPlease close AionUi completely and try again. If it still fails, restart Windows and run this installer again.$\r$\n$\r$\nIf the problem continues, uninstall the old AionUi from Windows Settings, then run this installer again."
+      !insertmacro LINGAI_LOG_UNINSTALLER_REPAIR "copy-failed"
+      MessageBox MB_OK|MB_ICONEXCLAMATION "LingAI cannot update because the existing uninstaller is locked.$\r$\n$\r$\nPlease close LingAI completely and try again. If it still fails, restart Windows and run this installer again.$\r$\n$\r$\nIf the problem continues, uninstall the old LingAI from Windows Settings, then run this installer again."
       SetErrorLevel 2
       Quit
     ${Else}
-      !insertmacro AIONUI_LOG_UNINSTALLER_REPAIR "after-copy"
+      !insertmacro LINGAI_LOG_UNINSTALLER_REPAIR "after-copy"
     ${EndIf}
   ${Else}
-    !insertmacro AIONUI_LOG_UNINSTALLER_REPAIR "missing"
+    !insertmacro LINGAI_LOG_UNINSTALLER_REPAIR "missing"
   ${EndIf}
 !macroend
 
-!macro AIONUI_LOG_UNINSTALL_RESULT _ROOT_KEY _HAD_ERRORS
+!macro LINGAI_LOG_UNINSTALL_RESULT _ROOT_KEY _HAD_ERRORS
   nsExec::Exec `"$SYSDIR\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -ExecutionPolicy Bypass -Command "& { \
     $$ErrorActionPreference = 'SilentlyContinue'; \
-    $$log = Join-Path $$env:TEMP '${AIONUI_PROCESS_CHECK_LOG}'; \
+    $$log = Join-Path $$env:TEMP '${LINGAI_PROCESS_CHECK_LOG}'; \
     Add-Content -LiteralPath $$log -Encoding UTF8 -Value ('[' + (Get-Date -Format o) + '] uninstall-result root=${_ROOT_KEY} launchErrors=${_HAD_ERRORS} exitCode=$R0 instDir=$INSTDIR') \
   }"`
-  Pop $AionUiUninstallLogResult
+  Pop $LingAIUninstallLogResult
 !macroend
 
-!macro AIONUI_LOG_EVENT _MESSAGE
+!macro LINGAI_LOG_EVENT _MESSAGE
   Push $9
   nsExec::Exec `"$SYSDIR\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -ExecutionPolicy Bypass -Command "& { \
     $$ErrorActionPreference = 'SilentlyContinue'; \
-    $$log = Join-Path $$env:TEMP '${AIONUI_PROCESS_CHECK_LOG}'; \
+    $$log = Join-Path $$env:TEMP '${LINGAI_PROCESS_CHECK_LOG}'; \
     Add-Content -LiteralPath $$log -Encoding UTF8 -Value ('[' + (Get-Date -Format o) + '] ${_MESSAGE}') \
   }"`
   Pop $9
   Pop $9
 !macroend
 
-!macro AIONUI_LOG_ATOMIC_REMOVE_FAILURE
+!macro LINGAI_LOG_ATOMIC_REMOVE_FAILURE
   Push $9
   nsExec::Exec `"$SYSDIR\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -ExecutionPolicy Bypass -Command "& { \
     $$ErrorActionPreference = 'SilentlyContinue'; \
-    $$log = Join-Path $$env:TEMP '${AIONUI_PROCESS_CHECK_LOG}'; \
+    $$log = Join-Path $$env:TEMP '${LINGAI_PROCESS_CHECK_LOG}'; \
     $$failed = '$R0'; \
     $$instDir = '$INSTDIR'; \
     $$oldInstallDir = '$PLUGINSDIR\old-install'; \
@@ -94,10 +94,10 @@
   Pop $9
 !macroend
 
-!macro AIONUI_REMOVE_INSTALL_DIR
+!macro LINGAI_REMOVE_INSTALL_DIR
   nsExec::Exec `"$SYSDIR\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -ExecutionPolicy Bypass -Command "& { \
     $$ErrorActionPreference = 'Stop'; \
-    $$log = Join-Path $$env:TEMP '${AIONUI_PROCESS_CHECK_LOG}'; \
+    $$log = Join-Path $$env:TEMP '${LINGAI_PROCESS_CHECK_LOG}'; \
     $$path = [System.IO.Path]::GetFullPath('$INSTDIR'); \
     try { \
       if (Test-Path -LiteralPath $$path) { \
@@ -111,15 +111,15 @@
       exit 1 \
     } \
   }"`
-  Pop $AionUiRemoveDirResult
+  Pop $LingAIRemoveDirResult
 !macroend
 
-!macro AIONUI_FIND_APP_PROCESS _RETURN
+!macro LINGAI_FIND_APP_PROCESS _RETURN
   nsExec::Exec `"$PowerShellPath" -NoProfile -ExecutionPolicy Bypass -Command "& { \
     $$ErrorActionPreference = 'SilentlyContinue'; \
-    $$log = Join-Path $$env:TEMP '${AIONUI_PROCESS_CHECK_LOG}'; \
+    $$log = Join-Path $$env:TEMP '${LINGAI_PROCESS_CHECK_LOG}'; \
     $$instDir = '$INSTDIR'; \
-    $$target = [System.IO.Path]::GetFullPath((Join-Path $$instDir '${AIONUI_APP_EXECUTABLE_FILENAME}')); \
+    $$target = [System.IO.Path]::GetFullPath((Join-Path $$instDir '${LINGAI_APP_EXECUTABLE_FILENAME}')); \
     $$psProc = @(Get-CimInstance -ClassName Win32_Process | Where-Object { $$_.ProcessId -eq $$PID })[0]; \
     $$installerPid = $$psProc.ParentProcessId; \
     $$hits = @(Get-CimInstance -ClassName Win32_Process | Where-Object { \
@@ -127,7 +127,7 @@
       $$cmd = $$_.CommandLine; \
       if (-not $$path) { $$path = $$_.Path } \
       $$_.ProcessId -ne $$installerPid -and \
-      $$_.Name -ieq '${AIONUI_APP_EXECUTABLE_FILENAME}' -and \
+      $$_.Name -ieq '${LINGAI_APP_EXECUTABLE_FILENAME}' -and \
       $$path -and \
       $$cmd -notmatch '--type=' -and \
       [string]::Equals([System.IO.Path]::GetFullPath($$path), $$target, [System.StringComparison]::CurrentCultureIgnoreCase) \
@@ -139,12 +139,12 @@
   Pop ${_RETURN}
 !macroend
 
-!macro AIONUI_STOP_APP_PROCESSES
+!macro LINGAI_STOP_APP_PROCESSES
   nsExec::Exec `"$PowerShellPath" -NoProfile -ExecutionPolicy Bypass -Command "& { \
     $$ErrorActionPreference = 'SilentlyContinue'; \
-    $$log = Join-Path $$env:TEMP '${AIONUI_PROCESS_CHECK_LOG}'; \
+    $$log = Join-Path $$env:TEMP '${LINGAI_PROCESS_CHECK_LOG}'; \
     $$instDir = '$INSTDIR'; \
-    $$target = [System.IO.Path]::GetFullPath((Join-Path $$instDir '${AIONUI_APP_EXECUTABLE_FILENAME}')); \
+    $$target = [System.IO.Path]::GetFullPath((Join-Path $$instDir '${LINGAI_APP_EXECUTABLE_FILENAME}')); \
     $$psProc = @(Get-CimInstance -ClassName Win32_Process | Where-Object { $$_.ProcessId -eq $$PID })[0]; \
     $$installerPid = $$psProc.ParentProcessId; \
     $$all = @(Get-CimInstance -ClassName Win32_Process); \
@@ -153,7 +153,7 @@
       $$cmd = $$_.CommandLine; \
       if (-not $$path) { $$path = $$_.Path } \
       $$_.ProcessId -ne $$installerPid -and \
-      $$_.Name -ieq '${AIONUI_APP_EXECUTABLE_FILENAME}' -and \
+      $$_.Name -ieq '${LINGAI_APP_EXECUTABLE_FILENAME}' -and \
       $$path -and \
       $$cmd -notmatch '--type=' -and \
       [string]::Equals([System.IO.Path]::GetFullPath($$path), $$target, [System.StringComparison]::CurrentCultureIgnoreCase) \
@@ -170,101 +170,101 @@
     foreach ($$id in ($$ids | Sort-Object -Descending)) { Stop-Process -Id $$id -Force -ErrorAction SilentlyContinue } \
     exit 0 \
   }"`
-  Pop $AionUiStopResult
+  Pop $LingAIStopResult
 !macroend
 
 !macro customCheckAppRunning
-  Var /GLOBAL AionUiCheckResult
-  Var /GLOBAL AionUiCloseRetries
-  Var /GLOBAL AionUiStopResult
+  Var /GLOBAL LingAICheckResult
+  Var /GLOBAL LingAICloseRetries
+  Var /GLOBAL LingAIStopResult
 
-  !insertmacro AIONUI_FIND_APP_PROCESS $AionUiCheckResult
-  ${If} $AionUiCheckResult == 0
-    MessageBox MB_OKCANCEL|MB_ICONEXCLAMATION "$(appRunning)" /SD IDOK IDOK aionui_do_stop_process
+  !insertmacro LINGAI_FIND_APP_PROCESS $LingAICheckResult
+  ${If} $LingAICheckResult == 0
+    MessageBox MB_OKCANCEL|MB_ICONEXCLAMATION "$(appRunning)" /SD IDOK IDOK lingai_do_stop_process
     Quit
 
-    aionui_do_stop_process:
+    lingai_do_stop_process:
       DetailPrint "$(appClosing)"
-      !insertmacro AIONUI_STOP_APP_PROCESSES
-      StrCpy $AionUiCloseRetries 0
+      !insertmacro LINGAI_STOP_APP_PROCESSES
+      StrCpy $LingAICloseRetries 0
 
-    aionui_wait_for_close:
+    lingai_wait_for_close:
       Sleep 1000
-      !insertmacro AIONUI_FIND_APP_PROCESS $AionUiCheckResult
-      ${If} $AionUiCheckResult == 0
-        IntOp $AionUiCloseRetries $AionUiCloseRetries + 1
-        ${If} $AionUiCloseRetries > 10
-          MessageBox MB_RETRYCANCEL|MB_ICONEXCLAMATION "$(appCannotBeClosed)" /SD IDCANCEL IDRETRY aionui_wait_for_close
+      !insertmacro LINGAI_FIND_APP_PROCESS $LingAICheckResult
+      ${If} $LingAICheckResult == 0
+        IntOp $LingAICloseRetries $LingAICloseRetries + 1
+        ${If} $LingAICloseRetries > 10
+          MessageBox MB_RETRYCANCEL|MB_ICONEXCLAMATION "$(appCannotBeClosed)" /SD IDCANCEL IDRETRY lingai_wait_for_close
           Quit
         ${Else}
-          !insertmacro AIONUI_STOP_APP_PROCESSES
-          Goto aionui_wait_for_close
+          !insertmacro LINGAI_STOP_APP_PROCESSES
+          Goto lingai_wait_for_close
         ${EndIf}
       ${EndIf}
   ${EndIf}
 !macroend
 
 !macro customInit
-  !insertmacro AIONUI_REPAIR_INSTALLED_UNINSTALLER
+  !insertmacro LINGAI_REPAIR_INSTALLED_UNINSTALLER
 !macroend
 
-!macro AIONUI_VERIFY_REQUIRED_FILE _PATH _LABEL
+!macro LINGAI_VERIFY_REQUIRED_FILE _PATH _LABEL
   ${IfNot} ${FileExists} "${_PATH}"
-    !insertmacro AIONUI_LOG_EVENT "verify-required-file missing label=${_LABEL} path=${_PATH}"
+    !insertmacro LINGAI_LOG_EVENT "verify-required-file missing label=${_LABEL} path=${_PATH}"
     MessageBox MB_OK|MB_ICONSTOP \
-      "AionUi installation is incomplete.$\n$\n\
+      "LingAI installation is incomplete.$\n$\n\
       Missing required file: ${_LABEL}$\n\
       Path: ${_PATH}$\n$\n\
-      Please reinstall AionUi or download a newer installer." \
+      Please reinstall LingAI or download a newer installer." \
       /SD IDOK
     SetErrorLevel 3
     Quit
   ${Else}
-    !insertmacro AIONUI_LOG_EVENT "verify-required-file ok label=${_LABEL} path=${_PATH}"
+    !insertmacro LINGAI_LOG_EVENT "verify-required-file ok label=${_LABEL} path=${_PATH}"
   ${EndIf}
 !macroend
 
-!macro AIONUI_VERIFY_ARM64_APP_FILES
-  !insertmacro AIONUI_LOG_EVENT "verify-install start instDir=$INSTDIR"
-  !insertmacro AIONUI_VERIFY_REQUIRED_FILE "$INSTDIR\AionUi.exe" "AionUi.exe"
-  !insertmacro AIONUI_VERIFY_REQUIRED_FILE "$INSTDIR\ffmpeg.dll" "ffmpeg.dll"
-  !insertmacro AIONUI_VERIFY_REQUIRED_FILE "$INSTDIR\libEGL.dll" "libEGL.dll"
-  !insertmacro AIONUI_VERIFY_REQUIRED_FILE "$INSTDIR\libGLESv2.dll" "libGLESv2.dll"
-  !insertmacro AIONUI_VERIFY_REQUIRED_FILE "$INSTDIR\d3dcompiler_47.dll" "d3dcompiler_47.dll"
-  !insertmacro AIONUI_VERIFY_REQUIRED_FILE "$INSTDIR\dxcompiler.dll" "dxcompiler.dll"
-  !insertmacro AIONUI_VERIFY_REQUIRED_FILE "$INSTDIR\dxil.dll" "dxil.dll"
-  !insertmacro AIONUI_VERIFY_REQUIRED_FILE "$INSTDIR\vk_swiftshader.dll" "vk_swiftshader.dll"
-  !insertmacro AIONUI_VERIFY_REQUIRED_FILE "$INSTDIR\vulkan-1.dll" "vulkan-1.dll"
-  !insertmacro AIONUI_VERIFY_REQUIRED_FILE "$INSTDIR\resources\app.asar" "resources\app.asar"
+!macro LINGAI_VERIFY_ARM64_APP_FILES
+  !insertmacro LINGAI_LOG_EVENT "verify-install start instDir=$INSTDIR"
+  !insertmacro LINGAI_VERIFY_REQUIRED_FILE "$INSTDIR\LingAI.exe" "LingAI.exe"
+  !insertmacro LINGAI_VERIFY_REQUIRED_FILE "$INSTDIR\ffmpeg.dll" "ffmpeg.dll"
+  !insertmacro LINGAI_VERIFY_REQUIRED_FILE "$INSTDIR\libEGL.dll" "libEGL.dll"
+  !insertmacro LINGAI_VERIFY_REQUIRED_FILE "$INSTDIR\libGLESv2.dll" "libGLESv2.dll"
+  !insertmacro LINGAI_VERIFY_REQUIRED_FILE "$INSTDIR\d3dcompiler_47.dll" "d3dcompiler_47.dll"
+  !insertmacro LINGAI_VERIFY_REQUIRED_FILE "$INSTDIR\dxcompiler.dll" "dxcompiler.dll"
+  !insertmacro LINGAI_VERIFY_REQUIRED_FILE "$INSTDIR\dxil.dll" "dxil.dll"
+  !insertmacro LINGAI_VERIFY_REQUIRED_FILE "$INSTDIR\vk_swiftshader.dll" "vk_swiftshader.dll"
+  !insertmacro LINGAI_VERIFY_REQUIRED_FILE "$INSTDIR\vulkan-1.dll" "vulkan-1.dll"
+  !insertmacro LINGAI_VERIFY_REQUIRED_FILE "$INSTDIR\resources\app.asar" "resources\app.asar"
 !macroend
 
-!macro AIONUI_VERIFY_BUNDLED_AIONCORE_RESOURCES _RUNTIME_KEY
+!macro LINGAI_VERIFY_BUNDLED_AIONCORE_RESOURCES _RUNTIME_KEY
   InitPluginsDir
   File "/oname=$PLUGINSDIR\verify-bundled-aioncore-install.ps1" "${PROJECT_DIR}\resources\verify-bundled-aioncore-install.ps1"
-  nsExec::Exec `"$SYSDIR\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -ExecutionPolicy Bypass -File "$PLUGINSDIR\verify-bundled-aioncore-install.ps1" -InstallDir "$INSTDIR" -RuntimeKey "${_RUNTIME_KEY}" -LogPath "$TEMP\${AIONUI_PROCESS_CHECK_LOG}"`
-  Pop $AionUiVerifyResourceResult
+  nsExec::Exec `"$SYSDIR\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -ExecutionPolicy Bypass -File "$PLUGINSDIR\verify-bundled-aioncore-install.ps1" -InstallDir "$INSTDIR" -RuntimeKey "${_RUNTIME_KEY}" -LogPath "$TEMP\${LINGAI_PROCESS_CHECK_LOG}"`
+  Pop $LingAIVerifyResourceResult
 
-  ${If} $AionUiVerifyResourceResult != 0
+  ${If} $LingAIVerifyResourceResult != 0
     Abort `Bundled AionCore resources are incomplete after installation.`
   ${EndIf}
 !macroend
 
 !macro customInstall
-  !insertmacro AIONUI_VERIFY_ARM64_APP_FILES
-  !insertmacro AIONUI_VERIFY_BUNDLED_AIONCORE_RESOURCES "win32-arm64"
-  !insertmacro AIONUI_LOG_EVENT "verify-install ok instDir=$INSTDIR"
+  !insertmacro LINGAI_VERIFY_ARM64_APP_FILES
+  !insertmacro LINGAI_VERIFY_BUNDLED_AIONCORE_RESOURCES "win32-arm64"
+  !insertmacro LINGAI_LOG_EVENT "verify-install ok instDir=$INSTDIR"
 !macroend
 
-!macro AIONUI_HANDLE_UNINSTALL_RESULT _ROOT_KEY
+!macro LINGAI_HANDLE_UNINSTALL_RESULT _ROOT_KEY
   ${If} ${Errors}
-    StrCpy $AionUiUninstallHadErrors "1"
+    StrCpy $LingAIUninstallHadErrors "1"
   ${Else}
-    StrCpy $AionUiUninstallHadErrors "0"
+    StrCpy $LingAIUninstallHadErrors "0"
   ${EndIf}
 
-  !insertmacro AIONUI_LOG_UNINSTALL_RESULT "${_ROOT_KEY}" "$AionUiUninstallHadErrors"
+  !insertmacro LINGAI_LOG_UNINSTALL_RESULT "${_ROOT_KEY}" "$LingAIUninstallHadErrors"
 
-  ${If} $AionUiUninstallHadErrors == "1"
+  ${If} $LingAIUninstallHadErrors == "1"
     DetailPrint `Uninstall was not successful. Not able to launch uninstaller!`
     Return
   ${EndIf}
@@ -278,25 +278,25 @@
 !macroend
 
 !macro customUnInstallCheck
-  !insertmacro AIONUI_HANDLE_UNINSTALL_RESULT "SHELL_CONTEXT"
+  !insertmacro LINGAI_HANDLE_UNINSTALL_RESULT "SHELL_CONTEXT"
 !macroend
 
 !macro customUnInstallCheckCurrentUser
-  !insertmacro AIONUI_HANDLE_UNINSTALL_RESULT "HKEY_CURRENT_USER"
+  !insertmacro LINGAI_HANDLE_UNINSTALL_RESULT "HKEY_CURRENT_USER"
 !macroend
 
 !macro customUnInit
-  !insertmacro AIONUI_LOG_EVENT "uninit instDir=$INSTDIR"
+  !insertmacro LINGAI_LOG_EVENT "uninit instDir=$INSTDIR"
 !macroend
 
 !macro customUnInstall
-  !insertmacro AIONUI_LOG_EVENT "uninstall-section start instDir=$INSTDIR"
+  !insertmacro LINGAI_LOG_EVENT "uninstall-section start instDir=$INSTDIR"
 !macroend
 
 !macro customRemoveFiles
-  !insertmacro AIONUI_LOG_EVENT "remove-start instDir=$INSTDIR"
+  !insertmacro LINGAI_LOG_EVENT "remove-start instDir=$INSTDIR"
   StrCpy $R1 ""
-  Var /GLOBAL AionUiRemoveDirResult
+  Var /GLOBAL LingAIRemoveDirResult
 
   ${if} ${isUpdated}
     CreateDirectory "$PLUGINSDIR\old-install"
@@ -304,23 +304,23 @@
     Push ""
     Call un.atomicRMDir
     Pop $R0
-    !insertmacro AIONUI_LOG_EVENT "remove-atomic result=$R0"
+    !insertmacro LINGAI_LOG_EVENT "remove-atomic result=$R0"
 
     ${if} $R0 != 0
       DetailPrint "Atomic update cleanup failed; restoring previous installation before recursive cleanup: $R0"
-      !insertmacro AIONUI_LOG_ATOMIC_REMOVE_FAILURE
+      !insertmacro LINGAI_LOG_ATOMIC_REMOVE_FAILURE
       StrCpy $R1 $R0
 
       Push ""
       Call un.restoreFiles
       Pop $R0
-      !insertmacro AIONUI_LOG_EVENT "remove-restore result=$R0"
+      !insertmacro LINGAI_LOG_EVENT "remove-restore result=$R0"
     ${endif}
   ${endif}
 
   SetOutPath $TEMP
-  !insertmacro AIONUI_REMOVE_INSTALL_DIR
-  ${if} $AionUiRemoveDirResult != 0
+  !insertmacro LINGAI_REMOVE_INSTALL_DIR
+  ${if} $LingAIRemoveDirResult != 0
     ${if} $R1 != ""
       DetailPrint `Can't safely remove previous installation after atomic cleanup failed. First failed path: $R1`
     ${else}
@@ -329,7 +329,7 @@
     SetErrorLevel 2
     Quit
   ${else}
-    !insertmacro AIONUI_LOG_EVENT "remove-final errors=0 instDir=$INSTDIR"
+    !insertmacro LINGAI_LOG_EVENT "remove-final errors=0 instDir=$INSTDIR"
   ${endif}
 !macroend
 !endif
@@ -342,9 +342,9 @@ Function .onVerifyInstDir
     ; System is not ARM64
     MessageBox MB_OK|MB_ICONSTOP \
       "Installation package architecture mismatch$\n$\n\
-      This AionUi installer is designed for ARM64 architecture.$\n$\n\
+      This LingAI installer is designed for ARM64 architecture.$\n$\n\
       Your system does not support ARM64. Please download the appropriate version for your architecture.$\n$\n\
-      Download: https://github.com/iOfficeAI/AionUi/releases"
+      Download: https://github.com/iOfficeAI/LingAI/releases"
     Quit
   ${EndIf}
 FunctionEnd

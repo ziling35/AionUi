@@ -13,7 +13,7 @@ const useConfigModelListWithImage = () => {
       const platformLower = platform.platform?.toLowerCase() || '';
       const hasImageModel = nextPlatform.models.some((m) => {
         const name = m.toLowerCase();
-        return name.includes('image') || name.includes('imagine');
+        return name.includes('image') || name.includes('imagine') || name.includes('nano-banana');
       });
 
       // 根据不同平台确保有对应的图像模型

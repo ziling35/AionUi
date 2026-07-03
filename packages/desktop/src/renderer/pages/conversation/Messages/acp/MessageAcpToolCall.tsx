@@ -1,6 +1,6 @@
 /**
  * @license
- * Copyright 2025 AionUi (aionui.com)
+ * Copyright 2025 LingAI (lingai.com)
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -11,10 +11,9 @@ import LocalImageView from '@/renderer/components/media/LocalImageView';
 import { useDiffPreviewHandlers } from '@/renderer/hooks/file/useDiffPreviewHandlers';
 import { parseDiff } from '@/renderer/utils/file/diffUtils';
 import { downloadFileFromPath } from '@/renderer/utils/file/download';
-import { Button, Card, Message, Tag, Tooltip } from '@arco-design/web-react';
+import { Button, Card, Message, Tag, Tooltip, Spin } from '@arco-design/web-react';
 import { Download } from '@icon-park/react';
-import { createTwoFilesPatch } from 'diff';
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import MarkdownView from '@renderer/components/Markdown';
 
@@ -41,21 +40,62 @@ const DiffContentView: React.FC<{ old_text: string; new_text: string; path: stri
   path,
 }) => {
   const display_name = path.split(/[/\\]/).pop() || path || 'Unknown file';
-  const formattedDiff = useMemo(
-    () => createTwoFilesPatch(display_name, display_name, old_text, new_text, '', '', { context: 3 }),
-    [display_name, old_text, new_text]
-  );
-  const fileInfo = useMemo(() => parseDiff(formattedDiff, display_name), [formattedDiff, display_name]);
+  const [diffState, setDiffState] = useState<{
+    isLoading: boolean;
+    formattedDiff: string;
+    fileInfo: any | null;
+  }>({
+    isLoading: true,
+    formattedDiff: '',
+    fileInfo: null,
+  });
+
+  useEffect(() => {
+    setDiffState(prev => ({ ...prev, isLoading: true }));
+    const worker = new Worker(new URL('../../../../utils/file/diffWorker.ts', import.meta.url), { type: 'module' });
+    const id = Date.now().toString();
+    
+    worker.onmessage = (e) => {
+      if (e.data.id === id) {
+        if (e.data.error) {
+          console.error('Diff generation error:', e.data.error);
+          setDiffState({ isLoading: false, formattedDiff: '', fileInfo: null });
+        } else {
+          setDiffState({
+            isLoading: false,
+            formattedDiff: e.data.formattedDiff,
+            fileInfo: e.data.fileInfo,
+          });
+        }
+        worker.terminate();
+      }
+    };
+    worker.postMessage({ id, old_text, new_text, path });
+    return () => worker.terminate();
+  }, [old_text, new_text, path]);
+
   const { handleFileClick, handleDiffClick } = useDiffPreviewHandlers({
-    diffText: formattedDiff,
+    diffText: diffState.formattedDiff,
     display_name,
     file_path: path || display_name,
   });
 
+  if (diffState.isLoading) {
+    return (
+      <div className="flex items-center justify-center p-4 mt-3 bg-1 rounded border">
+        <Spin tip="Generating diff..." />
+      </div>
+    );
+  }
+
+  if (!diffState.fileInfo) {
+    return <div className="p-2 text-t-secondary text-sm">Failed to generate diff.</div>;
+  }
+
   return (
     <FileChangesPanel
       title={display_name}
-      files={[fileInfo]}
+      files={[diffState.fileInfo]}
       onFileClick={handleFileClick}
       onDiffClick={handleDiffClick}
       defaultExpanded={true}

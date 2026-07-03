@@ -1,10 +1,10 @@
 {
-  "name": "@aionui/desktop",
+  "name": "@lingai/desktop",
   "version": "0.0.0",
   "private": true,
-  "description": "AionUi desktop Electron application",
+  "description": "LingAI desktop Electron application",
   "main": "../../out/main/index.js",
   "dependencies": {
-    "@aionui/web-host": "workspace:*"
+    "@lingai/web-host": "workspace:*"
   }
 }

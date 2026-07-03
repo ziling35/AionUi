@@ -1,6 +1,6 @@
 /**
  * @license
- * Copyright 2025 AionUi (aionui.com)
+ * Copyright 2025 LingAI (lingai.com)
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -17,7 +17,7 @@ describe('build-with-builder', () => {
     const script = readFileSync(resolve(repoRoot, `resources/windows-installer-${arch}.nsh`), 'utf8');
 
     expect(script).toContain('!macro customCheckAppRunning');
-    expect(script).toContain('${AIONUI_APP_EXECUTABLE_FILENAME}');
+    expect(script).toContain('${LINGAI_APP_EXECUTABLE_FILENAME}');
     expect(script).toContain('Join-Path $$instDir');
     expect(script).toContain('[System.IO.Path]::GetFullPath($$path)');
     expect(script).not.toContain("StartsWith('$INSTDIR'");
@@ -33,7 +33,7 @@ describe('build-with-builder', () => {
       expectedArch: 'x64',
     },
   ])('prepares bundled AionCore for $expectedArch with args $args', ({ args, expectedArch }) => {
-    const tempDir = mkdtempSync(join(tmpdir(), 'aionui-build-test-'));
+    const tempDir = mkdtempSync(join(tmpdir(), 'lingai-build-test-'));
     const hookPath = join(tempDir, 'hook.cjs');
     const callsPath = join(tempDir, 'prepare-calls.json');
 
@@ -48,7 +48,7 @@ const path = require('node:path');
 const originalLoad = Module._load;
 
 function recordPrepareCall(options) {
-  const callsPath = process.env.AIONUI_PREPARE_CALLS_FILE;
+  const callsPath = process.env.LINGAI_PREPARE_CALLS_FILE;
   const calls = fs.existsSync(callsPath) ? JSON.parse(fs.readFileSync(callsPath, 'utf8')) : [];
   calls.push(options ?? null);
   fs.writeFileSync(callsPath, JSON.stringify(calls));
@@ -100,7 +100,7 @@ childProcess.execSync = function mockedExecSync(command) {
         encoding: 'utf8',
         env: {
           ...process.env,
-          AIONUI_PREPARE_CALLS_FILE: callsPath,
+          LINGAI_PREPARE_CALLS_FILE: callsPath,
           NODE_OPTIONS: [process.env.NODE_OPTIONS, `--require=${hookPath}`].filter(Boolean).join(' '),
         },
       });

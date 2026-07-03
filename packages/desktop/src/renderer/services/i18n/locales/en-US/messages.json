@@ -11,6 +11,7 @@
   "copySuccess": "Copied successfully",
   "copyFailed": "Failed to copy",
   "copyLastOutput.empty": "No response to copy yet",
+  "fillSendboxForResend": "Fill input to resend",
   "copiedToClipboard": "Copied to clipboard",
   "downloadSuccess": "Download successful",
   "downloadFailed": "Failed to download",

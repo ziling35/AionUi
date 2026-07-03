@@ -1,6 +1,6 @@
 /**
  * @license
- * Copyright 2025 AionUi (aionui.com)
+ * Copyright 2025 LingAI (lingai.com)
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -476,7 +476,7 @@ export const application = {
   ),
   getPath: bridge.buildProvider<string, { name: 'desktop' | 'home' | 'downloads' }>('app.get-path'),
   // Electron-local: copies cache dir + persists to ProcessEnv, paired with restart.
-  // The backend reads AIONUI_*_DIR env vars on boot, so it does not own this config.
+  // The backend reads LINGAI_*_DIR env vars on boot, so it does not own this config.
   updateSystemInfo: bridge.buildProvider<void, { cacheDir: string; workDir: string; logDir?: string }>(
     'update-system-info'
   ),

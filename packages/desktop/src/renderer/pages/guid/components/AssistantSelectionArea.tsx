@@ -1,6 +1,6 @@
 /**
  * @license
- * Copyright 2025 AionUi (aionui.com)
+ * Copyright 2025 LingAI (lingai.com)
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -12,6 +12,7 @@ import React, { useMemo, useState } from 'react';
 import { resolveAssistantAvatar } from '@/renderer/utils/model/assistantAvatar';
 import { selectableAssistants } from '@/renderer/utils/model/assistantSelection';
 import { useTranslation } from 'react-i18next';
+import appLogo from '@renderer/assets/logos/brand/app.png';
 
 type AssistantSelectionAreaProps = {
   selectedAssistantId?: string | null;
@@ -60,9 +61,13 @@ const AssistantSelectionArea: React.FC<AssistantSelectionAreaProps> = ({
   if (enabledAssistants.length === 0) return null;
 
   const renderAssistantPill = (assistant: Assistant, testId: string) => {
-    const avatar = resolveAssistantAvatar(assistant.avatar);
+    const runtimeKey = assistantRuntimeKey(assistant);
+    const isAiCliAssistant = assistant.name === 'Aion CLI' || assistant.name === 'AI CLI';
+    const isLingAiButler = assistant.id === 'aionui-assistant';
+    const avatar = isAiCliAssistant || isLingAiButler ? { kind: 'image' as const, value: appLogo } : resolveAssistantAvatar(assistant.avatar);
     const isSelected = selectedId === assistant.id;
-    const label = assistant.name_i18n?.[localeKey] || assistant.name;
+    const rawLabel = assistant.name_i18n?.[localeKey] || assistant.name;
+    const label = isAiCliAssistant ? 'AI CLI' : isLingAiButler ? 'LingAI \u7ba1\u5bb6' : rawLabel;
 
     return (
       <Button

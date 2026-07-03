@@ -1,6 +1,6 @@
 /**
  * @license
- * Copyright 2025 AionUi (aionui.com)
+ * Copyright 2025 LingAI (lingai.com)
  * SPDX-License-Identifier: Apache-2.0
  *
  * Render test for the LocalAgents settings surface. Its purpose is to lock in
@@ -103,7 +103,7 @@ import type { Assistant } from '@/common/types/agent/assistantTypes';
 const makeAgents = () => [
   {
     id: 'aionrs',
-    name: 'Aion CLI',
+    name: 'AI CLI',
     agent_type: 'aionrs',
     agent_source: 'internal',
     backend: 'aionrs',
@@ -199,7 +199,7 @@ describe('LocalAgents', () => {
 
     // Proves L30 (useManagedAgents) ran and fed the derived lists.
     expect(useManagedAgents).toHaveBeenCalled();
-    expect(screen.getByText('Aion CLI')).toBeTruthy();
+    expect(screen.getByText('AI CLI')).toBeTruthy();
     expect(screen.getByText('Claude Code')).toBeTruthy();
     expect(screen.getByText('My Agent')).toBeTruthy();
   });
@@ -244,7 +244,7 @@ describe('LocalAgents', () => {
     render(<LocalAgents />);
 
     expect(screen.getByText('settings.agentManagement.refreshingStatuses')).toBeInTheDocument();
-    expect(screen.getByText('Aion CLI')).toBeInTheDocument();
+    expect(screen.getByText('AI CLI')).toBeInTheDocument();
   });
 
   it('renders official agents as diagnostics cards and filters out deprecated types', () => {
@@ -257,7 +257,7 @@ describe('LocalAgents', () => {
     render(<LocalAgents />);
 
     // Agent names render
-    expect(screen.getByText('Aion CLI')).toBeInTheDocument();
+    expect(screen.getByText('AI CLI')).toBeInTheDocument();
     expect(screen.getByText('Claude Code')).toBeInTheDocument();
     // Deprecated openclaw-gateway agent is filtered out
     expect(screen.queryByText('OpenClaw Gateway')).toBeNull();
@@ -290,7 +290,7 @@ describe('LocalAgents', () => {
 
     fireEvent.click(screen.getByText('settings.agentManagement.localAgentsSetupLink'));
 
-    expect(openExternalUrl).toHaveBeenCalledWith('https://github.com/iOfficeAI/AionUi/wiki/ACP-Setup');
+    expect(openExternalUrl).toHaveBeenCalledWith('https://github.com/iOfficeAI/LingAI/wiki/ACP-Setup');
   });
 
   it('binds assistants to managed agents by agent_id instead of runtime backend', () => {
@@ -361,7 +361,7 @@ describe('LocalAgents', () => {
       </MemoryRouter>
     );
 
-    expect(screen.getByText('Aion CLI')).toBeInTheDocument();
+    expect(screen.getByText('AI CLI')).toBeInTheDocument();
     expect(screen.queryByText('settings.agentManagement.localAgents')).toBeNull();
   });
 

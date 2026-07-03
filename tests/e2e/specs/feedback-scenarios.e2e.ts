@@ -26,7 +26,7 @@ async function closeFeedbackModal(page: Page) {
   // ModalWrapper renders the feedback modal with a dedicated custom close
   // button class — scoped to avoid matching the Agent editor's AionModal
   // close button (which uses aria-label='Close' instead).
-  await page.locator('.aionui-modal-close-btn').first().click();
+  await page.locator('.lingai-modal-close-btn').first().click();
   await expect(page.locator(MODAL_BODY)).toBeHidden({ timeout: 5_000 });
 }
 
@@ -107,7 +107,7 @@ async function openCustomAgentEditor(page: Page, command: string) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 test('[5] Agent fail_cli alert surfaces feedback pill (module=agent-detection)', async ({ page }) => {
-  await openCustomAgentEditor(page, 'aionui-e2e-missing-binary-xyz');
+  await openCustomAgentEditor(page, 'lingai-e2e-missing-binary-xyz');
 
   // Expect the fail_cli alert to appear with the feedback pill inside.
   const alert = page.locator('.arco-alert-error').first();

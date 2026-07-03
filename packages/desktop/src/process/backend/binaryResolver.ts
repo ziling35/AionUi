@@ -2,12 +2,13 @@
  * Resolve the aioncore binary path.
  *
  * Search order:
- *  1. Bundled with app (production)
- *  2. System PATH
+ *  1. Bundled with app (production — process.resourcesPath)
+ *  2. Dev-mode project resources (walk up from __dirname)
+ *  3. System PATH
  */
 
 import { existsSync, readdirSync } from 'node:fs';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { execSync } from 'node:child_process';
 
 const BINARY_NAME = 'aioncore';
@@ -76,11 +77,14 @@ export function resolveBinaryPath(): string {
   const bundled = bundledPath(runtimeKey, binaryName, diagnostics);
   if (bundled) return bundled;
 
+  const devBundled = resolveDevBundledPath(runtimeKey, binaryName, diagnostics);
+  if (devBundled) return devBundled;
+
   const fromPath = resolveFromSystemPATH(diagnostics);
   if (fromPath) return fromPath;
 
   throw new BackendBinaryResolveError(
-    `Cannot find "${BINARY_NAME}" binary. Checked bundled location and system PATH.`,
+    `Cannot find "${BINARY_NAME}" binary. Checked bundled location, dev resources, and system PATH.`,
     diagnostics
   );
 }
@@ -108,6 +112,37 @@ function bundledPath(
   diagnostics.runtimeDirEntries = listDirEntries(runtimeDir);
 
   if (existsSync(candidate)) return candidate;
+  return null;
+}
+
+/**
+ * Dev-mode fallback: walk up from __dirname to find the project's
+ * resources/bundled-aioncore/{runtimeKey}/{binaryName}.
+ *
+ * In dev mode, process.resourcesPath points to Electron's dist directory
+ * (e.g. node_modules/electron/dist/resources), not the project's resources/
+ * folder. The built main process is at out/main/ (or out/main/chunks/ for
+ * split chunks), so walking up from __dirname will find the project root's
+ * resources/ directory.
+ */
+const MAX_DEV_PATH_WALK_UP = 6;
+
+function resolveDevBundledPath(
+  runtimeKey: string,
+  binaryName: string,
+  diagnostics: BackendBinaryResolveDiagnostics
+): string | null {
+  let dir = __dirname;
+  for (let i = 0; i < MAX_DEV_PATH_WALK_UP; i++) {
+    const candidate = join(dir, 'resources', 'bundled-aioncore', runtimeKey, binaryName);
+    if (existsSync(candidate)) {
+      diagnostics.checkedBundledPath = candidate;
+      return candidate;
+    }
+    const parent = dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
   return null;
 }
 

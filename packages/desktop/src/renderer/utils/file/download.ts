@@ -1,6 +1,6 @@
 /**
  * @license
- * Copyright 2025 AionUi (aionui.com)
+ * Copyright 2025 LingAI (lingai.com)
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -23,7 +23,9 @@ function triggerBlobDownload(blob: Blob, file_name: string): void {
  * Uses getImageBase64 + in-memory atob decode to bypass CSP connect-src restrictions.
  */
 export async function downloadFileFromPath(file_path: string, file_name: string, workspace?: string): Promise<void> {
-  const dataUrl = await ipcBridge.fs.getImageBase64.invoke({ path: file_path, workspace });
+  const dataUrl = file_path.startsWith('data:')
+    ? file_path
+    : await ipcBridge.fs.getImageBase64.invoke({ path: file_path, workspace });
   if (!dataUrl) {
     throw new Error('File data not found');
   }

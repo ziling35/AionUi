@@ -2,7 +2,7 @@
  * Prepare aioncore binary for packaging.
  *
  * Resolution order:
- *  1. GitHub Actions artifact download when AIONUI_BACKEND_RUN_ID is set
+ *  1. GitHub Actions artifact download when LINGAI_BACKEND_RUN_ID is set
  *  2. GitHub release download (requires version or defaults to "latest")
  *
  * Output: {projectRoot}/resources/bundled-aioncore/{platform}-{arch}/
@@ -120,7 +120,7 @@ function prepareManagedResources(binaryPath, targetDir) {
     stdio: 'inherit',
     env: {
       ...process.env,
-      AIONUI_BUNDLED_MANAGED_RESOURCES: '',
+      LINGAI_BUNDLED_MANAGED_RESOURCES: '',
     },
   });
 
@@ -422,7 +422,7 @@ function downloadAndExtract(platform, arch, tag) {
 function prepareAioncore(options) {
   const { projectRoot, platform, arch, version = 'latest' } = options;
   const runtimeKey = `${platform}-${arch}`;
-  const actionsRunId = (process.env.AIONUI_BACKEND_RUN_ID || '').trim();
+  const actionsRunId = (process.env.LINGAI_BACKEND_RUN_ID || '').trim();
 
   let tag = null;
   if (!actionsRunId) {

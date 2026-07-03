@@ -1,6 +1,6 @@
 /**
  * @license
- * Copyright 2025 AionUi (aionui.com)
+ * Copyright 2025 LingAI (lingai.com)
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -134,12 +134,12 @@ describe('teamMapper', () => {
       toBackendAssistant({
         role: 'leader',
         assistant_backend: 'aionrs',
-        assistant_name: 'Aion CLI',
+        assistant_name: 'AI CLI',
         status: 'pending',
         assistant_id: 'assistant-1',
       })
     ).toMatchObject({
-      name: 'Aion CLI',
+      name: 'AI CLI',
       assistant_id: 'assistant-1',
     });
   });

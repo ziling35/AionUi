@@ -11,7 +11,7 @@ Environment variables:
   AWS_S3_BUCKET                Required. Destination bucket.
   AWS_ENDPOINT_URL             Optional. Alternate S3-compatible endpoint.
   MANAGED_ACP_PREFIX           Optional. S3 key prefix. Default: managed/acp
-  MANAGED_ACP_CDN_BASE         Optional. Public CDN base. Default: https://static.aionui.com/managed/acp
+  MANAGED_ACP_CDN_BASE         Optional. Public CDN base. Default: https://static.lingai.com/managed/acp
   MANAGED_ACP_TARGETS          Optional. Comma-separated targets.
                                Default: darwin-arm64,darwin-x64,linux-x64,linux-arm64,win32-x64,win32-arm64
   MANAGED_ACP_OVERWRITE        Optional. true/false. Default: false
@@ -54,7 +54,7 @@ if [[ -z "${AWS_S3_BUCKET}" ]]; then
 fi
 
 MANAGED_ACP_PREFIX="${MANAGED_ACP_PREFIX:-managed/acp}"
-MANAGED_ACP_CDN_BASE="${MANAGED_ACP_CDN_BASE:-https://static.aionui.com/managed/acp}"
+MANAGED_ACP_CDN_BASE="${MANAGED_ACP_CDN_BASE:-https://static.lingai.com/managed/acp}"
 MANAGED_ACP_TARGETS="${MANAGED_ACP_TARGETS:-darwin-arm64,darwin-x64,linux-x64,linux-arm64,win32-x64,win32-arm64}"
 MANAGED_ACP_OVERWRITE="${MANAGED_ACP_OVERWRITE:-false}"
 MANAGED_ACP_WRITE_ROOT_MANIFEST="${MANAGED_ACP_WRITE_ROOT_MANIFEST:-false}"

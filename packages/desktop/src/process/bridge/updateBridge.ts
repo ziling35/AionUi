@@ -1,6 +1,6 @@
 /**
  * @license
- * Copyright 2025 AionUi (aionui.com)
+ * Copyright 2025 LingAI (lingai.com)
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -57,10 +57,10 @@ interface AutoUpdateCheckParams {
   includePrerelease?: boolean;
 }
 
-const DEFAULT_REPO = 'iOfficeAI/AionUi';
-const DEFAULT_USER_AGENT = 'AionUi';
+const DEFAULT_REPO = 'iOfficeAI/LingAI';
+const DEFAULT_USER_AGENT = 'LingAI';
 const ALLOWED_ASSET_EXTS = new Set(['.exe', '.msi', '.dmg', '.zip', '.deb', '.rpm']);
-const CDN_HOST = 'static.aionui.com';
+const CDN_HOST = 'static.lingai.com';
 const CDN_BASE_URL = `https://${CDN_HOST}/releases`;
 const ALLOWED_DOWNLOAD_HOSTS = new Set<string>([
   CDN_HOST,
@@ -196,7 +196,7 @@ export const pickRecommendedAsset = (
 };
 
 const resolveRepo = (requestRepo?: string): string => {
-  const envRepo = process.env.AIONUI_GITHUB_REPO?.trim();
+  const envRepo = process.env.LINGAI_GITHUB_REPO?.trim();
   const repo = (requestRepo || envRepo || DEFAULT_REPO).trim();
   return repo || DEFAULT_REPO;
 };
@@ -323,7 +323,7 @@ const sanitizeFileName = (name: string): string => {
   // Keep only base name and trim weird whitespace.
   const base = path.basename(name).trim();
   // Avoid empty names.
-  return base || `AionUi-update-${Date.now()}`;
+  return base || `LingAI-update-${Date.now()}`;
 };
 
 const ensureUniquePath = (target: string): string => {

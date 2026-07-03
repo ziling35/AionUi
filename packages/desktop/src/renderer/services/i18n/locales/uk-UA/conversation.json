@@ -12,10 +12,10 @@
     "clearWorkspace": "Видалити проєкт",
     "openFolder": "Відкрити папку",
     "none": "Немає",
-    "quickActionsTitle": "Що вміє AionUi?",
+    "quickActionsTitle": "Що вміє LingAI?",
     "quickActionFeedback": "Повідомити про проблему",
     "quickActionStar": "Подобається? Поставте нам зірку!",
-    "skillsMarket": "Маркет навичок AionUi",
+    "skillsMarket": "Маркет навичок LingAI",
     "skillsMarketDesc": "Шукайте та активуйте навички спільноти за запитом. Налаштуйте один раз — доступно для всіх агентів.",
     "skillsMarketDetails": "Докладніше >>"
   },
@@ -125,29 +125,29 @@
       "send_feedback": "Надішліть відгук із логами, щоб команда могла розібратися."
     },
     "ownership": {
-      "aionui": "Застосунок",
+      "lingai": "Застосунок",
       "user_agent": "Агент",
       "user_llm_provider": "Постачальник моделі",
       "unknown_upstream": "Зовнішній сервіс"
     },
     "codes": {
-      "AIONUI_STREAM_BROKEN": {
+      "LINGAI_STREAM_BROKEN": {
         "title": "Потік відповіді було перервано",
         "body": "Застосунок прийняв повідомлення, але потік відповіді несподівано завершився. Повторіть спробу; якщо це повториться, надішліть відгук."
       },
-      "AIONUI_STATE_INCONSISTENT": {
+      "LINGAI_STATE_INCONSISTENT": {
         "title": "Стан розмови не синхронізовано",
         "body": "Стан розмови не синхронізовано. Перезапустіть цей чат або перезавантажте застосунок, потім повторіть спробу."
       },
-      "AIONUI_PERMISSION_ERROR": {
+      "LINGAI_PERMISSION_ERROR": {
         "title": "Не вдалося отримати доступ до потрібного ресурсу",
         "body": "Перевірка локальних дозволів або файлової системи не вдалася. Перевірте шлях проєкту та дозволи застосунку, потім повторіть спробу."
       },
-      "AIONUI_INTERNAL_ERROR": {
+      "LINGAI_INTERNAL_ERROR": {
         "title": "Запит не вдалося обробити в застосунку",
         "body": "Під час обробки запиту в застосунку сталася помилка. Повторіть спробу один раз; якщо проблема повториться, надішліть відгук."
       },
-      "AIONUI_CONVERSATION_BUSY": {
+      "LINGAI_CONVERSATION_BUSY": {
         "title": "Розмова зайнята",
         "body": "Інша відповідь ще виконується. Дочекайтеся її завершення перед надсиланням нового повідомлення."
       },
@@ -302,7 +302,7 @@
       },
       "MCP_HTTP_RESPONSE_READ_FAILED": {
         "title": "Failed to read the team helper response",
-        "body": "AionUi could not read the local team helper response. Retry once, and if it keeps happening, restart the app."
+        "body": "LingAI could not read the local team helper response. Retry once, and if it keeps happening, restart the app."
       },
       "MCP_TOOL_REMOTE_ERROR": {
         "title": "The local team helper rejected the request",
@@ -310,11 +310,11 @@
       },
       "MCP_TOOL_RESPONSE_UNEXPECTED": {
         "title": "The team helper returned an unexpected response",
-        "body": "AionUi received an unexpected response from the local team helper. Retry once, and report it if the problem persists."
+        "body": "LingAI received an unexpected response from the local team helper. Retry once, and report it if the problem persists."
       },
       "MCP_TCP_READ_FAILED": {
         "title": "Failed to read from the local team helper",
-        "body": "AionUi could not read the local team helper TCP response. Retry once, and restart the app if it keeps failing."
+        "body": "LingAI could not read the local team helper TCP response. Retry once, and restart the app if it keeps failing."
       },
       "TEAM_SERVICE_UNAVAILABLE": {
         "title": "Team service is not ready yet",

@@ -5,7 +5,7 @@
  *
  * Two modes:
  *   1. **Packaged mode** (CI default): Launches from electron-builder's unpacked output
- *      (e.g. out/linux-unpacked/aionui, out/mac-arm64/AionUi.app, out/win-unpacked/AionUi.exe).
+ *      (e.g. out/linux-unpacked/lingai, out/mac-arm64/LingAI.app, out/win-unpacked/LingAI.exe).
  *      This validates that packaged resources are intact.
  *   2. **Dev mode** (local default): Launches via `electron .` from project root with
  *      the Vite dev server (electron-vite dev).
@@ -26,7 +26,7 @@ type Fixtures = {
 // Singleton – one app per test worker
 let app: ElectronApplication | null = null;
 let mainPage: Page | null = null;
-const e2eStateSandboxDir = fs.mkdtempSync(path.join(os.tmpdir(), 'aionui-e2e-state-'));
+const e2eStateSandboxDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lingai-e2e-state-'));
 const e2eStateFile = path.join(e2eStateSandboxDir, 'extension-states.json');
 
 function isDevToolsWindow(page: Page): boolean {
@@ -69,29 +69,29 @@ function resolvePackagedApp(): { executablePath: string; cwd: string } | null {
   const platform = process.platform;
 
   if (platform === 'win32') {
-    // out/win-unpacked/AionUi.exe  or  out/win-x64-unpacked/AionUi.exe
+    // out/win-unpacked/LingAI.exe  or  out/win-x64-unpacked/LingAI.exe
     for (const dir of ['win-unpacked', 'win-x64-unpacked', 'win-arm64-unpacked']) {
-      const exe = path.join(outDir, dir, 'AionUi.exe');
+      const exe = path.join(outDir, dir, 'LingAI.exe');
       if (fs.existsSync(exe)) return { executablePath: exe, cwd: path.join(outDir, dir) };
     }
   } else if (platform === 'darwin') {
-    // out/mac-arm64/AionUi.app/Contents/MacOS/AionUi  or  out/mac/AionUi.app/...
+    // out/mac-arm64/LingAI.app/Contents/MacOS/LingAI  or  out/mac/LingAI.app/...
     for (const dir of ['mac-arm64', 'mac-x64', 'mac', 'mac-universal']) {
       const macDir = path.join(outDir, dir);
       if (!fs.existsSync(macDir)) continue;
       const appBundle = fs.readdirSync(macDir).find((f) => f.endsWith('.app'));
       if (appBundle) {
-        const exe = path.join(macDir, appBundle, 'Contents', 'MacOS', 'AionUi');
+        const exe = path.join(macDir, appBundle, 'Contents', 'MacOS', 'LingAI');
         if (fs.existsSync(exe)) return { executablePath: exe, cwd: macDir };
       }
     }
   } else {
-    // Linux: out/linux-unpacked/aionui  (lowercase executable name)
+    // Linux: out/linux-unpacked/lingai  (lowercase executable name)
     for (const dir of ['linux-unpacked', 'linux-x64-unpacked', 'linux-arm64-unpacked']) {
       const dirPath = path.join(outDir, dir);
       if (!fs.existsSync(dirPath)) continue;
       // Try common executable names
-      for (const name of ['aionui', 'AionUi']) {
+      for (const name of ['lingai', 'LingAI']) {
         const exe = path.join(dirPath, name);
         if (fs.existsSync(exe)) return { executablePath: exe, cwd: dirPath };
       }
@@ -114,12 +114,12 @@ async function launchApp(): Promise<ElectronApplication> {
 
   const commonEnv = {
     ...process.env,
-    AIONUI_EXTENSIONS_PATH: process.env.AIONUI_EXTENSIONS_PATH || path.join(projectRoot, 'examples'),
-    AIONUI_EXTENSION_STATES_FILE: process.env.AIONUI_EXTENSION_STATES_FILE || e2eStateFile,
-    AIONUI_DISABLE_AUTO_UPDATE: '1',
-    AIONUI_DISABLE_DEVTOOLS: '1',
-    AIONUI_E2E_TEST: '1',
-    AIONUI_CDP_PORT: '0',
+    LINGAI_EXTENSIONS_PATH: process.env.LINGAI_EXTENSIONS_PATH || path.join(projectRoot, 'examples'),
+    LINGAI_EXTENSION_STATES_FILE: process.env.LINGAI_EXTENSION_STATES_FILE || e2eStateFile,
+    LINGAI_DISABLE_AUTO_UPDATE: '1',
+    LINGAI_DISABLE_DEVTOOLS: '1',
+    LINGAI_E2E_TEST: '1',
+    LINGAI_CDP_PORT: '0',
   };
 
   if (usePackaged) {

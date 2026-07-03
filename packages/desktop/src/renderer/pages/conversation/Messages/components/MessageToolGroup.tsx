@@ -1,6 +1,6 @@
 /**
  * @license
- * Copyright 2025 AionUi (aionui.com)
+ * Copyright 2025 LingAI (lingai.com)
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -437,6 +437,31 @@ const ToolResultDisplay: React.FC<{
 
   // 将结果转换为字符串 Convert result to string
   const display = typeof result_display === 'string' ? result_display : JSON.stringify(result_display, null, 2);
+
+  // 解析 MCP 生图工具的返回 Extract image from lingai_image_generation output
+  if (name === 'lingai_image_generation' && typeof display === 'string') {
+    const match = display.match(/Generated image saved to:\s*([^\r\n]+?\.(?:png|jpe?g|webp|gif|bmp|svg))/i);
+    if (match && match[1]) {
+      const imgPath = match[1].trim();
+      return (
+        <div className='flex flex-col gap-2'>
+          <LocalImageView
+            src={imgPath}
+            alt='Generated Image'
+            className='max-w-100% max-h-100% object-contain rounded-md border border-br-1'
+          />
+          <CollapsibleContent maxHeight={RESULT_MAX_HEIGHT} defaultCollapsed={true} useMask={false}>
+            <pre
+              className='text-t-primary whitespace-pre-wrap break-words m-0'
+              style={{ fontSize: `${TEXT_CONFIG.FONT_SIZE}px`, lineHeight: TEXT_CONFIG.LINE_HEIGHT }}
+            >
+              {display}
+            </pre>
+          </CollapsibleContent>
+        </div>
+      );
+    }
+  }
 
   // 使用 CollapsibleContent 包装长内容
   // Wrap long content with CollapsibleContent

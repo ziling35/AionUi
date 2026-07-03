@@ -1,0 +1,35 @@
+环境要求
+Node.js: >= 22 < 25
+包管理器: bun（推荐）
+一、主应用启动（Electron 桌面端）
+bash
+
+cd LingAI
+bun install        # 安装依赖
+bun run dev        # 开发模式启动
+二、WebUI 启动（浏览器访问）
+bash
+
+cd LingAI
+bun run webui              # 本地访问
+bun run webui:remote       # 远程访问（局域网）
+bun run webui:prod         # 生产模式
+访问地址: http://localhost:3000
+
+三、Server 后端服务
+Admin-API
+bash
+
+cd LingAI/server/admin-api
+bun install
+bunx prisma generate       # 初始化 Prisma
+bunx prisma migrate dev    # 数据库迁移
+bun run index.ts              # 启动服务
+服务端口: 3800
+
+Admin-Web（可选）
+bash
+
+cd LingAI/server/admin-web
+bun install
+bun run dev

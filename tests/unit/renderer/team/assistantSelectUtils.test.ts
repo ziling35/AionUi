@@ -1,6 +1,6 @@
 /**
  * @license
- * Copyright 2025 AionUi (aionui.com)
+ * Copyright 2025 LingAI (lingai.com)
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -15,7 +15,7 @@ describe('assistantSelectUtils', () => {
   it('localizes assistant option names for the active locale', () => {
     const bareAssistant = makeAssistant({
       id: 'bare-aionrs',
-      name: 'Aion CLI',
+      name: 'AI CLI',
       name_i18n: { 'zh-CN': 'Aion 命令行' },
       source: 'generated',
       preset_agent_type: 'aionrs',

@@ -1,6 +1,6 @@
 /**
  * @license
- * Copyright 2025 AionUi (aionui.com)
+ * Copyright 2025 LingAI (lingai.com)
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -22,6 +22,7 @@
  */
 
 type ProviderShape = {
+  id?: string;
   platform?: string;
   base_url?: string;
   name?: string;
@@ -29,25 +30,29 @@ type ProviderShape = {
 
 const IMAGE_NAME_PATTERN = /(image|banana|imagine)/i;
 
-const RULES: Array<{
-  id: string;
-  match: (provider: ProviderShape) => boolean;
-}> = [
-  {
-    id: 'gemini',
-    match: (p) => p.platform === 'gemini' || p.platform === 'gemini-vertex-ai',
-  },
-  {
-    id: 'openrouter',
-    match: (p) => !!p.base_url?.includes('openrouter.ai'),
-  },
-  {
-    id: 'antigravity',
-    match: (p) => !!p.name?.toLowerCase().includes('antigravity'),
-  },
-];
+/**
+ * Check if a model supports image generation.
+ *
+ * Primary signal: the `type` field from the admin-api (authoritative — set by
+ * the platform operator in the admin panel).
+ * Fallback: model name pattern matching for user-configured providers that
+ * don't have a `type` (legacy / custom providers).
+ */
+export const isImageGenSupported = (provider: ProviderShape, modelName: string, modelType?: string): boolean => {
+  // Authoritative: admin-api sets type="image" for image generation models
+  if (modelType === 'image') return true;
+  if (modelType === 'chat' || modelType === 'embedding') return false;
 
-export const isImageGenSupported = (provider: ProviderShape, modelName: string): boolean => {
+  // Fallback: name-based detection for providers without explicit type
   if (!IMAGE_NAME_PATTERN.test(modelName)) return false;
-  return RULES.some((rule) => rule.match(provider));
+
+  const RULES: Array<(provider: ProviderShape) => boolean> = [
+    (p) => p.platform === 'gemini' || p.platform === 'gemini-vertex-ai',
+    (p) => !!p.base_url?.includes('openrouter.ai'),
+    (p) => !!p.name?.toLowerCase().includes('antigravity'),
+    (p) => p.id === 'aion-cloud-official' || p.name === 'LingAI Cloud',
+    (p) => p.platform === 'custom' || p.platform === 'openai',
+  ];
+
+  return RULES.some((rule) => rule(provider));
 };

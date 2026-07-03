@@ -54,7 +54,7 @@ describe('verifyBundledAioncoreResources', () => {
   let codexRoot: string;
 
   beforeEach(() => {
-    tmp = mkdtempSync(join(tmpdir(), 'aionui-bundled-resources-'));
+    tmp = mkdtempSync(join(tmpdir(), 'lingai-bundled-resources-'));
     resourcesDir = join(tmp, 'resources');
     managedResourcesDir = join(resourcesDir, 'bundled-aioncore', 'win32-x64', 'managed-resources');
 

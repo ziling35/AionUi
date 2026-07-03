@@ -1,6 +1,6 @@
 /**
  * @license
- * Copyright 2025 AionUi (aionui.com)
+ * Copyright 2025 LingAI (lingai.com)
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -163,7 +163,7 @@ function assistants(): Assistant[] {
     {
       id: 'bare-aionrs',
       source: 'generated',
-      name: 'Aion CLI',
+      name: 'AI CLI',
       name_i18n: {},
       description_i18n: {},
       enabled: true,

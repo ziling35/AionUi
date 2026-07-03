@@ -12,10 +12,10 @@
     "clearWorkspace": "Удалить проект",
     "openFolder": "Открыть папку",
     "none": "Нет",
-    "quickActionsTitle": "Что умеет AionUi?",
+    "quickActionsTitle": "Что умеет LingAI?",
     "quickActionFeedback": "Сообщить о проблеме",
     "quickActionStar": "Нравится? Поставьте нам звезду!",
-    "skillsMarket": "Маркет навыков AionUi",
+    "skillsMarket": "Маркет навыков LingAI",
     "skillsMarketDesc": "Находите и активируйте навыки сообщества по запросу. Настройте один раз — доступно для всех агентов.",
     "skillsMarketDetails": "Подробнее >>"
   },
@@ -125,29 +125,29 @@
       "send_feedback": "Отправьте отзыв с логами, чтобы команда могла разобраться."
     },
     "ownership": {
-      "aionui": "Приложение",
+      "lingai": "Приложение",
       "user_agent": "Агент",
       "user_llm_provider": "Поставщик модели",
       "unknown_upstream": "Внешний сервис"
     },
     "codes": {
-      "AIONUI_STREAM_BROKEN": {
+      "LINGAI_STREAM_BROKEN": {
         "title": "Поток ответа был прерван",
         "body": "Приложение приняло сообщение, но поток ответа неожиданно завершился. Повторите попытку; если проблема повторится, отправьте отзыв."
       },
-      "AIONUI_STATE_INCONSISTENT": {
+      "LINGAI_STATE_INCONSISTENT": {
         "title": "Состояние диалога не синхронизировано",
         "body": "Состояние диалога не синхронизировано. Перезапустите этот чат или перезагрузите приложение, затем повторите попытку."
       },
-      "AIONUI_PERMISSION_ERROR": {
+      "LINGAI_PERMISSION_ERROR": {
         "title": "Не удалось получить доступ к нужному ресурсу",
         "body": "Проверка локальных прав или файловой системы не удалась. Проверьте путь проекта и разрешения приложения, затем повторите попытку."
       },
-      "AIONUI_INTERNAL_ERROR": {
+      "LINGAI_INTERNAL_ERROR": {
         "title": "Запрос не удалось обработать в приложении",
         "body": "Запрос завершился ошибкой во время обработки приложением. Повторите попытку один раз; если проблема повторится, отправьте отзыв."
       },
-      "AIONUI_CONVERSATION_BUSY": {
+      "LINGAI_CONVERSATION_BUSY": {
         "title": "Диалог занят",
         "body": "Другой ответ ещё выполняется. Дождитесь его завершения перед отправкой нового сообщения."
       },
@@ -302,7 +302,7 @@
       },
       "MCP_HTTP_RESPONSE_READ_FAILED": {
         "title": "Failed to read the team helper response",
-        "body": "AionUi could not read the local team helper response. Retry once, and if it keeps happening, restart the app."
+        "body": "LingAI could not read the local team helper response. Retry once, and if it keeps happening, restart the app."
       },
       "MCP_TOOL_REMOTE_ERROR": {
         "title": "The local team helper rejected the request",
@@ -310,11 +310,11 @@
       },
       "MCP_TOOL_RESPONSE_UNEXPECTED": {
         "title": "The team helper returned an unexpected response",
-        "body": "AionUi received an unexpected response from the local team helper. Retry once, and report it if the problem persists."
+        "body": "LingAI received an unexpected response from the local team helper. Retry once, and report it if the problem persists."
       },
       "MCP_TCP_READ_FAILED": {
         "title": "Failed to read from the local team helper",
-        "body": "AionUi could not read the local team helper TCP response. Retry once, and restart the app if it keeps failing."
+        "body": "LingAI could not read the local team helper TCP response. Retry once, and restart the app if it keeps failing."
       },
       "TEAM_SERVICE_UNAVAILABLE": {
         "title": "Team service is not ready yet",

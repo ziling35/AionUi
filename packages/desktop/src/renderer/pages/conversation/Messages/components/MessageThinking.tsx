@@ -1,13 +1,12 @@
 /**
  * @license
- * Copyright 2025 AionUi (aionui.com)
+ * Copyright 2025 LingAI (lingai.com)
  * SPDX-License-Identifier: Apache-2.0
  */
 
 import type { IMessageThinking } from '@/common/chat/chatLib';
-import { Spin } from '@arco-design/web-react';
 import { Brain, Right } from '@icon-park/react';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import styles from './MessageThinking.module.css';
 
@@ -46,14 +45,12 @@ const MessageThinking: React.FC<{ message: IMessageThinking }> = ({ message }) =
   const startTimeRef = useRef<number>(message.created_at ?? Date.now());
   const bodyRef = useRef<HTMLDivElement>(null);
 
-  // Auto-collapse when status changes to done
   useEffect(() => {
     if (isDone) {
       setExpanded(false);
     }
   }, [isDone]);
 
-  // Elapsed timer for active thinking
   useEffect(() => {
     if (isDone) return;
 
@@ -66,28 +63,44 @@ const MessageThinking: React.FC<{ message: IMessageThinking }> = ({ message }) =
     return () => clearInterval(timer);
   }, [isDone, message.created_at, message.msg_id]);
 
-  // Auto-scroll to bottom during streaming
   useEffect(() => {
     if (!isDone && expanded && bodyRef.current) {
       bodyRef.current.scrollTop = bodyRef.current.scrollHeight;
     }
   }, [text, isDone, expanded]);
 
-  const summaryText = isDone
-    ? `${t('conversation.thinking.complete', { defaultValue: 'Thought complete' })} · ${formatDuration(duration || 0)}`
-    : `${subject || t('conversation.thinking.label', { defaultValue: 'Thinking...' })} · ${formatElapsedTime(elapsedTime)}`;
+  const elapsedLabel = isDone ? formatDuration(duration || 0) : formatElapsedTime(elapsedTime);
+  const title = isDone
+    ? t('conversation.thinking.complete', { defaultValue: '思考完成' })
+    : subject || t('conversation.thinking.label', { defaultValue: '正在深度思考' });
+  const detail = isDone
+    ? `${t('conversation.thinking.complete', { defaultValue: '思考完成' })} · ${elapsedLabel}`
+    : `${t('conversation.thinking.streaming', { defaultValue: '正在梳理上下文、推理方案与下一步动作' })} · ${elapsedLabel}`;
+  const progress = useMemo(() => {
+    if (isDone) return 100;
+    return Math.min(92, 18 + ((elapsedTime * 7) % 62));
+  }, [elapsedTime, isDone]);
 
   return (
-    <div className={styles.container}>
-      <div className={styles.header} onClick={() => setExpanded((v) => !v)}>
-        <span className={styles.headerIcon}>{!isDone ? <Spin size={12} /> : <Brain theme='outline' size='14' />}</span>
-        <span className={styles.summary}>{summaryText}</span>
+    <div className={`${styles.container} ${!isDone ? styles.running : ''}`}>
+      <div className={styles.hero} onClick={() => setExpanded((v) => !v)}>
+        <span className={styles.orb}>
+          <Brain theme='outline' size='16' />
+        </span>
+        <span className={styles.content}>
+          <span className={styles.title}>{title}</span>
+          <span className={styles.detail}>{detail}</span>
+          <span className={styles.progress}>
+            <span style={{ width: `${progress}%` }} />
+          </span>
+        </span>
+        <span className={styles.time}>{elapsedLabel}</span>
         <span className={`${styles.arrow} ${expanded ? styles.arrowExpanded : ''}`}>
           <Right theme='outline' size='12' />
         </span>
       </div>
       <div ref={bodyRef} className={`${styles.body} ${!expanded ? styles.collapsed : ''}`}>
-        {text}
+        {text || t('conversation.thinking.empty', { defaultValue: '正在生成思考内容...' })}
       </div>
     </div>
   );

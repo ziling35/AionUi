@@ -1,6 +1,6 @@
 /**
  * @license
- * Copyright 2025 AionUi (aionui.com)
+ * Copyright 2025 LingAI (lingai.com)
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -49,6 +49,8 @@ import { AuthProvider } from './hooks/context/AuthContext';
 import { FeedbackProvider } from './hooks/context/FeedbackContext';
 import { ThemeProvider } from './hooks/context/ThemeContext';
 import { PreviewProvider } from './pages/conversation/Preview/context/PreviewContext';
+import { UserProvider } from './hooks/context/UserContext';
+import { LoginModal } from './components/auth/LoginModal';
 
 // Arco Design
 import { ConfigProvider, Modal, Typography } from '@arco-design/web-react';
@@ -149,10 +151,10 @@ function captureRuntimeInstallationIntegrityFailure(event: IRuntimeStatusEvent):
   void import('@sentry/electron/renderer')
     .then((Sentry) => {
       Sentry.withScope((scope) => {
-        scope.setTag('aionui.installation_integrity', event.failure_kind ?? 'unknown');
-        scope.setTag('aionui.runtime_resource', event.resource);
-        scope.setTag('aionui.runtime_resource_id', event.resource_id ?? '');
-        scope.setTag('aionui.runtime_scope', event.scope.kind);
+        scope.setTag('lingai.installation_integrity', event.failure_kind ?? 'unknown');
+        scope.setTag('lingai.runtime_resource', event.resource);
+        scope.setTag('lingai.runtime_resource_id', event.resource_id ?? '');
+        scope.setTag('lingai.runtime_scope', event.scope.kind);
         Sentry.captureMessage('runtime-installation-integrity-failure', 'error');
       });
     })
@@ -240,18 +242,32 @@ const RuntimeFailureDialogs: React.FC = () => {
 
 const AppProviders: React.FC<PropsWithChildren> = ({ children }) =>
   React.createElement(
-    AuthProvider,
+    RendererErrorBoundary,
     null,
     React.createElement(
-      ThemeProvider,
+      AuthProvider,
       null,
       React.createElement(
-        PreviewProvider,
+        ThemeProvider,
         null,
         React.createElement(
-          FeedbackProvider,
+          PreviewProvider,
           null,
-          React.createElement(React.Fragment, null, React.createElement(RuntimeFailureDialogs, null), children)
+          React.createElement(
+            FeedbackProvider,
+            null,
+            React.createElement(
+              UserProvider,
+              null,
+              React.createElement(
+                React.Fragment,
+                null,
+                React.createElement(RuntimeFailureDialogs, null),
+                React.createElement(LoginModal, null),
+                children
+              )
+            )
+          )
         )
       )
     )
@@ -265,6 +281,37 @@ const Config: React.FC<PropsWithChildren> = ({ children }) => {
 
   return React.createElement(ConfigProvider, { theme: { primaryColor: '#4E5969' }, locale: arcoLocale }, children);
 };
+
+class RendererErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  { hasError: boolean; error: Error | null }
+> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, info: React.ErrorInfo) {
+    console.error('[RendererErrorBoundary]', error, info.componentStack);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{ padding: 24, color: '#f00', fontFamily: 'monospace', whiteSpace: 'pre-wrap' }}>
+          <h2>Renderer Error</h2>
+          <p>{this.state.error?.message}</p>
+          <pre>{this.state.error?.stack}</pre>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 const Main = () => {
   const { ready } = useAuth();
@@ -281,17 +328,23 @@ const Main = () => {
   }, [ready]);
 
   if (!ready || !configReady) {
-    return null;
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', color: '#888' }}>
+        Loading... (auth: {ready ? '✓' : '✗'}, config: {configReady ? '✓' : '✗'})
+      </div>
+    );
   }
 
   return (
-    <Router
-      layout={
-        <ConversationHistoryProvider>
-          <Layout sider={<Sider />} />
-        </ConversationHistoryProvider>
-      }
-    />
+    <RendererErrorBoundary>
+      <Router
+        layout={
+          <ConversationHistoryProvider>
+            <Layout sider={<Sider />} />
+          </ConversationHistoryProvider>
+        }
+      />
+    </RendererErrorBoundary>
   );
 };
 

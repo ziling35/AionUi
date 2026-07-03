@@ -11,6 +11,7 @@
   "copySuccess": "Успешно скопировано",
   "copyFailed": "Не удалось скопировать",
   "copyLastOutput.empty": "Пока нет ответа для копирования",
+  "fillSendboxForResend": "Заполнить поле ввода для повторной отправки",
   "copiedToClipboard": "Скопировано в буфер обмена",
   "downloadSuccess": "Скачивание успешно",
   "downloadFailed": "Не удалось скачать",

@@ -1,6 +1,6 @@
 /**
  * @license
- * Copyright 2025 AionUi (aionui.com)
+ * Copyright 2025 LingAI (lingai.com)
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -267,7 +267,7 @@ const CreateTaskDialog: React.FC<CreateTaskDialogProps> = ({
 
   const isGeminiMode = resolvedBackend === 'gemini' || resolvedBackend === 'aionrs';
 
-  // Providers compatible with aionrs (AionCLI does not support Google Auth).
+  // Providers compatible with aionrs (AI CLI does not support Google Auth).
   // Computed independent of the current selection so assistant options backed
   // by aionrs can be disabled when no provider is configured.
   const aionrsProviders = useMemo(

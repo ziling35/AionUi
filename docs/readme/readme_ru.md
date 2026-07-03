@@ -1,9 +1,9 @@
 <p align="center">
-  <img src="./resources/aionui-banner-1.png" alt="AionUi - Cowork with AI Agents" width="100%">
+  <img src="./resources/lingai-banner-1.png" alt="LingAI - Cowork with AI Agents" width="100%">
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/github/v/release/iOfficeAI/AionUi?style=flat-square&color=32CD32" alt="Version">
+  <img src="https://img.shields.io/github/v/release/iOfficeAI/LingAI?style=flat-square&color=32CD32" alt="Version">
   &nbsp;
   <img src="https://img.shields.io/badge/license-Apache--2.0-32CD32?style=flat-square&logo=apache&logoColor=white" alt="License">
   &nbsp;
@@ -24,17 +24,17 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/iOfficeAI/AionUi/releases">
+  <a href="https://github.com/iOfficeAI/LingAI/releases">
     <img src="https://img.shields.io/badge/⬇️%20Download%20Now-Latest%20Release-32CD32?style=for-the-badge&logo=github&logoColor=white" alt="Download Latest Release" height="50">
   </a>
 </p>
 
 <p align="center">
-  <a href="./readme.md">English</a> | <a href="./docs/readme/readme_ch.md">简体中文</a> | <a href="./docs/readme/readme_tw.md">繁體中文</a> | <a href="./docs/readme/readme_jp.md">日本語</a> | <a href="./docs/readme/readme_ko.md">한국어</a> | <a href="./docs/readme/readme_es.md">Español</a> | <a href="./docs/readme/readme_pt.md">Português</a> | <a href="./docs/readme/readme_tr.md">Türkçe</a> | <strong>Русский</strong> | <a href="./docs/readme/readme_uk.md">Українська</a> | <a href="https://www.aionui.com" target="_blank">Официальный сайт</a>
+  <a href="./readme.md">English</a> | <a href="./docs/readme/readme_ch.md">简体中文</a> | <a href="./docs/readme/readme_tw.md">繁體中文</a> | <a href="./docs/readme/readme_jp.md">日本語</a> | <a href="./docs/readme/readme_ko.md">한국어</a> | <a href="./docs/readme/readme_es.md">Español</a> | <a href="./docs/readme/readme_pt.md">Português</a> | <a href="./docs/readme/readme_tr.md">Türkçe</a> | <strong>Русский</strong> | <a href="./docs/readme/readme_uk.md">Українська</a> | <a href="https://www.lingai.com" target="_blank">Официальный сайт</a>
 </p>
 
 <p align="center">
-  <strong>💬 Сообщество:</strong> <a href="https://discord.gg/2QAwJn7Egx" target="_blank">Discord (English)</a> | <a href="./resources/wx-14.png" target="_blank">微信 (中文群)</a> | <a href="https://twitter.com/AionUI" target="_blank">Twitter</a>
+  <strong>💬 Сообщество:</strong> <a href="https://discord.gg/2QAwJn7Egx" target="_blank">Discord (English)</a> | <a href="./resources/wx-14.png" target="_blank">微信 (中文群)</a> | <a href="https://twitter.com/LingAI" target="_blank">Twitter</a>
 </p>
 
 ---
@@ -44,7 +44,7 @@
 <p align="center">
 
 [✨ Cowork в действии](#-cowork-in-action) ·
-[🤔 Почему AionUi?](#-why-choose-aionui-over-claude-cowork) ·
+[🤔 Почему LingAI?](#-why-choose-lingai-over-claude-cowork) ·
 [🚀 Быстрый старт](#-quick-start) ·
 [💬 Сообщество](#-community--support)
 
@@ -54,9 +54,9 @@
 
 ## Cowork — ИИ-агенты, которые работают вместе с вами
 
-**AionUi — это больше, чем просто клиент для чата.** Это платформа Cowork, где ИИ-агенты работают вместе с вами на вашем компьютере — читают файлы, пишут код, просматривают веб-страницы и автоматизируют задачи. Вы видите всё, что делает агент, и всегда остаётесь в управлении.
+**LingAI — это больше, чем просто клиент для чата.** Это платформа Cowork, где ИИ-агенты работают вместе с вами на вашем компьютере — читают файлы, пишут код, просматривают веб-страницы и автоматизируют задачи. Вы видите всё, что делает агент, и всегда остаётесь в управлении.
 
-|                                        | Традиционные ИИ-чаты | **AionUi (Cowork)**                                                                                                      |
+|                                        | Традиционные ИИ-чаты | **LingAI (Cowork)**                                                                                                      |
 | :------------------------------------- | :------------------- | :----------------------------------------------------------------------------------------------------------------------- |
 | ИИ может работать с вашими файлами     | Ограниченно или нет  | **Да — встроенный агент с полным доступом к файлам**                                                                     |
 | ИИ может выполнять многошаговые задачи | Ограниченно          | **Да — автономно с вашего одобрения**                                                                                    |
@@ -66,14 +66,14 @@
 | Цена                                   | Бесплатно / Платно   | **Бесплатно и с открытым исходным кодом**                                                                                |
 
 <p align="center">
-  <img src="./resources/offica-ai BANNER-function.png" alt="AionUi Cowork Platform" width="800">
+  <img src="./resources/offica-ai BANNER-function.png" alt="LingAI Cowork Platform" width="800">
 </p>
 
 ---
 
 ## Встроенный агент — установил и работай, без настройки
 
-AionUi поставляется с полноценным движком ИИ-агента. В отличие от инструментов, требующих отдельной установки CLI-агентов, **AionUi работает сразу после установки**.
+LingAI поставляется с полноценным движком ИИ-агента. В отличие от инструментов, требующих отдельной установки CLI-агентов, **LingAI работает сразу после установки**.
 
 - **Не нужно устанавливать CLI-инструменты** — движок агента встроен
 - **Без сложной настройки** — вставьте любой API-ключ, чтобы начать
@@ -141,9 +141,9 @@ AionUi поставляется с полноценным движком ИИ-а
 
 ## Мультиагентный режим — уже есть CLI-агенты? Подключайте их
 
-Если вы уже используете Claude Code, Codex, Hermes Agent или OpenClaw, AionUi автоматически обнаружит их и позволит работать со всеми ними вместе со встроенным агентом.
+Если вы уже используете Claude Code, Codex, Hermes Agent или OpenClaw, LingAI автоматически обнаружит их и позволит работать со всеми ними вместе со встроенным агентом.
 
-**Поддерживаемые агенты:** Встроенный агент (без настройки) • Claude Code • Codex • Qwen Code • Goose AI • OpenClaw • Augment Code • CodeBuddy • Kimi CLI • OpenCode • Factory Droid • GitHub Copilot • Qoder CLI • Mistral Vibe • Nanobot • Aion CLI (aionrs, Rust-бэкенд-сервис, поставляемый с AionUi) • Snow CLI • Hermes Agent • Cursor Agent и другие
+**Поддерживаемые агенты:** Встроенный агент (без настройки) • Claude Code • Codex • Qwen Code • Goose AI • OpenClaw • Augment Code • CodeBuddy • Kimi CLI • OpenCode • Factory Droid • GitHub Copilot • Qoder CLI • Mistral Vibe • Nanobot • AI CLI (aionrs, Rust-бэкенд-сервис, поставляемый с LingAI) • Snow CLI • Hermes Agent • Cursor Agent и другие
 
 <p align="center">
   <img src="./resources/multi-agent支持openclaw.gif" alt="Multi-Agent Cowork" width="800">
@@ -160,11 +160,11 @@ AionUi поставляется с полноценным движком ИИ-а
 Запускайте несколько ИИ-агентов как организованную команду: агент **Leader** получает ваши инструкции, разбивает их на подзадачи и делегирует агентам **Teammate** через встроенный Team MCP Server. Teammate-агенты выполняют задачи параллельно, обмениваются результатами через асинхронный почтовый ящик и записывают в общую доску задач.
 
 <p align="center">
-  <img src="./resources/AionUi_team.gif" alt="Team Mode overview" width="800">
+  <img src="./resources/LingAI_team.gif" alt="Team Mode overview" width="800">
 </p>
 
-- **Параллельное выполнение нескольких агентов** — Leader разбивает задачи на подзадачи и делегирует параллельно работающим Teammate-агентам; каждый Teammate использует свою модель через ACP (Agent Communication Protocol, слой координации мультиагентности AionUi), Gemini или Aionrs
-- **Оркестрация Leader** — Leader назначает, отслеживает и агрегирует результаты; поддерживаемые бэкенды: Claude Code, Codex, Hermes Agent, Gemini, Snow CLI, Aion CLI
+- **Параллельное выполнение нескольких агентов** — Leader разбивает задачи на подзадачи и делегирует параллельно работающим Teammate-агентам; каждый Teammate использует свою модель через ACP (Agent Communication Protocol, слой координации мультиагентности LingAI), Gemini или Aionrs
+- **Оркестрация Leader** — Leader назначает, отслеживает и агрегирует результаты; поддерживаемые бэкенды: Claude Code, Codex, Hermes Agent, Gemini, Snow CLI, AI CLI
 - **Изолированное рабочее пространство команды** — все агенты совместно используют одну папку; у каждого есть свой диалог подтверждения разрешений с бейджем на боковой панели для ожидающих подтверждений
 
 <details>
@@ -173,7 +173,7 @@ AionUi поставляется с полноценным движком ИИ-а
 <br>
 
 - **Общее рабочее пространство** — все агенты читают/записывают одну папку; файловая панель остаётся видимой на протяжении всего процесса
-- **Поддерживаемые бэкенды** — Claude Code, Codex, Gemini, Snow CLI, Aion CLI (aionrs); другие ACP-бэкенды с `mcpCapabilities.stdio` поддерживаются автоматически
+- **Поддерживаемые бэкенды** — Claude Code, Codex, Gemini, Snow CLI, AI CLI (aionrs); другие ACP-бэкенды с `mcpCapabilities.stdio` поддерживаются автоматически
 - **Динамическое масштабирование** — добавляйте или удаляйте Teammate-агентов во время работы команды; молчащие агенты автоматически переходят в статус failed с возможностью удаления в один клик
 - **Детальные разрешения** — у каждого агента есть собственный диалог подтверждения разрешений; бейдж на боковой панели показывает ожидающие подтверждения
 - **Обмен файлами** — Leader может передавать вложения файлов Teammate-агентам
@@ -184,7 +184,7 @@ AionUi поставляется с полноценным движком ИИ-а
 
 ## Любой API-ключ, полная мощь Cowork-агента
 
-Другие ИИ-приложения дают вам чат с вашим API-ключом. **AionUi даёт полноценного Cowork-агента.**
+Другие ИИ-приложения дают вам чат с вашим API-ключом. **LingAI даёт полноценного Cowork-агента.**
 
 | Ваш API-ключ                  | Что вы получаете            |
 | :---------------------------- | :-------------------------- |
@@ -194,7 +194,7 @@ AionUi поставляется с полноценным движком ИИ-а
 | Ollama / LM Studio (локально) | Локальный Cowork-агент      |
 | Шлюз NewAPI                   | Единый доступ к 20+ моделям |
 
-Одни и те же возможности — чтение/запись файлов, поиск в интернете, генерация изображений, использование инструментов — независимо от того, какая модель лежит в основе. AionUi поддерживает **30+ ИИ-платформ**, включая облачные сервисы и локальные развёртывания.
+Одни и те же возможности — чтение/запись файлов, поиск в интернете, генерация изображений, использование инструментов — независимо от того, какая модель лежит в основе. LingAI поддерживает **30+ ИИ-платформ**, включая облачные сервисы и локальные развёртывания.
 
 <p align="center">
   <img src="./resources/llm_newapi.png" alt="Multi-Model Support" width="800">
@@ -213,7 +213,7 @@ AionUi поставляется с полноценным движком ИИ-а
 - **Международные платформы** — DeepSeek, MiniMax, Novita, OpenRouter, SiliconFlow, xAI, Ark (Volcengine), Poe
 - **Локальные модели** — Ollama, LM Studio (через пользовательскую платформу с локальной API-точкой)
 
-AionUi также поддерживает шлюз-сервис [NewAPI](https://github.com/QuantumNous/new-api) — единый хаб ИИ-моделей, агрегирующий и распространяющий различные LLM. Гибкое переключение между разными моделями в одном интерфейсе для решения различных задач.
+LingAI также поддерживает шлюз-сервис [NewAPI](https://github.com/QuantumNous/new-api) — единый хаб ИИ-моделей, агрегирующий и распространяющий различные LLM. Гибкое переключение между разными моделями в одном интерфейсе для решения различных задач.
 
 </details>
 
@@ -224,7 +224,7 @@ AionUi также поддерживает шлюз-сервис [NewAPI](https:
 _Расширяемая система ассистентов с 21 встроенным профессиональным ассистентом и трёхуровневой системой навыков. Создавайте и управляйте собственными ассистентами и навыками._
 
 - **Создание пользовательских ассистентов** — определяйте собственных ассистентов с пользовательскими правилами и возможностями
-- **Трёхуровневые навыки** — встроенные навыки (поставляются с AionUi), пользовательские навыки (ваши собственные) и Extension-навыки (от сторонних расширений); включайте/отключайте для каждого разговора с помощью индикатора навыков
+- **Трёхуровневые навыки** — встроенные навыки (поставляются с LingAI), пользовательские навыки (ваши собственные) и Extension-навыки (от сторонних расширений); включайте/отключайте для каждого разговора с помощью индикатора навыков
 - **Контроль для каждого разговора** — индикатор навыков в заголовке чата показывает активные навыки текущего разговора; ищите и исключайте навыки по необходимости
 
 <p align="center">
@@ -236,7 +236,7 @@ _Расширяемая система ассистентов с 21 встрое
 
 <br>
 
-AionUi включает **21 профессиональный ассистент** с предопределёнными возможностями, расширяемыми через пользовательские навыки:
+LingAI включает **21 профессиональный ассистент** с предопределёнными возможностями, расширяемыми через пользовательские навыки:
 
 - **🤝 Cowork** — автономное выполнение задач (операции с файлами, обработка документов, планирование рабочих процессов)
 - **📊 PPT Creator / Morph PPT / Morph PPT 3D** — генерация и анимация PPTX-презентаций с Morph-переходами
@@ -257,7 +257,7 @@ AionUi включает **21 профессиональный ассистент
 - **🔧 OpenClaw Setup** — ассистент по настройке и конфигурации интеграции OpenClaw
 - **📖 Story Roleplay** — иммерсивная ролевая игра с карточками персонажей и информацией о мире (совместимо с SillyTavern)
 
-**Пользовательские навыки**: создавайте навыки в директории `skills/`, включайте/отключайте навыки для ассистентов, расширяя возможности ИИ. Навыки поступают из трёх источников: встроенные (поставляются с AionUi), пользовательские (ваши собственные) и Extension (через Extension SDK). Встроенные навыки включают `pptx`, `docx`, `pdf`, `xlsx`, `mermaid` и другие.
+**Пользовательские навыки**: создавайте навыки в директории `skills/`, включайте/отключайте навыки для ассистентов, расширяя возможности ИИ. Навыки поступают из трёх источников: встроенные (поставляются с LingAI), пользовательские (ваши собственные) и Extension (через Extension SDK). Встроенные навыки включают `pptx`, `docx`, `pdf`, `xlsx`, `mermaid` и другие.
 
 > 💡 Каждый ассистент определяется markdown-файлом. Проверьте директорию `assistant/` для примеров.
 
@@ -267,7 +267,7 @@ AionUi включает **21 профессиональный ассистент
 
 ## Cowork откуда угодно
 
-_Ваш ИИ-ассистент 24/7 — доступ к AionUi с любого устройства, из любой точки мира._
+_Ваш ИИ-ассистент 24/7 — доступ к LingAI с любого устройства, из любой точки мира._
 
 - **Режим WebUI** — доступ через браузер с телефона, планшета или любого компьютера. Поддержка LAN, кросс-сетевой доступ и развёртывание на сервере. Вход по QR-коду или паролю.
 
@@ -278,7 +278,7 @@ _Ваш ИИ-ассистент 24/7 — доступ к AionUi с любого 
   - **WeChat** — интеграция с личным аккаунтом WeChat
   - **WeCom (企业微信), Slack, Discord** и другие платформы скоро появятся
 
-> **Настройка:** Настройки AionUi → Настройки WebUI → Канал, настройте токен бота.
+> **Настройка:** Настройки LingAI → Настройки WebUI → Канал, настройте токен бота.
 
 <p align="center">
   <img src="./resources/webui-remote.gif" alt="WebUI remote access demo" width="800">
@@ -286,7 +286,7 @@ _Ваш ИИ-ассистент 24/7 — доступ к AionUi с любого 
 
 <p align="center"><em>Удалённое управление и мониторин агента — Claude, Gemini, Codex. Используйте из браузера или с телефона, так же как удалённый доступ Claude Code.</em></p>
 
-> [Руководство по удалённому доступу через интернет](https://github.com/iOfficeAI/AionUi/wiki/Remote-Internet-Access-Guide-Chinese)
+> [Руководство по удалённому доступу через интернет](https://github.com/iOfficeAI/LingAI/wiki/Remote-Internet-Access-Guide-Chinese)
 
 ## ✨ Cowork в действии
 
@@ -324,7 +324,7 @@ _Настройте один раз, ИИ-агент работает автом
 - **Привязка к разговору** — каждая запланированная задача привязана к разговору, сохраняя контекст и историю
 - **Автоматическое выполнение** — задачи выполняются автоматически в запланированное время, отправляя сообщения в разговор
 - **Простое управление** — создавайте, изменяйте, включайте/отключайте, удаляйте и просматривайте запланированные задачи в любое время
-- **Режим без сна** — AionUi автоматически предотвращает переход системы в спящий режим, пока активны задачи, и определяет пропущенные триггеры после пробуждения
+- **Режим без сна** — LingAI автоматически предотвращает переход системы в спящий режим, пока активны задачи, и определяет пропущенные триггеры после пробуждения
 - **Расширенная конфигурация** — каждая задача может иметь собственные настройки модели, рабочего каталога и интенсивности рассуждений
 
 **Примеры из реальной жизни:**
@@ -373,7 +373,7 @@ _10+ форматов: PDF, Word, Excel, PPT, код, Markdown, изображе
 _Пакетное переименование, автоматическая организация, умная классификация, объединение файлов — Cowork-агент справится с этим за вас._
 
 <p align="center">
-  <img src="./resources/aionui sort file 2.gif" alt="Smart File Management" width="800">
+  <img src="./resources/lingai sort file 2.gif" alt="Smart File Management" width="800">
 </p>
 
 <details>
@@ -445,7 +445,7 @@ _Интеллектуальная генерация, редактировани
 
 </details>
 
-> [Руководство по конфигурации модели генерации изображений](https://github.com/iOfficeAI/AionUi/wiki/AionUi-Image-Generation-Tool-Model-Configuration-Guide)
+> [Руководство по конфигурации модели генерации изображений](https://github.com/iOfficeAI/LingAI/wiki/LingAI-Image-Generation-Tool-Model-Configuration-Guide)
 
 ---
 
@@ -502,16 +502,16 @@ _Открывайте несколько разговоров, задачи не
 
 ---
 
-## 🤔 Почему AionUi вместо Claude Cowork?
+## 🤔 Почему LingAI вместо Claude Cowork?
 
 <details>
 <summary><strong>Нажмите для подробного сравнения</strong></summary>
 
 <br>
 
-AionUi — это **бесплатный мультиагентный рабочий стол с открытым исходным кодом**. По сравнению с Claude Cowork, который работает только на macOS и привязан к Claude, AionUi — его кроссплатформенная улучшенная версия со всеми моделями.
+LingAI — это **бесплатный мультиагентный рабочий стол с открытым исходным кодом**. По сравнению с Claude Cowork, который работает только на macOS и привязан к Claude, LingAI — его кроссплатформенная улучшенная версия со всеми моделями.
 
-| Параметр          | Claude Cowork  | AionUi                                                       |
+| Параметр          | Claude Cowork  | LingAI                                                       |
 | :---------------- | :------------- | :----------------------------------------------------------- |
 | ОС                | Только macOS   | macOS / Windows / Linux                                      |
 | Поддержка моделей | Только Claude  | Gemini, Claude, DeepSeek, OpenAI, Ollama, ...                |
@@ -534,17 +534,17 @@ AionUi — это **бесплатный мультиагентный рабоч
 
 <details>
 <summary><strong>В: Нужно ли сначала устанавливать Gemini CLI или Claude Code?</strong></summary>
-О: <strong>Нет.</strong> AionUi имеет встроенный ИИ-агент, который работает сразу после установки. Просто введите любой API-ключ, чтобы начать. Если у вас также установлены CLI-инструменты, такие как Claude Code или Gemini CLI, AionUi автоматически обнаружит и интегрирует их для ещё больших возможностей.
+О: <strong>Нет.</strong> LingAI имеет встроенный ИИ-агент, который работает сразу после установки. Просто введите любой API-ключ, чтобы начать. Если у вас также установлены CLI-инструменты, такие как Claude Code или Gemini CLI, LingAI автоматически обнаружит и интегрирует их для ещё больших возможностей.
 </details>
 
 <details>
-<summary><strong>В: Что я могу делать с AionUi?</strong></summary>
-О: AionUi — это ваше <strong>приватное Cowork-рабочее пространство</strong>. Встроенный агент может пакетно организовывать папки, обрабатывать данные Excel, генерировать документы, искать в интернете и генерировать изображения. С мультиагентным режимом вы также можете использовать Claude Code, Codex и другие мощные CLI-агенты через один и тот же интерфейс.
+<summary><strong>В: Что я могу делать с LingAI?</strong></summary>
+О: LingAI — это ваше <strong>приватное Cowork-рабочее пространство</strong>. Встроенный агент может пакетно организовывать папки, обрабатывать данные Excel, генерировать документы, искать в интернете и генерировать изображения. С мультиагентным режимом вы также можете использовать Claude Code, Codex и другие мощные CLI-агенты через один и тот же интерфейс.
 </details>
 
 <details>
 <summary><strong>В: Это бесплатно?</strong></summary>
-О: AionUi полностью бесплатен и имеет открытый исходный код. Вы платите только за использование API выбранного провайдера и можете использовать API-ключи любого провайдера по вашему выбору.
+О: LingAI полностью бесплатен и имеет открытый исходный код. Вы платите только за использование API выбранного провайдера и можете использовать API-ключи любого провайдера по вашему выбору.
 </details>
 
 <details>
@@ -554,7 +554,7 @@ AionUi — это **бесплатный мультиагентный рабоч
 
 ---
 
-## Посмотрите, как люди используют AionUi
+## Посмотрите, как люди используют LingAI
 
 <p align="center">
   <a href="https://www.youtube.com/watch?v=vWxE6VO9TKo" target="_blank">
@@ -588,7 +588,7 @@ AionUi — это **бесплатный мультиагентный рабоч
 - [Как сделать так, чтобы обычные люди использовали Claude Code как приложение](https://mp.weixin.qq.com/s/TsMojSbkUUFvsd-HQCazZg) — Lazy Cat Loves Fishing
 - [5500 звёзд: как открытый исходный код ломает защитный ров ИИ-инструмента Anthropic](https://mp.weixin.qq.com/s/saEk49cYV6MqBgw19Lw6Gw) — AI Silicon Moment
 
-> **Сняли видео об AionUi?** [Сообщите нам в X](https://x.com/AionUi), и мы разместим его здесь!
+> **Сняли видео об LingAI?** [Сообщите нам в X](https://x.com/LingAI), и мы разместим его здесь!
 
 ---
 
@@ -605,7 +605,7 @@ AionUi — это **бесплатный мультиагентный рабоч
 ### Установка
 
 <p>
-  <a href="https://github.com/iOfficeAI/AionUi/releases">
+  <a href="https://github.com/iOfficeAI/LingAI/releases">
     <img src="https://img.shields.io/badge/Download-Latest%20Release-32CD32?style=for-the-badge&logo=github&logoColor=white" alt="Download Latest Release" height="50">
   </a>
 </p>
@@ -614,12 +614,12 @@ AionUi — это **бесплатный мультиагентный рабоч
 
 ```bash
 # Или macOS через Homebrew
-brew install aionui
+brew install lingai
 ```
 
 ### Начало работы за 3 шага
 
-1. **Установите** AionUi
+1. **Установите** LingAI
 2. **Введите** любой API-ключ, чтобы начать
 3. **Начните Cowork** — встроенный ИИ-агент готов к работе
 
@@ -632,23 +632,23 @@ brew install aionui
 
 **🚀 Быстрый старт**
 
-- [📖 Полное руководство по установке](https://github.com/iOfficeAI/AionUi/wiki/Getting-Started) — подробные шаги от загрузки до настройки
-- [⚙️ Руководство по настройке LLM](https://github.com/iOfficeAI/AionUi/wiki/LLM-Configuration) — настройка ИИ-моделей на множестве платформ
-- [🤖 Настройка мультиагентного режима](https://github.com/iOfficeAI/AionUi/wiki/ACP-Setup) — интеграция ИИ-агентов терминала
-- [🔌 Настройка MCP-инструментов](https://github.com/iOfficeAI/AionUi/wiki/MCP-Configuration-Guide) — настройка сервера Model Context Protocol
-- [🌐 Руководство по настройке WebUI](https://github.com/iOfficeAI/AionUi/wiki/WebUI-Configuration-Guide) — полное руководство по настройке WebUI
+- [📖 Полное руководство по установке](https://github.com/iOfficeAI/LingAI/wiki/Getting-Started) — подробные шаги от загрузки до настройки
+- [⚙️ Руководство по настройке LLM](https://github.com/iOfficeAI/LingAI/wiki/LLM-Configuration) — настройка ИИ-моделей на множестве платформ
+- [🤖 Настройка мультиагентного режима](https://github.com/iOfficeAI/LingAI/wiki/ACP-Setup) — интеграция ИИ-агентов терминала
+- [🔌 Настройка MCP-инструментов](https://github.com/iOfficeAI/LingAI/wiki/MCP-Configuration-Guide) — настройка сервера Model Context Protocol
+- [🌐 Руководство по настройке WebUI](https://github.com/iOfficeAI/LingAI/wiki/WebUI-Configuration-Guide) — полное руководство по настройке WebUI
 
 **🎯 Сценарии использования**
 
-- [📁 Управление файлами](https://github.com/iOfficeAI/AionUi/wiki/file-management) — умная организация файлов
-- [📊 Обработка Excel](https://github.com/iOfficeAI/AionUi/wiki/excel-processing) — обработка данных на базе ИИ
-- [🎨 Генерация изображений](https://github.com/iOfficeAI/AionUi/wiki/AionUi-Image-Generation-Tool-Model-Configuration-Guide) — создание изображений на базе ИИ
-- [📚 Больше сценариев](https://github.com/iOfficeAI/AionUi/wiki/Use-Cases-Overview)
+- [📁 Управление файлами](https://github.com/iOfficeAI/LingAI/wiki/file-management) — умная организация файлов
+- [📊 Обработка Excel](https://github.com/iOfficeAI/LingAI/wiki/excel-processing) — обработка данных на базе ИИ
+- [🎨 Генерация изображений](https://github.com/iOfficeAI/LingAI/wiki/LingAI-Image-Generation-Tool-Model-Configuration-Guide) — создание изображений на базе ИИ
+- [📚 Больше сценариев](https://github.com/iOfficeAI/LingAI/wiki/Use-Cases-Overview)
 
 **❓ Поддержка и помощь**
 
-- [❓ FAQ](https://github.com/iOfficeAI/AionUi/wiki/FAQ) — вопросы и устранение неполадок
-- [🔧 Руководства по настройке и использованию](https://github.com/iOfficeAI/AionUi/wiki/Configuration-Guides) — полная документация по настройке
+- [❓ FAQ](https://github.com/iOfficeAI/LingAI/wiki/FAQ) — вопросы и устранение неполадок
+- [🔧 Руководства по настройке и использованию](https://github.com/iOfficeAI/LingAI/wiki/Configuration-Guides) — полная документация по настройке
 
 </details>
 
@@ -659,14 +659,14 @@ brew install aionui
 **Ваши идеи важны!** Мы ценим каждое предложение и отзыв.
 
 <p align="center">
-  <a href="https://x.com/AionUi" target="_blank">
+  <a href="https://x.com/LingAI" target="_blank">
     <img src="./resources/contactus-x.png" alt="Contact Us on X" width="600">
   </a>
 </p>
 
-- [GitHub Discussions](https://github.com/iOfficeAI/AionUi/discussions) — делитесь идеями и обменивайтесь советами
-- [Сообщить о проблемах](https://github.com/iOfficeAI/AionUi/issues) — ошибки и запросы функций
-- [Обновления релизов](https://github.com/iOfficeAI/AionUi/releases) — получите последнюю версию
+- [GitHub Discussions](https://github.com/iOfficeAI/LingAI/discussions) — делитесь идеями и обменивайтесь советами
+- [Сообщить о проблемах](https://github.com/iOfficeAI/LingAI/issues) — ошибки и запросы функций
+- [Обновления релизов](https://github.com/iOfficeAI/LingAI/releases) — получите последнюю версию
 - [Сообщество Discord](https://discord.gg/2QAwJn7Egx) — англоязычное сообщество
 - [Группа WeChat](./resources/wx-14.png) — русскоязычное сообщество
 
@@ -680,7 +680,7 @@ brew install aionui
 
 ### Настройка среды разработки
 
-Локальная разработка AionUi использует два репозитория: AionUi для Electron-фронтенда и AionCore для локального backend. Полная настройка для macOS, Linux и Windows описана в [Development Guide](../contributing/development.md).
+Локальная разработка LingAI использует два репозитория: LingAI для Electron-фронтенда и AionCore для локального backend. Полная настройка для macOS, Linux и Windows описана в [Development Guide](../contributing/development.md).
 
 ---
 
@@ -693,16 +693,16 @@ brew install aionui
 ## Участники
 
 <p align="center">
-  <a href="https://github.com/iOfficeAI/AionUi/graphs/contributors">
-    <img src="https://contrib.rocks/image?repo=iOfficeAI/AionUi&max=100" alt="Contributors" />
+  <a href="https://github.com/iOfficeAI/LingAI/graphs/contributors">
+    <img src="https://contrib.rocks/image?repo=iOfficeAI/LingAI&max=100" alt="Contributors" />
   </a>
 </p>
 
 ## История звёзд
 
 <p align="center">
-  <a href="https://www.star-history.com/#iOfficeAI/aionui&Date" target="_blank">
-    <img src="https://api.star-history.com/svg?repos=iOfficeAI/aionui&type=Date" alt="Star History" width="600">
+  <a href="https://www.star-history.com/#iOfficeAI/lingai&Date" target="_blank">
+    <img src="https://api.star-history.com/svg?repos=iOfficeAI/lingai&type=Date" alt="Star History" width="600">
   </a>
 </p>
 
@@ -710,6 +710,6 @@ brew install aionui
 
 **Если нравится, поставьте нам звезду**
 
-[Сообщить об ошибке](https://github.com/iOfficeAI/AionUi/issues) · [Запросить функцию](https://github.com/iOfficeAI/AionUi/issues)
+[Сообщить об ошибке](https://github.com/iOfficeAI/LingAI/issues) · [Запросить функцию](https://github.com/iOfficeAI/LingAI/issues)
 
 </div>

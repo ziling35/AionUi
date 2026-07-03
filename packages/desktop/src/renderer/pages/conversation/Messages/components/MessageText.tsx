@@ -1,17 +1,18 @@
 /**
  * @license
- * Copyright 2025 AionUi (aionui.com)
+ * Copyright 2025 LingAI (lingai.com)
  * SPDX-License-Identifier: Apache-2.0
  */
 
 import type { IMessageText } from '@/common/chat/chatLib';
-import { AIONUI_FILES_MARKER } from '@/common/config/constants';
+import { LINGAI_FILES_MARKER } from '@/common/config/constants';
 import { useConversationContextSafe } from '@/renderer/hooks/context/ConversationContext';
 import { useLayoutContext } from '@/renderer/hooks/context/LayoutContext';
 import { useLocalFilePreview } from '@/renderer/pages/conversation/Preview/hooks/useLocalFilePreview';
 import { iconColors } from '@/renderer/styles/colors';
+import { emitter } from '@/renderer/utils/emitter';
 import { Alert, Message, Tooltip } from '@arco-design/web-react';
-import { Copy } from '@icon-park/react';
+import { Copy, ReplayMusic } from '@icon-park/react';
 import classNames from 'classnames';
 import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -52,12 +53,12 @@ import TeammateMessageAvatar from './TeammateMessageAvatar';
 const CODE_STYLE = { marginTop: 4, marginBlock: 4 };
 
 const parseFileMarker = (content: string) => {
-  const markerIndex = content.indexOf(AIONUI_FILES_MARKER);
+  const markerIndex = content.indexOf(LINGAI_FILES_MARKER);
   if (markerIndex === -1) {
     return { text: content, files: [] as string[] };
   }
   const text = content.slice(0, markerIndex).trimEnd();
-  const afterMarker = content.slice(markerIndex + AIONUI_FILES_MARKER.length).trim();
+  const afterMarker = content.slice(markerIndex + LINGAI_FILES_MARKER.length).trim();
   const files = afterMarker
     ? afterMarker
         .split('\n')
@@ -149,13 +150,24 @@ const MessageText: React.FC<{ message: IMessageText; showCopyRow?: boolean }> = 
       });
   };
 
+  const handleFillSendBox = () => {
+    emitter.emit('sendbox.fill', text);
+  };
+
+  const actionClassName =
+    'p-4px rd-4px cursor-pointer hover:bg-3 transition-colors opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto focus-within:opacity-100 focus-within:pointer-events-auto';
+
+  const refillButton = isUserMessage ? (
+    <Tooltip content={t('messages.fillSendboxForResend')}>
+      <div className={actionClassName} onClick={handleFillSendBox} style={{ lineHeight: 0 }}>
+        <ReplayMusic theme='outline' size='16' fill={iconColors.secondary} />
+      </div>
+    </Tooltip>
+  ) : null;
+
   const copyButton = (
     <Tooltip content={t('common.copy', { defaultValue: 'Copy' })}>
-      <div
-        className='p-4px rd-4px cursor-pointer hover:bg-3 transition-colors opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto focus-within:opacity-100 focus-within:pointer-events-auto'
-        onClick={handleCopy}
-        style={{ lineHeight: 0 }}
-      >
+      <div className={actionClassName} onClick={handleCopy} style={{ lineHeight: 0 }}>
         <Copy theme='outline' size='16' fill={iconColors.secondary} />
       </div>
     </Tooltip>
@@ -242,6 +254,7 @@ const MessageText: React.FC<{ message: IMessageText; showCopyRow?: boolean }> = 
               'flex-row-reverse': isUserMessage,
             })}
           >
+            {refillButton}
             {copyButton}
             {message.created_at && (
               <span className='text-12px text-t-secondary opacity-0 group-hover:opacity-100 transition-opacity select-none'>

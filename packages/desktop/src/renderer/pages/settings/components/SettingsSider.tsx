@@ -14,6 +14,7 @@ import {
   Puzzle,
   Speed,
   System,
+  Wallet,
 } from '@icon-park/react';
 import classNames from 'classnames';
 import React, { useMemo } from 'react';
@@ -24,6 +25,7 @@ import { getSiderTooltipProps } from '@/renderer/utils/ui/siderTooltip';
 
 /** Builtin settings tab IDs in display order (must match router paths). */
 export const BUILTIN_TAB_IDS = [
+  'account',
   'agent',
   'model',
   'capabilities',
@@ -80,6 +82,7 @@ const SettingsSider: React.FC<{ collapsed?: boolean; tooltipEnabled?: boolean }>
   const { menus, groupHeaderAt } = useMemo(() => {
     // Build builtin items
     const builtinMap: Record<string, SiderItem> = {
+      account: { id: 'account', label: t('settings.account'), icon: <Wallet />, path: 'account' },
       model: { id: 'model', label: t('settings.model'), icon: <LinkCloud />, path: 'model' },
       agent: {
         id: 'agent',

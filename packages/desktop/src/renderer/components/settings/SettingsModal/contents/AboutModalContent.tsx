@@ -1,6 +1,6 @@
 /**
  * @license
- * Copyright 2025 AionUi (aionui.com)
+ * Copyright 2025 LingAI (lingai.com)
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -103,12 +103,12 @@ const AboutModalContent: React.FC = () => {
   const linkItems: LinkItem[] = [
     {
       title: t('settings.helpDocumentation'),
-      url: 'https://github.com/iOfficeAI/AionUi/wiki',
+      url: 'https://github.com/iOfficeAI/LingAI/wiki',
       icon: <Right theme='outline' size='16' />,
     },
     {
       title: t('settings.updateLog'),
-      url: 'https://github.com/iOfficeAI/AionUi/releases',
+      url: 'https://github.com/iOfficeAI/LingAI/releases',
       icon: <Right theme='outline' size='16' />,
     },
     {
@@ -123,7 +123,7 @@ const AboutModalContent: React.FC = () => {
     },
     {
       title: t('settings.officialWebsite'),
-      url: 'https://www.aionui.com',
+      url: 'https://www.lingai.com',
       icon: <Right theme='outline' size='16' />,
     },
   ];
@@ -141,7 +141,7 @@ const AboutModalContent: React.FC = () => {
           {/* App Info Section */}
           <div className='flex flex-col items-center pb-24px'>
             <Typography.Title heading={3} className='text-24px font-bold text-t-primary mb-8px'>
-              AionUi
+              LingAI
             </Typography.Title>
             <Typography.Text className='text-14px text-t-secondary mb-12px text-center'>
               {t('settings.appDescription')}
@@ -153,7 +153,7 @@ const AboutModalContent: React.FC = () => {
               <div
                 className='text-t-primary cursor-pointer hover:text-t-secondary transition-colors p-4px'
                 onClick={() =>
-                  openLink('https://github.com/iOfficeAI/AionUi').catch((error) =>
+                  openLink('https://github.com/iOfficeAI/LingAI').catch((error) =>
                     console.error('Failed to open link:', error)
                   )
                 }

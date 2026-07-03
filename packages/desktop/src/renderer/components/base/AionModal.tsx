@@ -1,6 +1,6 @@
 /**
  * @license
- * Copyright 2025 AionUi (aionui.com)
+ * Copyright 2025 LingAI (lingai.com)
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -378,13 +378,13 @@ const AionModal: React.FC<AionModalProps> = ({
       closable={false}
       footer={null}
       onCancel={onCancel}
-      className={`aionui-modal ${className}`}
+      className={`lingai-modal ${className}`}
       style={finalStyle}
       getPopupContainer={() => document.body}
     >
-      <div className='aionui-modal-wrapper' style={{ borderRadius: borderRadiusVal }}>
+      <div className='lingai-modal-wrapper' style={{ borderRadius: borderRadiusVal }}>
         {renderHeader()}
-        <div className='aionui-modal-body-content' style={bodyInlineStyle}>
+        <div className='lingai-modal-body-content' style={bodyInlineStyle}>
           {children}
         </div>
         {renderFooter()}

@@ -1,6 +1,6 @@
 /**
  * @license
- * Copyright 2026 AionUi (aionui.com)
+ * Copyright 2026 LingAI (lingai.com)
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -95,14 +95,14 @@ describe('UpdateNotificationCard', () => {
           version: '2.1.14',
           name: 'v2.1.14',
           body: 'notes',
-          htmlUrl: 'https://github.com/iOfficeAI/AionUi/releases/tag/v2.1.14',
+          htmlUrl: 'https://github.com/iOfficeAI/LingAI/releases/tag/v2.1.14',
           prerelease: false,
           draft: false,
           assets: [],
           recommendedAsset: {
-            name: 'AionUi-2.1.14-mac-arm64.dmg',
-            url: 'https://static.aionui.com/releases/2.1.14/AionUi-2.1.14-mac-arm64.dmg',
-            fallbackUrl: 'https://github.com/iOfficeAI/AionUi/releases/download/v2.1.14/AionUi-2.1.14-mac-arm64.dmg',
+            name: 'LingAI-2.1.14-mac-arm64.dmg',
+            url: 'https://static.lingai.com/releases/2.1.14/LingAI-2.1.14-mac-arm64.dmg',
+            fallbackUrl: 'https://github.com/iOfficeAI/LingAI/releases/download/v2.1.14/LingAI-2.1.14-mac-arm64.dmg',
             size: 123,
           },
         },
@@ -112,7 +112,7 @@ describe('UpdateNotificationCard', () => {
       success: true,
       data: {
         downloadId: request.downloadId ?? 'manual-download',
-        file_path: '/tmp/AionUi-2.1.14-mac-arm64.dmg',
+        file_path: '/tmp/LingAI-2.1.14-mac-arm64.dmg',
       },
     }));
   });
@@ -161,7 +161,7 @@ describe('UpdateNotificationCard', () => {
       data: {
         ready: true,
         version: '2.1.14',
-        filePath: '/cache/pending/AionUi-2.1.14-mac.zip',
+        filePath: '/cache/pending/LingAI-2.1.14-mac.zip',
       },
     });
 

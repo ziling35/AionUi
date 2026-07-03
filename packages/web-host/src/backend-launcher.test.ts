@@ -170,9 +170,9 @@ describe('buildSpawnArgs', () => {
     expect(args).toContain('--recover-corrupted-database');
   });
 
-  it('respects AIONUI_LOG_LEVEL override', () => {
-    const prev = process.env.AIONUI_LOG_LEVEL;
-    process.env.AIONUI_LOG_LEVEL = 'trace';
+  it('respects LINGAI_LOG_LEVEL override', () => {
+    const prev = process.env.LINGAI_LOG_LEVEL;
+    process.env.LINGAI_LOG_LEVEL = 'trace';
     try {
       const args = buildSpawnArgs({
         port: 1,
@@ -183,22 +183,22 @@ describe('buildSpawnArgs', () => {
       });
       expect(args).toContain('trace');
     } finally {
-      if (prev === undefined) delete process.env.AIONUI_LOG_LEVEL;
-      else process.env.AIONUI_LOG_LEVEL = prev;
+      if (prev === undefined) delete process.env.LINGAI_LOG_LEVEL;
+      else process.env.LINGAI_LOG_LEVEL = prev;
     }
   });
 });
 
 describe('buildSpawnEnv', () => {
-  it('merges process.env with AIONUI_* dir vars', () => {
+  it('merges process.env with LINGAI_* dir vars', () => {
     const env = buildSpawnEnv({
       cacheDir: '/c',
       workDir: '/w',
       logDir: '/l',
     });
-    expect(env.AIONUI_CACHE_DIR).toBe('/c');
-    expect(env.AIONUI_WORK_DIR).toBe('/w');
-    expect(env.AIONUI_LOG_DIR).toBe('/l');
+    expect(env.LINGAI_CACHE_DIR).toBe('/c');
+    expect(env.LINGAI_WORK_DIR).toBe('/w');
+    expect(env.LINGAI_LOG_DIR).toBe('/l');
     expect(env.PATH).toBe(process.env.PATH); // inherits
   });
 });
@@ -372,9 +372,9 @@ describe('BackendLifecycleManager.start (success path)', () => {
       ]);
       const opts = spawnCall[2] as { cwd?: string; env: NodeJS.ProcessEnv };
       expect(opts.cwd).toBe('/w');
-      expect(opts.env.AIONUI_CACHE_DIR).toBe('/c');
-      expect(opts.env.AIONUI_WORK_DIR).toBe('/w');
-      expect(opts.env.AIONUI_LOG_DIR).toBe('/l');
+      expect(opts.env.LINGAI_CACHE_DIR).toBe('/c');
+      expect(opts.env.LINGAI_WORK_DIR).toBe('/w');
+      expect(opts.env.LINGAI_LOG_DIR).toBe('/l');
       expect((spawnCall[2] as { detached?: boolean }).detached).toBe(process.platform !== 'win32');
 
       expect(fetchSpy).toHaveBeenCalled();
@@ -408,7 +408,7 @@ describe('BackendLifecycleManager.start (health timeout)', () => {
     child.stderr?.emit(
       'data',
       Buffer.from(
-        'BOOTSTRAP_DATA_INIT_FAILED stage=database.open databasePath=/db/path/aionui-backend.db: failed to initialize application data\n'
+        'BOOTSTRAP_DATA_INIT_FAILED stage=database.open databasePath=/db/path/lingai-backend.db: failed to initialize application data\n'
       )
     );
     child.emit('exit', 1, null);
@@ -443,7 +443,7 @@ describe('BackendLifecycleManager.start (health timeout)', () => {
     child.stderr?.emit(
       'data',
       Buffer.from(
-        'BOOTSTRAP_DATA_INIT_FAILED stage=database.migration databasePath=/db/path/aionui-backend.db: failed to initialize application data\n'
+        'BOOTSTRAP_DATA_INIT_FAILED stage=database.migration databasePath=/db/path/lingai-backend.db: failed to initialize application data\n'
       )
     );
     child.emit('close', 1, null);

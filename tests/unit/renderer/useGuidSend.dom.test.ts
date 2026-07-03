@@ -1,6 +1,6 @@
 /**
  * @license
- * Copyright 2025 AionUi (aionui.com)
+ * Copyright 2025 LingAI (lingai.com)
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -184,7 +184,7 @@ describe('useGuidSend', () => {
     expect(payload.assistant?.conversation_overrides?.disabled_builtin_skill_ids).toEqual(['todo-tracker']);
   });
 
-  it('forwards local skill overrides for generated Aion CLI assistants through assistant conversation overrides', async () => {
+  it('forwards local skill overrides for generated AI CLI assistants through assistant conversation overrides', async () => {
     const deps = createDeps();
     deps.selectedAssistantId = 'bare:aionrs';
     deps.selectedAssistantBackend = 'aionrs';
@@ -207,7 +207,7 @@ describe('useGuidSend', () => {
     expect(payload.extra.session_mode).toBeUndefined();
   });
 
-  it('does not write legacy preset_assistant_id for generated Aion CLI assistant conversations', async () => {
+  it('does not write legacy preset_assistant_id for generated AI CLI assistant conversations', async () => {
     const deps = createDeps();
     deps.selectedAssistantId = 'bare:aionrs';
     deps.selectedAssistantBackend = 'aionrs';

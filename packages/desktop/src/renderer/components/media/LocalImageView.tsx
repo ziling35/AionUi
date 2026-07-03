@@ -35,6 +35,12 @@ const LocalImageView: React.FC<{
   }, [src, root]);
 
   useEffect(() => {
+    if (absolutePath.startsWith('data:') || absolutePath.startsWith('http')) {
+      setUrl(absolutePath);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     ipcBridge.fs.getImageBase64
       .invoke({ path: absolutePath, workspace: root || undefined })
@@ -51,7 +57,7 @@ const LocalImageView: React.FC<{
         });
         setLoading(false);
       });
-  }, [absolutePath]);
+  }, [absolutePath, root]);
   if (loading)
     return (
       <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>

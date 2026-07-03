@@ -1,0 +1,62 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id          String       @id @default(uuid())
+  username    String?      @unique
+  password    String?
+  email       String?      @unique
+  deviceId    String?      @unique
+  quota       Int          @default(0)
+  usedQuota   Int          @default(0)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  cardSecrets CardSecret[]
+}
+
+model CardSecret {
+  id        String    @id @default(uuid())
+  code      String    @unique
+  amount    Int
+  status    String    @default("UNUSED")
+  usedById  String?
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+  usedBy    User?     @relation(fields: [usedById], references: [id])
+}
+
+/// A Provider groups multiple models that share the same upstream credentials
+/// (base URL + API key), mirroring the LingAI client's provider-centric model.
+model Provider {
+  id        String        @id @default(uuid())
+  name      String
+  platform  String        @default("custom")
+  baseUrl   String?
+  apiKey    String?
+  enabled   Boolean       @default(true)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  models    ModelConfig[]
+}
+
+model ModelConfig {
+  id         String    @id @default(uuid())
+  modelId    String    @unique
+  name       String
+  providerId String?
+  apiBaseUrl String?
+  apiKey     String?
+  multiplier Float     @default(1.0)
+  isActive   Boolean   @default(true)
+  type       String    @default("chat")
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  unitPrice  Float     @default(0)
+  provider   Provider? @relation(fields: [providerId], references: [id], onDelete: Cascade)
+}

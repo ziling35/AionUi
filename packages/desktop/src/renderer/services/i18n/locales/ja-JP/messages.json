@@ -11,6 +11,7 @@
   "copySuccess": "コピーしました",
   "copyFailed": "コピーに失敗しました",
   "copyLastOutput.empty": "まだコピーできる応答がありません",
+  "fillSendboxForResend": "再送信のため入力欄に入れる",
   "copiedToClipboard": "クリップボードにコピーしました",
   "downloadSuccess": "ダウンロードしました",
   "downloadFailed": "ダウンロードに失敗しました",

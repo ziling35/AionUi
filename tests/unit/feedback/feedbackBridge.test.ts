@@ -1,6 +1,6 @@
 /**
  * @license
- * Copyright 2025 AionUi (aionui.com)
+ * Copyright 2025 LingAI (lingai.com)
  * SPDX-License-Identifier: Apache-2.0
  *
  * Node-environment tests for feedbackBridge's IPC handlers.
@@ -37,7 +37,7 @@ vi.mock('electron', () => ({
     on: vi.fn(),
   },
   app: {
-    getPath: vi.fn(() => '/tmp/aionui-test-logs-nonexistent'),
+    getPath: vi.fn(() => '/tmp/lingai-test-logs-nonexistent'),
     getVersion: vi.fn(() => '0.0.0'),
   },
   BrowserWindow: {
@@ -133,7 +133,7 @@ describe('feedbackBridge — capture-screenshot', () => {
 
 describe('feedback logs', () => {
   it('collects top-level frontend logs and nested backend logs through the IPC handler', async () => {
-    const logsDir = mkdtempSync(path.join(tmpdir(), 'aionui-feedback-bridge-'));
+    const logsDir = mkdtempSync(path.join(tmpdir(), 'lingai-feedback-bridge-'));
     try {
       const backendLogsDir = path.join(logsDir, 'logs');
       mkdirSync(backendLogsDir);
@@ -164,7 +164,7 @@ describe('feedback logs', () => {
   });
 
   it('collects the same recent three log days used by user feedback reports', () => {
-    const logsDir = mkdtempSync(path.join(tmpdir(), 'aionui-feedback-logs-'));
+    const logsDir = mkdtempSync(path.join(tmpdir(), 'lingai-feedback-logs-'));
     try {
       writeFileSync(path.join(logsDir, '2026-05-25.log'), 'today frontend\n');
       writeFileSync(path.join(logsDir, '2026-05-25.aioncore.log'), 'today backend\n');

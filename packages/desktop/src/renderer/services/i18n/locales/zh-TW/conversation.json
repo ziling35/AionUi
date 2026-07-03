@@ -12,10 +12,10 @@
     "clearWorkspace": "移除專案",
     "openFolder": "Open Folder",
     "none": "None",
-    "quickActionsTitle": "AionUi 能做什麼？",
+    "quickActionsTitle": "LingAI 能做什麼？",
     "quickActionFeedback": "反饋問題",
     "quickActionStar": "喜歡我們？點個星吧",
-    "skillsMarket": "AionUi Skills Market",
+    "skillsMarket": "LingAI Skills Market",
     "skillsMarketDesc": "按需搜尋並啟用社區 Skills，一次設定，所有Agent通用。",
     "skillsMarketDetails": "詳情 >>"
   },
@@ -125,29 +125,29 @@
       "send_feedback": "Send feedback with logs so the team can investigate."
     },
     "ownership": {
-      "aionui": "應用",
+      "lingai": "應用",
       "user_agent": "Agent",
       "user_llm_provider": "模型服務商",
       "unknown_upstream": "上游"
     },
     "codes": {
-      "AIONUI_STREAM_BROKEN": {
+      "LINGAI_STREAM_BROKEN": {
         "title": "回應流異常中斷",
         "body": "訊息已送出，但回應流異常結束。請先重試；如果反覆出現，可以提交回饋。"
       },
-      "AIONUI_STATE_INCONSISTENT": {
+      "LINGAI_STATE_INCONSISTENT": {
         "title": "會話狀態不一致",
         "body": "目前對話狀態和後台記錄不同步。請重新開啟應用程式或建立新對話後再試。"
       },
-      "AIONUI_PERMISSION_ERROR": {
+      "LINGAI_PERMISSION_ERROR": {
         "title": "無法存取所需資源",
         "body": "本機權限或檔案存取檢查失敗。請確認專案路徑和應用程式權限後重試。"
       },
-      "AIONUI_INTERNAL_ERROR": {
+      "LINGAI_INTERNAL_ERROR": {
         "title": "應用處理失敗",
         "body": "本次請求在應用程式處理過程中失敗。請先重試一次；如果仍然出現，可以提交回饋。"
       },
-      "AIONUI_CONVERSATION_BUSY": {
+      "LINGAI_CONVERSATION_BUSY": {
         "title": "會話正在處理上一則訊息",
         "body": "目前會話還有回覆尚未結束。請等待本次回覆完成後再傳送新的訊息。"
       },
@@ -302,7 +302,7 @@
       },
       "MCP_HTTP_RESPONSE_READ_FAILED": {
         "title": "讀取團隊輔助程序回應失敗",
-        "body": "AionUi 無法讀取本地團隊輔助程序的回應。請先重試一次，若持續發生再重新啟動應用。"
+        "body": "LingAI 無法讀取本地團隊輔助程序的回應。請先重試一次，若持續發生再重新啟動應用。"
       },
       "MCP_TOOL_REMOTE_ERROR": {
         "title": "本地團隊輔助程序拒絕了這次請求",
@@ -310,11 +310,11 @@
       },
       "MCP_TOOL_RESPONSE_UNEXPECTED": {
         "title": "團隊輔助程序回傳了異常回應",
-        "body": "AionUi 收到了本地團隊輔助程序的異常回應。請先重試一次，若持續發生再回報問題。"
+        "body": "LingAI 收到了本地團隊輔助程序的異常回應。請先重試一次，若持續發生再回報問題。"
       },
       "MCP_TCP_READ_FAILED": {
         "title": "讀取本地團隊輔助程序失敗",
-        "body": "AionUi 無法讀取本地團隊輔助程序的 TCP 回應。請先重試一次，如仍失敗可重新啟動應用。"
+        "body": "LingAI 無法讀取本地團隊輔助程序的 TCP 回應。請先重試一次，如仍失敗可重新啟動應用。"
       },
       "TEAM_SERVICE_UNAVAILABLE": {
         "title": "團隊服務尚未就緒",

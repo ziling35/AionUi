@@ -11,6 +11,7 @@
   "copySuccess": "Erfolgreich kopiert",
   "copyFailed": "Kopieren fehlgeschlagen",
   "copyLastOutput.empty": "Noch keine Antwort zum Kopieren",
+  "fillSendboxForResend": "Eingabe zum erneuten Senden ausfüllen",
   "copiedToClipboard": "In die Zwischenablage kopiert",
   "downloadSuccess": "Download erfolgreich",
   "downloadFailed": "Download fehlgeschlagen",

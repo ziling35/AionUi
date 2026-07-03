@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import classNames from 'classnames';
-import { ArrowCircleLeft, ArrowLeft, ArrowRight, ExpandLeft, ExpandRight, Peoples, Search } from '@icon-park/react';
+import { ArrowCircleLeft, ArrowLeft, ArrowRight, ExpandLeft, ExpandRight, Peoples, Search, User } from '@icon-park/react';
 import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate } from 'react-router-dom';
 
@@ -14,6 +14,7 @@ import type { WorkspaceStateDetail } from '@renderer/utils/workspace/workspaceEv
 import { useLayoutContext } from '@/renderer/hooks/context/LayoutContext';
 import { useNavigationHistory } from '@/renderer/hooks/context/NavigationHistoryContext';
 import { useFeedback } from '@/renderer/hooks/context/FeedbackContext';
+import { useUser } from '@/renderer/hooks/context/UserContext';
 import { isElectronDesktop, isMacOS } from '@/renderer/utils/platform';
 import './titlebar.css';
 
@@ -105,13 +106,14 @@ const SidebarIcon: React.FC<{ size?: number; strokeWidth?: number }> = ({ size =
 
 const Titlebar: React.FC<TitlebarProps> = ({ workspaceAvailable }) => {
   const { t } = useTranslation();
-  const appTitle = useMemo(() => 'AionUi', []);
+  const appTitle = useMemo(() => 'LingAI', []);
   const [workspaceCollapsed, setWorkspaceCollapsed] = useState(true);
   const [mobileCenterTitle, setMobileCenterTitle] = useState(appTitle);
   const [mobileCenterOffset, setMobileCenterOffset] = useState(0);
   const layout = useLayoutContext();
   const navigationHistory = useNavigationHistory();
   const { openFeedback } = useFeedback();
+  const { user, isLoggedIn, showLoginModal } = useUser();
   const location = useLocation();
   const navigate = useNavigate();
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -416,6 +418,17 @@ const Titlebar: React.FC<TitlebarProps> = ({ workspaceAvailable }) => {
       </div>
       <div ref={toolbarRef} className='app-titlebar__toolbar'>
         {layout?.isMobile && <div id='app-titlebar-actions-slot' className='app-titlebar__actions-slot' />}
+        <button
+          type='button'
+          className={classNames('app-titlebar__button', layout?.isMobile && 'app-titlebar__button--mobile')}
+          onClick={isLoggedIn ? () => void navigate('/settings/account') : showLoginModal}
+          aria-label={
+            isLoggedIn ? (user?.username ?? 'Account') : t('login.cloud.tabLogin', { defaultValue: 'Sign In' })
+          }
+          title={isLoggedIn ? (user?.username ?? 'Account') : t('login.cloud.tabLogin', { defaultValue: 'Sign In' })}
+        >
+          <User theme='outline' size={iconSize} fill='currentColor' strokeWidth={desktopIconStroke} />
+        </button>
         <button
           type='button'
           className={classNames('app-titlebar__button', layout?.isMobile && 'app-titlebar__button--mobile')}

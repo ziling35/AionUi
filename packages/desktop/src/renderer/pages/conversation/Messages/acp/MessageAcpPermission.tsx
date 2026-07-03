@@ -1,6 +1,6 @@
 /**
  * @license
- * Copyright 2025 AionUi (aionui.com)
+ * Copyright 2025 LingAI (lingai.com)
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -50,13 +50,14 @@ const MessageAcpPermission: React.FC<MessageAcpPermissionProps> = React.memo(({ 
   const [isResponding, setIsResponding] = useState(false);
   const [hasResponded, setHasResponded] = useState(false);
 
-  const handleConfirm = async () => {
-    if (hasResponded || !selected) return;
+  const handleConfirmOption = async (option_id: string) => {
+    if (hasResponded) return;
 
     setIsResponding(true);
+    setSelected(option_id);
     try {
       const invokeData = {
-        confirm_key: selected,
+        confirm_key: option_id,
         msg_id: message.id,
         conversation_id: message.conversation_id,
         call_id: tool_call?.tool_call_id || message.id,
@@ -65,7 +66,6 @@ const MessageAcpPermission: React.FC<MessageAcpPermissionProps> = React.memo(({ 
       await conversation.confirmMessage.invoke(invokeData);
       setHasResponded(true);
     } catch (error) {
-      // Handle error case - could add error logging here
       console.error('Error confirming permission:', error);
     } finally {
       setIsResponding(false);
@@ -98,35 +98,47 @@ const MessageAcpPermission: React.FC<MessageAcpPermissionProps> = React.memo(({ 
           </div>
         )}
         {!hasResponded && (
-          <>
-            <div className='mt-10px'>{t('messages.chooseAction')}</div>
-            <Radio.Group direction='vertical' size='mini' value={selected} onChange={setSelected}>
-              {options && options.length > 0 ? (
-                options.map((option, index) => {
-                  const optionName = option?.name || `${t('messages.option')} ${index + 1}`;
-                  const option_id = option?.option_id || `option_${index}`;
-                  return (
-                    <div key={option_id} data-testid={`message-acp-permission-option-${option_id}`}>
-                      <Radio value={option_id}>{optionName}</Radio>
-                    </div>
-                  );
-                })
-              ) : (
-                <Text type='secondary'>{t('messages.noOptionsAvailable')}</Text>
-              )}
-            </Radio.Group>
-            <div className='flex justify-start pl-20px'>
-              <Button
-                type='primary'
-                size='mini'
-                disabled={!selected || isResponding}
-                onClick={handleConfirm}
-                data-testid='message-acp-permission-confirm'
-              >
-                {isResponding ? t('messages.processing') : t('messages.confirm')}
-              </Button>
-            </div>
-          </>
+          <div className='flex items-center gap-3 mt-4'>
+            {options && options.length > 0 ? (
+              options.map((option, index) => {
+                const optionName = option?.name || `${t('messages.option')} ${index + 1}`;
+                const option_id = option?.option_id || `option_${index}`;
+                
+                const isAccept = option_id.toLowerCase().includes('allow') || option_id.toLowerCase().includes('accept') || option_id.toLowerCase().includes('yes');
+                const isReject = option_id.toLowerCase().includes('deny') || option_id.toLowerCase().includes('reject') || option_id.toLowerCase().includes('no');
+                
+                let buttonType: any = 'secondary';
+                let icon = null;
+                let className = 'flex-1 font-medium';
+                
+                if (isAccept) {
+                  buttonType = 'primary';
+                  icon = <span className="mr-1">✓</span>;
+                } else if (isReject) {
+                  buttonType = 'secondary';
+                  icon = <span className="mr-1 text-red-500">✗</span>;
+                  className = 'flex-1 !text-red-500 !bg-red-50 hover:!bg-red-100 !border-red-200 font-medium';
+                }
+
+                return (
+                  <Button
+                    key={option_id}
+                    type={buttonType}
+                    className={className}
+                    disabled={isResponding}
+                    onClick={() => handleConfirmOption(option_id)}
+                    data-testid={`message-acp-permission-option-${option_id}`}
+                  >
+                    <span className="flex items-center justify-center">
+                      {icon} {optionName}
+                    </span>
+                  </Button>
+                );
+              })
+            ) : (
+              <Text type='secondary'>{t('messages.noOptionsAvailable')}</Text>
+            )}
+          </div>
         )}
 
         {hasResponded && (

@@ -1,6 +1,6 @@
 /**
  * @license
- * Copyright 2025 AionUi (aionui.com)
+ * Copyright 2025 LingAI (lingai.com)
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -40,7 +40,7 @@ function assistant(overrides: Partial<Assistant> & Pick<Assistant, 'id' | 'name'
 
 describe('channel assistant binding helpers', () => {
   const assistants = [
-    assistant({ id: 'bare-aionrs', name: 'Aion CLI', source: 'generated', preset_agent_type: 'aionrs' }),
+    assistant({ id: 'bare-aionrs', name: 'AI CLI', source: 'generated', preset_agent_type: 'aionrs' }),
     assistant({ id: 'bare-claude', name: 'Claude', source: 'generated', preset_agent_type: 'claude' }),
     assistant({ id: 'user-writer', name: 'Writer', source: 'user', preset_agent_type: 'claude' }),
   ];

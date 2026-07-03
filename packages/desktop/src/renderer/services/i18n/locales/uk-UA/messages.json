@@ -10,6 +10,8 @@
   "copy": "Копіювати",
   "copySuccess": "Скопійовано успішно",
   "copyFailed": "Не вдалося скопіювати",
+  "copyLastOutput.empty": "Поки що немає відповіді для копіювання",
+  "fillSendboxForResend": "Заповнити поле вводу для повторного надсилання",
   "copiedToClipboard": "Скопійовано в буфер обміну",
   "downloadSuccess": "Завантаження успішне",
   "downloadFailed": "Не вдалося завантажити",

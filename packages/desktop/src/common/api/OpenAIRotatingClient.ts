@@ -18,7 +18,7 @@ export class OpenAIRotatingClient extends RotatingApiClient<OpenAI> {
       const cleanedApiKey = api_key.replace(/[\s\r\n\t]/g, '').trim();
       const openaiConfig: any = {
         baseURL: config.baseURL,
-        api_key: cleanedApiKey,
+        apiKey: cleanedApiKey,
         defaultHeaders: config.defaultHeaders,
       };
 
@@ -59,6 +59,15 @@ export class OpenAIRotatingClient extends RotatingApiClient<OpenAI> {
   ): Promise<OpenAI.Images.ImagesResponse> {
     return await this.executeWithRetry((client) => {
       return client.images.generate(params, options) as Promise<OpenAI.Images.ImagesResponse>;
+    });
+  }
+
+  async editImage(
+    params: OpenAI.Images.ImageEditParams,
+    options?: OpenAI.RequestOptions
+  ): Promise<OpenAI.Images.ImagesResponse> {
+    return await this.executeWithRetry((client) => {
+      return client.images.edit(params, options) as Promise<OpenAI.Images.ImagesResponse>;
     });
   }
 

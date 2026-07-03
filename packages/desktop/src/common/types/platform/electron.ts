@@ -61,7 +61,7 @@ declare global {
   interface Window {
     electronAPI?: ElectronBridgeAPI;
     __initialLanguage?: string | null;
-    __aionuiE2ETest?: boolean;
+    __lingaiE2ETest?: boolean;
     __backendStartupFailed?: boolean;
     __backendStartupFailure?: BackendStartupFailureInfo | null;
     __installationIntegrityReportCount?: number;

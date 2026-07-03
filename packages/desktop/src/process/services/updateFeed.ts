@@ -1,13 +1,13 @@
 /**
  * @license
- * Copyright 2025 AionUi (aionui.com)
+ * Copyright 2025 LingAI (lingai.com)
  * SPDX-License-Identifier: Apache-2.0
  */
 
 import { CdnGenericProvider } from './cdnGenericProvider';
 import type { CdnGenericProviderConfiguration } from './cdnGenericProvider';
 
-export const CDN_UPDATE_BASE_URL = 'https://static.aionui.com/releases';
+export const CDN_UPDATE_BASE_URL = 'https://static.lingai.com/releases';
 
 export type CdnFeedOptions = CdnGenericProviderConfiguration & {
   updateProvider: typeof CdnGenericProvider;

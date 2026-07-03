@@ -11,6 +11,7 @@
   "copySuccess": "Başarıyla kopyalandı",
   "copyFailed": "Kopyalama başarısız",
   "copyLastOutput.empty": "Henüz kopyalanacak bir yanıt yok",
+  "fillSendboxForResend": "Yeniden göndermek için girişe doldur",
   "copiedToClipboard": "Panoya kopyalandı",
   "downloadSuccess": "İndirme başarılı",
   "downloadFailed": "İndirme başarısız",
