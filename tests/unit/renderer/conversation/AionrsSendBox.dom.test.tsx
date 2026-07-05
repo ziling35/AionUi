@@ -84,6 +84,12 @@ vi.mock('@/renderer/hooks/context/ConversationContext', () => ({
 vi.mock('@/renderer/hooks/context/LayoutContext', () => ({
   useLayoutContext: () => ({ isMobile: false }),
 }));
+vi.mock('@/renderer/hooks/context/UserContext', () => ({
+  useUser: () => ({
+    isLoggedIn: true,
+    showLoginModal: vi.fn(),
+  }),
+}));
 vi.mock('@/renderer/hooks/chat/useAutoTitle', () => ({
   useAutoTitle: () => ({
     checkAndUpdateTitle: vi.fn(),
@@ -214,6 +220,11 @@ const modelSelection = {
     model: 'gpt-4.1',
     use_model: 'openai/gpt-4.1',
   },
+  providers: [],
+  getAvailableModels: vi.fn(() => []),
+  handleSelectModel: vi.fn().mockResolvedValue(undefined),
+  refreshModels: vi.fn().mockResolvedValue(undefined),
+  getDisplayModelName: (modelName?: string) => modelName ?? '',
 } as AionrsModelSelection;
 
 describe('AionrsSendBox', () => {

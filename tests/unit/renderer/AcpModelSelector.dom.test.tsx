@@ -29,10 +29,11 @@ type MockAcpModelInfoResult = {
 
 const modelInfo: AcpModelInfo = {
   current_model_id: 'gpt-5.2',
+  current_model_option_key: 'runtime:0:gpt-5.2',
   current_model_label: 'GPT-5.2',
   available_models: [
-    { id: 'gpt-5.2', label: 'GPT-5.2' },
-    { id: 'gpt-5.2-mini', label: 'GPT-5.2 Mini' },
+    { id: 'gpt-5.2', optionKey: 'runtime:0:gpt-5.2', label: 'GPT-5.2', source: 'runtime' },
+    { id: 'gpt-5.2-mini', optionKey: 'runtime:0:gpt-5.2-mini', label: 'GPT-5.2 Mini', source: 'runtime' },
   ],
 };
 
@@ -182,7 +183,7 @@ describe('AcpModelSelector runtime options', () => {
       'Thinking Level',
       'Model',
     ]);
-    expect(screen.getByTestId('runtime-selector-menu-divider')).toBeInTheDocument();
+    expect(screen.getAllByTestId('runtime-selector-menu-divider').length).toBeGreaterThanOrEqual(1);
   });
 
   it('marks the current model with the same leading check indicator as thought level options', () => {
@@ -201,16 +202,21 @@ describe('AcpModelSelector runtime options', () => {
       makeResult({
         model_info: {
           current_model_id: 'default',
+          current_model_option_key: 'runtime:0:default',
           current_model_label: 'Default',
           available_models: [
             {
               id: 'default',
+              optionKey: 'runtime:0:default',
               label: 'Default',
+              source: 'runtime',
               description: 'Sonnet 4.6 · Best for everyday tasks',
             },
             {
               id: 'opus',
+              optionKey: 'runtime:1:opus',
               label: 'Opus',
+              source: 'runtime',
               description: 'Opus 4.8 · Most capable for complex work',
             },
           ],
@@ -287,8 +293,9 @@ describe('AcpModelSelector runtime options', () => {
       makeResult({
         model_info: {
           current_model_id: 'auto',
+          current_model_option_key: 'runtime:0:auto',
           current_model_label: 'Auto (Gemini 3)',
-          available_models: [{ id: 'auto', label: 'Auto (Gemini 3)' }],
+          available_models: [{ id: 'auto', optionKey: 'runtime:0:auto', label: 'Auto (Gemini 3)', source: 'runtime' }],
         },
         isSetting: true,
       })

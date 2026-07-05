@@ -15,7 +15,14 @@
     "renameOk": "Guardar",
     "renameCancel": "Cancelar",
     "renameSuccess": "Equipo renombrado",
-    "deleteSuccess": "Equipo eliminado"
+    "deleteSuccess": "Equipo eliminado",
+    "importTeam": "Import team",
+    "exportTeam": "Export team",
+    "archiveFileFilter": "LingAI team archive",
+    "importSuccess": "Imported team: {{conversations}} conversation(s), {{messages}} message(s), {{tasks}} task(s)",
+    "importFailed": "Failed to import team archive",
+    "exportSuccess": "Exported team: {{conversations}} conversation(s), {{messages}} message(s), {{tasks}} task(s)",
+    "exportFailed": "Failed to export team archive"
   },
   "newAgent": "Nuevo agente",
   "noMessages": "Sin mensajes aún.",

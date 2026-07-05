@@ -6,6 +6,7 @@
   "alreadyLatest": "У вас уже найновіша версія",
   "currentVersion": "Поточна версія: {{version}}",
   "availableTitle": "Доступне оновлення",
+  "forceUpdateRequired": "Це обов'язкове оновлення. Установіть його, щоб продовжити.",
   "noReleaseNotes": "Нотатки до випуску не надані.",
   "downloadingTitle": "Завантаження оновлення...",
   "downloadButton": "Завантажити зараз",

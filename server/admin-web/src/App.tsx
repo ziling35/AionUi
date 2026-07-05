@@ -1,10 +1,11 @@
 import { BrowserRouter, Routes, Route, Link, useLocation } from 'react-router-dom';
 import { Layout, Menu, ConfigProvider, theme } from 'antd';
-import { UserOutlined, KeyOutlined, DashboardOutlined, SettingOutlined } from '@ant-design/icons';
+import { UserOutlined, KeyOutlined, DashboardOutlined, RocketOutlined, SettingOutlined } from '@ant-design/icons';
 import Dashboard from './pages/Dashboard';
 import CardSecrets from './pages/CardSecrets';
 import Users from './pages/Users';
 import Models from './pages/Models';
+import Releases from './pages/Releases';
 import './App.css';
 
 const { Header, Content, Sider } = Layout;
@@ -12,7 +13,15 @@ const { Header, Content, Sider } = Layout;
 function Navigation() {
   const location = useLocation();
   const selectedKey =
-    location.pathname === '/' ? '1' : location.pathname === '/cards' ? '2' : location.pathname === '/users' ? '3' : '4';
+    location.pathname === '/'
+      ? '1'
+      : location.pathname === '/cards'
+        ? '2'
+        : location.pathname === '/users'
+          ? '3'
+          : location.pathname === '/releases'
+            ? '5'
+            : '4';
 
   return (
     <Menu mode='inline' selectedKeys={[selectedKey]}>
@@ -27,6 +36,9 @@ function Navigation() {
       </Menu.Item>
       <Menu.Item key='4' icon={<SettingOutlined />}>
         <Link to='/models'>模型配置</Link>
+      </Menu.Item>
+      <Menu.Item key='5' icon={<RocketOutlined />}>
+        <Link to='/releases'>版本发布</Link>
       </Menu.Item>
     </Menu>
   );
@@ -96,6 +108,7 @@ function App() {
                   <Route path='/cards' element={<CardSecrets />} />
                   <Route path='/users' element={<Users />} />
                   <Route path='/models' element={<Models />} />
+                  <Route path='/releases' element={<Releases />} />
                 </Routes>
               </div>
             </Content>

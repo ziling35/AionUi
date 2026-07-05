@@ -26,6 +26,15 @@ type AutoUpdateInfo = {
   releaseNotes?: string;
 };
 
+const forceVisibleStatuses: UpdateNotificationStatus[] = [
+  'checking',
+  'available',
+  'downloading',
+  'downloaded',
+  'preparing-install',
+  'error',
+];
+
 export type UpdateNotificationActiveTask = {
   kind: 'auto' | 'manual';
   id: string;
@@ -45,6 +54,7 @@ export type UpdateNotificationState = {
   currentVersion: string;
   autoUpdateInfo: AutoUpdateInfo | null;
   updateInfo: UpdateReleaseInfo | null;
+  forceUpdate: boolean;
   releasePageUrl: string;
   errorMsg: string;
   downloadPath: string;
@@ -189,6 +199,7 @@ export const initialUpdateNotificationState: UpdateNotificationState = {
   currentVersion: '',
   autoUpdateInfo: null,
   updateInfo: null,
+  forceUpdate: false,
   releasePageUrl: '',
   errorMsg: '',
   downloadPath: '',
@@ -258,6 +269,7 @@ export const updateNotificationReducer = (
           status: 'available',
           currentVersion: event.currentVersion,
           updateInfo: event.updateInfo,
+          forceUpdate: Boolean(event.updateInfo?.forceUpdate),
           releasePageUrl: event.releasePageUrl,
           autoUpdateAvailable: event.autoUpdateAvailable,
           autoUpdateInfo: event.autoUpdateInfo,
@@ -275,6 +287,7 @@ export const updateNotificationReducer = (
           status: 'upToDate',
           currentVersion: event.currentVersion,
           updateInfo: event.updateInfo,
+          forceUpdate: false,
           releasePageUrl: event.releasePageUrl,
           errorMsg: '',
           presentation: 'card',
@@ -303,6 +316,16 @@ export const updateNotificationReducer = (
         effects: [],
       };
     case 'dismissRequested':
+      if (state.forceUpdate && forceVisibleStatuses.includes(state.status)) {
+        return {
+          state: {
+            ...state,
+            visible: true,
+            presentation: 'card',
+          },
+          effects: [],
+        };
+      }
       return {
         state: {
           ...state,
@@ -312,6 +335,9 @@ export const updateNotificationReducer = (
         effects: [],
       };
     case 'minimizeRequested':
+      if (state.forceUpdate) {
+        return { state, effects: [] };
+      }
       if (state.status !== 'downloading') {
         return { state, effects: [] };
       }
@@ -353,6 +379,7 @@ export const updateNotificationReducer = (
         state: {
           ...state,
           updateInfo: event.updateInfo,
+          forceUpdate: Boolean(event.updateInfo.forceUpdate),
           releasePageUrl: event.releasePageUrl,
           releaseNotesStatus: event.updateInfo.body ? 'loaded' : 'failed',
         },

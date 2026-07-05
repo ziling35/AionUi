@@ -67,5 +67,11 @@
     "yesAlwaysAllowTool": "Evet, \"{{serverName}}\" sunucusundan \"{{toolName}}\" aracına her zaman izin ver",
     "yesAlwaysAllowServer": "Evet, \"{{serverName}}\" sunucusundaki tüm araçlara her zaman izin ver",
     "no": "Hayır (esc)"
+  },
+  "permissionOptions": {
+    "yesProceed": "Yes, proceed",
+    "yesDoNotAskAgain": "Yes, and don't ask again",
+    "yesDoNotAskAgainForCommandsStarting": "Yes, and don't ask again for commands that start with `{{command}}`",
+    "no": "No"
   }
 }

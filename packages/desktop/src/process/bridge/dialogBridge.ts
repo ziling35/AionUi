@@ -14,6 +14,7 @@ export function initDialogBridge(): void {
     const parentWindow = BrowserWindow.getFocusedWindow() || BrowserWindow.getAllWindows()[0];
     const dialogOptions = {
       defaultPath: options?.defaultPath,
+      filters: options?.filters,
       properties: options?.properties,
     };
 

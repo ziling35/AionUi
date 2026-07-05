@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { DeleteOne, EditOne, Peoples, Plus, Pushpin, Right } from '@icon-park/react';
-import { Input, Message, Modal, Tooltip } from '@arco-design/web-react';
+import { DeleteOne, EditOne, Export, MoreOne, Peoples, Plus, Pushpin, Right, UploadOne } from '@icon-park/react';
+import { Button, Dropdown, Input, Message, Modal, Tooltip, Menu } from '@arco-design/web-react';
 import classNames from 'classnames';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -17,6 +17,7 @@ import { blurActiveElement } from '@renderer/utils/ui/focus';
 import { useTeamList } from '@renderer/pages/team/hooks/useTeamList';
 import { useSiderTeamBadges } from '@renderer/pages/team/hooks/useSiderTeamBadges';
 import TeamCreateModal from '@renderer/pages/team/components/TeamCreateModal';
+import { useAuth } from '@renderer/hooks/context/AuthContext';
 import { ipcBridge } from '@/common';
 import SiderItem from './SiderItem';
 import type { SiderMenuItem } from './SiderItem';
@@ -43,8 +44,10 @@ const TeamSiderSection: React.FC<TeamSiderSectionProps> = ({
   const { teams, mutate: refreshTeams, removeTeam } = useTeamList();
   const teamBadgeCounts = useSiderTeamBadges(teams);
   const { mutate: globalMutate } = useSWRConfig();
+  const { user } = useAuth();
 
   const [createTeamVisible, setCreateTeamVisible] = useState(false);
+  const [archiveLoading, setArchiveLoading] = useState(false);
   const [expanded, setExpanded] = useState<boolean>(() => localStorage.getItem('team-section-expanded') === 'true');
   useEffect(() => {
     localStorage.setItem('team-section-expanded', String(expanded));
@@ -104,6 +107,64 @@ const TeamSiderSection: React.FC<TeamSiderSectionProps> = ({
       if (onSessionClick) onSessionClick();
     },
     [navigate, onSessionClick]
+  );
+
+  const handleImportTeam = useCallback(async () => {
+    if (archiveLoading) return;
+    setArchiveLoading(true);
+    try {
+      const paths = await ipcBridge.dialog.showOpen.invoke({
+        properties: ['openFile'],
+        filters: [{ name: t('team.sider.archiveFileFilter'), extensions: ['json'] }],
+      });
+      const file_path = paths?.[0];
+      if (!file_path) return;
+      const result = await ipcBridge.teamArchive.importFromFile.invoke({ file_path, user_id: user?.id });
+      await refreshTeams();
+      Message.success(
+        t('team.sider.importSuccess', {
+          conversations: result.conversationCount,
+          messages: result.messageCount,
+          tasks: result.taskCount,
+        })
+      );
+      Promise.resolve(navigate(`/team/${result.teamId}`)).catch(console.error);
+    } catch (error) {
+      console.error('Failed to import team archive:', error);
+      Message.error(t('team.sider.importFailed'));
+    } finally {
+      setArchiveLoading(false);
+    }
+  }, [archiveLoading, navigate, refreshTeams, t, user?.id]);
+
+  const handleExportTeam = useCallback(
+    async (team_id: string) => {
+      if (archiveLoading) return;
+      setArchiveLoading(true);
+      try {
+        const defaultPath = await ipcBridge.application.getPath.invoke({ name: 'desktop' });
+        const paths = await ipcBridge.dialog.showOpen.invoke({
+          defaultPath,
+          properties: ['openDirectory', 'createDirectory'],
+        });
+        const directory = paths?.[0];
+        if (!directory) return;
+        const result = await ipcBridge.teamArchive.exportToFile.invoke({ team_id, directory });
+        Message.success(
+          t('team.sider.exportSuccess', {
+            conversations: result.conversationCount,
+            messages: result.messageCount,
+            tasks: result.taskCount,
+          })
+        );
+      } catch (error) {
+        console.error('Failed to export team archive:', error);
+        Message.error(t('team.sider.exportFailed'));
+      } finally {
+        setArchiveLoading(false);
+      }
+    },
+    [archiveLoading, t]
   );
 
   return (
@@ -182,6 +243,45 @@ const TeamSiderSection: React.FC<TeamSiderSectionProps> = ({
                 />
               </div>
             </Tooltip>
+            <Dropdown
+              droplist={
+                <Menu
+                  onClickMenuItem={(key) => {
+                    if (key === 'import') {
+                      void handleImportTeam();
+                    }
+                  }}
+                >
+                  <Menu.Item key='import' disabled={archiveLoading}>
+                    <div className='flex items-center gap-8px'>
+                      <UploadOne theme='outline' size='14' />
+                      <span>{t('team.sider.importTeam')}</span>
+                    </div>
+                  </Menu.Item>
+                </Menu>
+              }
+              trigger='click'
+              position='br'
+              getPopupContainer={() => document.body}
+              unmountOnExit={false}
+            >
+              <Button
+                type='text'
+                size='mini'
+                className='!-mr-4px !w-20px !h-20px !p-0 !min-w-0 text-t-secondary hover:text-t-primary'
+                icon={
+                  <MoreOne
+                    theme='outline'
+                    size='14'
+                    fill='currentColor'
+                    className='block leading-none'
+                    style={{ lineHeight: 0 }}
+                  />
+                }
+                disabled={archiveLoading}
+                onClick={(e) => e.stopPropagation()}
+              />
+            </Dropdown>
           </div>
           {expanded &&
             sortedTeams.length > 0 &&
@@ -197,6 +297,11 @@ const TeamSiderSection: React.FC<TeamSiderSectionProps> = ({
                   key: 'rename',
                   icon: <EditOne theme='outline' size='14' />,
                   label: t('team.sider.rename'),
+                },
+                {
+                  key: 'export',
+                  icon: <Export theme='outline' size='14' />,
+                  label: t('team.sider.exportTeam'),
                 },
                 {
                   key: 'delete',
@@ -221,6 +326,8 @@ const TeamSiderSection: React.FC<TeamSiderSectionProps> = ({
                         setRenameId(team.id);
                         setRenameName(team.name);
                         setRenameVisible(true);
+                      } else if (key === 'export') {
+                        void handleExportTeam(team.id);
                       } else if (key === 'delete') {
                         Modal.confirm({
                           title: t('team.sider.deleteConfirm'),

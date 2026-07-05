@@ -78,6 +78,7 @@ export const useUpdateNotificationController = () => {
   const [state, dispatchState] = useReducer(reduceNotificationState, undefined, createInitialState);
   const stateRef = useRef(state);
   const restoreDownloadedPendingRef = useRef(true);
+  const startupCheckDoneRef = useRef(false);
   const pendingAutoAvailableRef = useRef<AutoUpdateStatus | null>(null);
   const dispatch = useCallback((event: UpdateNotificationEvent) => {
     stateRef.current = reduceNotificationState(stateRef.current, event);
@@ -175,6 +176,43 @@ export const useUpdateNotificationController = () => {
     });
   }, []);
 
+  const runStartupUpdateCheck = useCallback(async () => {
+    if (startupCheckDoneRef.current) return;
+    startupCheckDoneRef.current = true;
+
+    const outcome = await runUpdateCheck({
+      includePrerelease: getIncludePrerelease(),
+      fallbackVersion: __APP_VERSION__,
+      checkFailedLabel: t('update.checkFailed'),
+    });
+
+    if (outcome.kind !== 'available') return;
+
+    const current = stateRef.current;
+    if (current.status === 'downloading' || current.status === 'downloaded' || current.status === 'preparing-install') {
+      if (outcome.updateInfo) {
+        dispatch({
+          type: 'manualReleaseInfoLoaded',
+          updateInfo: outcome.updateInfo,
+          releasePageUrl: outcome.releasePageUrl,
+        });
+      }
+      if (outcome.updateInfo?.forceUpdate) {
+        dispatch({ type: 'openRequested', source: 'startup', userInitiated: false });
+      }
+      return;
+    }
+
+    dispatch({
+      type: 'checkAvailable',
+      currentVersion: outcome.currentVersion,
+      updateInfo: outcome.updateInfo,
+      releasePageUrl: outcome.releasePageUrl,
+      autoUpdateAvailable: outcome.autoUpdateAvailable,
+      autoUpdateInfo: outcome.autoUpdateInfo,
+    });
+  }, [t]);
+
   const restoreDownloadedUpdate = useCallback(async () => {
     try {
       const res = await ipcBridge.autoUpdate.restoreDownloaded.invoke();
@@ -204,8 +242,9 @@ export const useUpdateNotificationController = () => {
       }
     } finally {
       restoreDownloadedPendingRef.current = false;
+      void runStartupUpdateCheck();
     }
-  }, [dispatchAutoAvailable]);
+  }, [dispatchAutoAvailable, runStartupUpdateCheck]);
 
   useEffect(() => {
     void restoreDownloadedUpdate();

@@ -14,7 +14,7 @@ export default function CardSecrets() {
   const fetchCards = async () => {
     setLoading(true);
     try {
-      const res = await axios.get('http://localhost:3000/api/cards');
+      const res = await axios.get('/api/cards');
       if (res.data.success) {
         setCards(res.data.cards);
       }
@@ -31,7 +31,7 @@ export default function CardSecrets() {
   const handleGenerate = async (values: any) => {
     setLoading(true);
     try {
-      const res = await axios.post('http://localhost:3000/api/cards/generate', {
+      const res = await axios.post('/api/cards/generate', {
         count: values.count,
         amount: values.amount,
       });

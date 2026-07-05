@@ -70,5 +70,11 @@
   },
   "copyLastOutput": {
     "empty": "No response to copy yet"
+  },
+  "permissionOptions": {
+    "yesProceed": "Yes, proceed",
+    "yesDoNotAskAgain": "Yes, and don't ask again",
+    "yesDoNotAskAgainForCommandsStarting": "Yes, and don't ask again for commands that start with `{{command}}`",
+    "no": "No"
   }
 }

@@ -6,6 +6,7 @@
 
 import type { IProvider, TProviderWithModel } from '@/common/config/storage';
 import { useModelProviderList } from '@/renderer/hooks/agent/useModelProviderList';
+import { useUser } from '@/renderer/hooks/context/UserContext';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 export type AionrsModelSelection = {
@@ -13,6 +14,7 @@ export type AionrsModelSelection = {
   providers: IProvider[];
   getAvailableModels: (provider: IProvider) => string[];
   handleSelectModel: (provider: IProvider, modelName: string) => Promise<void>;
+  refreshModels: () => Promise<void>;
   getDisplayModelName: (modelName?: string) => string;
 };
 
@@ -26,6 +28,7 @@ export const useAionrsModelSelection = ({
   onSelectModel,
 }: UseAionrsModelSelectionOptions): AionrsModelSelection => {
   const [current_model, setCurrentModel] = useState<TProviderWithModel | undefined>(initialModel);
+  const { refreshCloudModels } = useUser();
 
   useEffect(() => {
     setCurrentModel(initialModel);
@@ -68,6 +71,7 @@ export const useAionrsModelSelection = ({
     providers,
     getAvailableModels,
     handleSelectModel,
+    refreshModels: refreshCloudModels,
     getDisplayModelName,
   };
 };

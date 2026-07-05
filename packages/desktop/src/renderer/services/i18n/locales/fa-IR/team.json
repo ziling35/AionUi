@@ -15,7 +15,14 @@
     "renameOk": "ذخیره",
     "renameCancel": "لغو",
     "renameSuccess": "نام تیم تغییر کرد",
-    "deleteSuccess": "تیم حذف شد"
+    "deleteSuccess": "تیم حذف شد",
+    "importTeam": "Import team",
+    "exportTeam": "Export team",
+    "archiveFileFilter": "LingAI team archive",
+    "importSuccess": "Imported team: {{conversations}} conversation(s), {{messages}} message(s), {{tasks}} task(s)",
+    "importFailed": "Failed to import team archive",
+    "exportSuccess": "Exported team: {{conversations}} conversation(s), {{messages}} message(s), {{tasks}} task(s)",
+    "exportFailed": "Failed to export team archive"
   },
   "newAgent": "عامل جدید",
   "noMessages": "هنوز پیامی وجود ندارد.",

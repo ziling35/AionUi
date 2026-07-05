@@ -13,5 +13,11 @@
     "specifyWorkspace": "选择项目文件夹",
     "searchPlaceholder": "搜索项目…",
     "noProject": "不使用项目"
+  },
+  "cloudCodex": {
+    "name": "LingAI Codex 云端版",
+    "codexMissing": "未检测到本机 Codex 运行环境，请先安装或启用 Codex。",
+    "commandMissing": "Codex 运行命令缺失，请先在智能体设置中修复 Codex。",
+    "syncFailed": "云端 Codex 启用失败，请稍后重试。"
   }
 }

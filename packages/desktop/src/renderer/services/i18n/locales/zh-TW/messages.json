@@ -67,5 +67,11 @@
     "yesAlwaysAllowTool": "是，始終允許來自伺服器 \"{{serverName}}\" 的工具 \"{{toolName}}\"",
     "yesAlwaysAllowServer": "是，始終允許來自伺服器 \"{{serverName}}\" 的所有工具",
     "no": "否 (esc)"
+  },
+  "permissionOptions": {
+    "yesProceed": "同意，繼續",
+    "yesDoNotAskAgain": "同意，並且不再詢問",
+    "yesDoNotAskAgainForCommandsStarting": "同意，並且以後不再詢問以 `{{command}}` 開頭的命令",
+    "no": "拒絕"
   }
 }

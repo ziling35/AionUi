@@ -15,6 +15,7 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { useProvidersQuery } from '@/renderer/hooks/agent/useModelProviderList';
+import { useUser } from '@/renderer/hooks/context/UserContext';
 
 type GuidModelSelectorProps = {
   // Gemini model state
@@ -41,6 +42,7 @@ const GuidModelSelector: React.FC<GuidModelSelectorProps> = ({
   const { t } = useTranslation();
   const navigate = useNavigate();
   const defaultModelLabel = t('common.defaultModel');
+  const { refreshCloudModels } = useUser();
 
   // 获取模型配置数据（包含健康状态）
   const { data: modelConfig } = useProvidersQuery();
@@ -87,10 +89,21 @@ const GuidModelSelector: React.FC<GuidModelSelectorProps> = ({
     });
   }, [acpSelectedLabel, currentAcpCachedModelInfo?.current_model_id, defaultModelLabel, selectedAcpModel]);
 
+  const handleModelDropdownVisibleChange = React.useCallback(
+    (visible: boolean) => {
+      if (!visible) return;
+      void refreshCloudModels().catch((error) => {
+        console.error('[GuidModelSelector] Failed to refresh cloud models:', error);
+      });
+    },
+    [refreshCloudModels]
+  );
+
   if (isGeminiMode) {
     return (
       <Dropdown
         trigger='hover'
+        onVisibleChange={handleModelDropdownVisibleChange}
         droplist={
           <Menu
             className='aion-model-menu--sticky-group'

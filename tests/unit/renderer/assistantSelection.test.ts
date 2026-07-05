@@ -6,6 +6,7 @@
 
 import { describe, expect, it } from 'vitest';
 import type { Assistant } from '@/common/types/agent/assistantTypes';
+import { CLOUD_CODEX_ASSISTANT_ID } from '@/renderer/api/cloudCodex';
 import { selectableAssistants } from '@/renderer/utils/model/assistantSelection';
 
 const mk = (id: string, source: Assistant['source'], sort_order: number, enabled = true): Assistant =>
@@ -53,5 +54,17 @@ describe('selectableAssistants', () => {
   it('keeps CLI agents ahead of official even when official has a lower sort_order', () => {
     const result = selectableAssistants([mk('official', 'builtin', 1), mk('cli', 'generated', 999)]);
     expect(result[0].id).toBe('cli');
+  });
+
+  it('pins LingAI Codex cloud assistant before the first four visible pills', () => {
+    const result = selectableAssistants([
+      mk('cli-a', 'generated', 1),
+      mk('cli-b', 'generated', 2),
+      mk('user-a', 'user', 1),
+      mk('builtin-a', 'builtin', 1),
+      mk(CLOUD_CODEX_ASSISTANT_ID, 'user', 999),
+    ]);
+
+    expect(result[0].id).toBe(CLOUD_CODEX_ASSISTANT_ID);
   });
 });

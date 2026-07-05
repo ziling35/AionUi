@@ -26,9 +26,11 @@ import { classifyBackendStartupFailure } from './process/startup/backendStartupF
 import { installQuitCleanup } from './process/startup/quitCleanup';
 import { ProcessConfig } from './process/utils/initStorage';
 import type { BackendStartupFailureInfo } from './common/types/platform/electron';
+import { appendHashRoute, normalizeNewWindowRoute } from './common/utils/windowRoutes';
 import { registerWindowMaximizeListeners } from '@process/bridge';
 import { BackendLifecycleManager } from '@lingai/web-host';
 import { resolveBinaryPath } from '@process/backend';
+import { setOpenRouteInNewWindowHandler } from '@process/services/routeWindowService';
 import './process/bridge/feedbackBridge';
 import { wasLaunchedAtLogin } from '@process/bridge/applicationBridge';
 import { onLanguageChanged } from './process/bridge/systemSettingsBridge';
@@ -191,6 +193,7 @@ let isExplicitQuit = false;
 let appReadyDone = false;
 
 let mainWindow: BrowserWindow;
+const secondaryWindows = new Set<BrowserWindow>();
 const backendManager = new BackendLifecycleManager(
   {
     version: app.getVersion(),
@@ -408,8 +411,14 @@ function applyDebugBackendStartupFailure(failure: BackendStartupFailureInfo): vo
   (globalThis as typeof globalThis & { __backendStartupFailed?: boolean }).__backendStartupFailed = true;
 }
 
-const createWindow = ({ showOnReady = true }: { showOnReady?: boolean } = {}): void => {
-  console.log('[LingAI] Creating main window...');
+type CreateWindowOptions = {
+  showOnReady?: boolean;
+  route?: string;
+  role?: 'main' | 'secondary';
+};
+
+const createWindow = ({ showOnReady = true, route, role = 'main' }: CreateWindowOptions = {}): BrowserWindow => {
+  console.log(`[LingAI] Creating ${role} window...`);
   const { x: windowX, y: windowY, width: windowWidth, height: windowHeight } = resolveInitialBounds();
 
   // Get app icon for development mode (Windows/Linux need icon in BrowserWindow)
@@ -430,7 +439,7 @@ const createWindow = ({ showOnReady = true }: { showOnReady?: boolean } = {}): v
   }
 
   // Create the browser window.
-  mainWindow = new BrowserWindow({
+  const window = new BrowserWindow({
     width: windowWidth,
     height: windowHeight,
     ...(windowX !== undefined && windowY !== undefined ? { x: windowX, y: windowY } : {}),
@@ -458,30 +467,39 @@ const createWindow = ({ showOnReady = true }: { showOnReady?: boolean } = {}): v
       webviewTag: true, // 启用 webview 标签用于 HTML 预览 / Enable webview tag for HTML preview
     },
   });
-  console.log(`[LingAI] Main window created (id=${mainWindow.id})`);
+  if (role === 'main') {
+    mainWindow = window;
+  } else {
+    secondaryWindows.add(window);
+  }
+  console.log(`[LingAI] ${role} window created (id=${window.id})`);
 
-  scheduleStartupLogReport(mainWindow);
+  if (role === 'main') {
+    scheduleStartupLogReport(window);
+  }
 
   // Show window after content is ready to prevent FOUC (Flash of Unstyled Content)
   // Use 'ready-to-show' which fires when renderer has painted first frame,
   // combined with 'did-finish-load' as belt-and-suspenders approach.
   if (showOnReady) {
     const showWindow = () => {
-      if (!mainWindow.isDestroyed() && !mainWindow.isVisible()) {
-        console.log('[LingAI] Showing main window');
-        mainWindow.show();
-        mainWindow.focus();
+      if (!window.isDestroyed() && !window.isVisible()) {
+        console.log(`[LingAI] Showing ${role} window`);
+        window.show();
+        window.focus();
       }
     };
-    mainWindow.once('ready-to-show', () => {
+    window.once('ready-to-show', () => {
       console.log('[LingAI] Window ready-to-show');
       showWindow();
     });
     // Belt-and-suspenders: also show on did-finish-load in case ready-to-show already fired
-    mainWindow.webContents.once('did-finish-load', () => {
+    window.webContents.once('did-finish-load', () => {
       console.log('[LingAI] Renderer did-finish-load');
       showWindow();
-      scheduleBackendMigrations();
+      if (role === 'main') {
+        scheduleBackendMigrations();
+      }
     });
     // Fallback: show window after 5s even if events don't fire (e.g. loadURL failure)
     setTimeout(showWindow, 5000);
@@ -489,21 +507,25 @@ const createWindow = ({ showOnReady = true }: { showOnReady?: boolean } = {}): v
     void app.dock.hide();
   }
 
-  initMainAdapterWithWindow(mainWindow);
-  bindMainWindowReferences(mainWindow);
+  initMainAdapterWithWindow(window);
+  if (role === 'main') {
+    bindMainWindowReferences(window);
+  }
 
   setupApplicationMenu();
 
-  setupZoomForWindow(mainWindow);
-  registerWindowMaximizeListeners(mainWindow);
-  attachWindowBoundsPersistence(mainWindow, (bounds) => ProcessConfig.set('window.bounds', bounds));
+  setupZoomForWindow(window);
+  registerWindowMaximizeListeners(window);
+  if (role === 'main') {
+    attachWindowBoundsPersistence(window, (bounds) => ProcessConfig.set('window.bounds', bounds));
+  }
 
   // Initialize auto-updater service (skip when disabled via env, e.g. E2E / CI)
   // 初始化自动更新服务（通过环境变量禁用时跳过，例如 E2E / CI 场景）
   const isCiRuntime = process.env.CI === 'true' || process.env.CI === '1' || process.env.GITHUB_ACTIONS === 'true';
   const disableAutoUpdater =
     process.env.LINGAI_DISABLE_AUTO_UPDATE === '1' || process.env.LINGAI_E2E_TEST === '1' || isCiRuntime;
-  if (!disableAutoUpdater) {
+  if (role === 'main' && !disableAutoUpdater) {
     Promise.all([import('./process/services/autoUpdaterService'), import('./process/bridge/updateBridge')])
       .then(([{ autoUpdaterService }, { createAutoUpdateStatusBroadcast }]) => {
         // Create status broadcast callback that emits via ipcBridge (pure emitter, no window binding)
@@ -529,76 +551,94 @@ const createWindow = ({ showOnReady = true }: { showOnReady?: boolean } = {}): v
   const rendererUrl = process.env['ELECTRON_RENDERER_URL'];
   const fallbackFile = path.join(__dirname, '../renderer/index.html');
 
+  const normalizedRoute = route ? normalizeNewWindowRoute(route) : null;
+  if (route && !normalizedRoute) {
+    console.warn(`[LingAI] Ignoring invalid route for new window: ${route}`);
+  }
+
   if (!app.isPackaged && rendererUrl) {
-    console.log(`[LingAI] Loading renderer URL: ${rendererUrl}`);
-    mainWindow.loadURL(rendererUrl).catch((error) => {
+    const targetUrl = appendHashRoute(rendererUrl, normalizedRoute ?? undefined);
+    console.log(`[LingAI] Loading renderer URL: ${targetUrl}`);
+    window.loadURL(targetUrl).catch((error) => {
       console.error('[LingAI] loadURL failed, falling back to file:', error.message || error);
-      mainWindow.loadFile(fallbackFile).catch((e2) => {
+      window.loadFile(fallbackFile, normalizedRoute ? { hash: normalizedRoute } : undefined).catch((e2) => {
         console.error('[LingAI] loadFile fallback also failed:', e2.message || e2);
       });
     });
   } else {
     console.log(`[LingAI] Loading renderer file: ${fallbackFile}`);
-    mainWindow.loadFile(fallbackFile).catch((error) => {
+    window.loadFile(fallbackFile, normalizedRoute ? { hash: normalizedRoute } : undefined).catch((error) => {
       console.error('[LingAI] loadFile failed:', error.message || error);
     });
   }
 
-  mainWindow.webContents.on('did-fail-load', (_event, errorCode, errorDescription, validatedURL, isMainFrame) => {
+  window.webContents.on('did-fail-load', (_event, errorCode, errorDescription, validatedURL, isMainFrame) => {
     console.error('[LingAI] did-fail-load:', { errorCode, errorDescription, validatedURL, isMainFrame });
   });
 
-  mainWindow.webContents.on('render-process-gone', (_event, details) => {
+  window.webContents.on('render-process-gone', (_event, details) => {
     console.error('[LingAI] render-process-gone:', details);
 
     // Reload the renderer to recover from the crash.
     // The isDestroyed() guard in adapter/main.ts prevents further sends
     // to the dead webContents while the reload is in progress.
-    if (!mainWindow.isDestroyed()) {
+    if (!window.isDestroyed()) {
       console.log('[LingAI] Attempting to recover from renderer crash by reloading...');
 
       if (!app.isPackaged && rendererUrl) {
-        mainWindow.loadURL(rendererUrl).catch((error) => {
+        window.loadURL(appendHashRoute(rendererUrl, normalizedRoute ?? undefined)).catch((error) => {
           console.error('[LingAI] Recovery loadURL failed:', error.message || error);
         });
       } else {
-        mainWindow.loadFile(fallbackFile).catch((error) => {
+        window.loadFile(fallbackFile, normalizedRoute ? { hash: normalizedRoute } : undefined).catch((error) => {
           console.error('[LingAI] Recovery loadFile failed:', error.message || error);
         });
       }
     }
   });
 
-  mainWindow.webContents.on('unresponsive', () => {
+  window.webContents.on('unresponsive', () => {
     console.warn('[LingAI] Renderer became unresponsive');
   });
 
-  mainWindow.on('closed', () => {
-    console.log('[LingAI] Main window closed');
+  window.on('closed', () => {
+    console.log(`[LingAI] ${role} window closed`);
+    if (role === 'secondary') {
+      secondaryWindows.delete(window);
+    }
   });
 
   // DevTools is no longer auto-opened at startup.
   // Use the DevTools toggle in Settings > System (dev mode only) to open it.
 
   // Listen to DevTools state changes and notify Renderer
-  mainWindow.webContents.on('devtools-opened', () => {
+  window.webContents.on('devtools-opened', () => {
     ipcBridge.application.devToolsStateChanged.emit({ isOpen: true });
   });
 
-  mainWindow.webContents.on('devtools-closed', () => {
+  window.webContents.on('devtools-closed', () => {
     ipcBridge.application.devToolsStateChanged.emit({ isOpen: false });
   });
 
   // 关闭拦截：当启用"关闭到托盘"时，隐藏窗口而非关闭
   // Close interception: hide window instead of closing when "close to tray" is enabled
-  mainWindow.on('close', (event) => {
-    if (mainWindow.isDestroyed()) return;
-    if (getCloseToTrayEnabled() && !getIsQuitting()) {
+  window.on('close', (event) => {
+    if (window.isDestroyed()) return;
+    if (role === 'main' && getCloseToTrayEnabled() && !getIsQuitting()) {
       event.preventDefault();
-      mainWindow.hide();
+      window.hide();
     }
   });
+
+  return window;
 };
+
+setOpenRouteInNewWindowHandler((route) => {
+  const normalizedRoute = normalizeNewWindowRoute(route);
+  if (!normalizedRoute) return false;
+  createWindow({ role: 'secondary', route: normalizedRoute });
+  return true;
+});
 
 const handleAppReady = async (): Promise<void> => {
   const t0 = performance.now();

@@ -14,6 +14,13 @@ import { getGpuStatus, setGpuUserOverride } from '@process/utils/gpuRecovery';
 import { initApplicationBridgeCore } from './applicationBridgeCore';
 import type { IStartOnBootStatus } from '@/common/adapter/ipcBridge';
 import { restartApplication } from './restartApplication';
+import { installCliAssistant, launchCliAssistant, listCliAssistants } from '@process/services/cliAssistantService';
+import { openRouteInNewWindow } from '@process/services/routeWindowService';
+import {
+  importConversationFromPayload,
+  importConversationsFromFile,
+} from '@process/services/conversationImportService';
+import { exportTeamArchiveToFile, importTeamArchiveFromFile } from '@process/services/teamArchiveService';
 
 let mainWindowRef: BrowserWindow | null = null;
 
@@ -104,6 +111,24 @@ export function initApplicationBridge(): void {
     // main window's before-quit hook; agent children are killed transitively
     // when backend exits.
     return restartApplication(app);
+  });
+
+  ipcBridge.application.openRouteInNewWindow.provider(async ({ route }) => openRouteInNewWindow(route));
+
+  ipcBridge.conversationImport.importFromFile.provider(async ({ file_path }) => {
+    return importConversationsFromFile(file_path);
+  });
+
+  ipcBridge.conversationImport.importFromPayload.provider(async ({ payload }) => {
+    return importConversationFromPayload(payload);
+  });
+
+  ipcBridge.teamArchive.exportToFile.provider(async ({ team_id, directory }) => {
+    return exportTeamArchiveToFile(team_id, directory);
+  });
+
+  ipcBridge.teamArchive.importFromFile.provider(async ({ file_path, user_id }) => {
+    return importTeamArchiveFromFile(file_path, { userId: user_id });
   });
 
   ipcBridge.application.isDevToolsOpened.provider(() => {
@@ -224,6 +249,24 @@ export function initApplicationBridge(): void {
       return { success: true, data: setGpuUserOverride(override) };
     } catch (e) {
       return { success: false, msg: e.message || e.toString() };
+    }
+  });
+
+  ipcBridge.cliAssistant.list.provider(async () => listCliAssistants());
+
+  ipcBridge.cliAssistant.install.provider(async ({ id }) => {
+    try {
+      return await installCliAssistant(id);
+    } catch (e) {
+      return { success: false, message: e instanceof Error ? e.message : String(e) };
+    }
+  });
+
+  ipcBridge.cliAssistant.launch.provider(async (request) => {
+    try {
+      return await launchCliAssistant(request);
+    } catch (e) {
+      return { success: false, message: e instanceof Error ? e.message : String(e) };
     }
   });
 }

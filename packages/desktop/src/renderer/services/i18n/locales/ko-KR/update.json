@@ -6,6 +6,7 @@
   "alreadyLatest": "이미 최신 버전입니다",
   "currentVersion": "현재 버전: {{version}}",
   "availableTitle": "업데이트 가능",
+  "forceUpdateRequired": "필수 업데이트입니다. 계속하려면 먼저 설치해야 합니다.",
   "noReleaseNotes": "릴리스 노트가 없습니다.",
   "downloadingTitle": "업데이트 다운로드 중...",
   "downloadButton": "지금 다운로드",

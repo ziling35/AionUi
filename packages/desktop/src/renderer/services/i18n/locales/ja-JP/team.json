@@ -15,7 +15,14 @@
     "renameOk": "保存",
     "renameCancel": "キャンセル",
     "renameSuccess": "チーム名を変更しました",
-    "deleteSuccess": "チームを削除しました"
+    "deleteSuccess": "チームを削除しました",
+    "importTeam": "Import team",
+    "exportTeam": "Export team",
+    "archiveFileFilter": "LingAI team archive",
+    "importSuccess": "Imported team: {{conversations}} conversation(s), {{messages}} message(s), {{tasks}} task(s)",
+    "importFailed": "Failed to import team archive",
+    "exportSuccess": "Exported team: {{conversations}} conversation(s), {{messages}} message(s), {{tasks}} task(s)",
+    "exportFailed": "Failed to export team archive"
   },
   "newAgent": "新しいアシスタント",
   "noMessages": "No messages yet.",

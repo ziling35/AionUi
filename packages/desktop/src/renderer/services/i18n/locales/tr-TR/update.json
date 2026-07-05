@@ -6,6 +6,7 @@
   "alreadyLatest": "Zaten en son sürümü kullanıyorsunuz",
   "currentVersion": "Mevcut sürüm: {{version}}",
   "availableTitle": "Güncelleme Mevcut",
+  "forceUpdateRequired": "Bu güncelleme zorunludur. Devam etmeden önce yükleyin.",
   "noReleaseNotes": "Sürüm notu yok.",
   "downloadingTitle": "Güncelleme indiriliyor...",
   "downloadButton": "Şimdi indir",

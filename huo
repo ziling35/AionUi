@@ -33,3 +33,7 @@ bash
 cd LingAI/server/admin-web
 bun install
 bun run dev
+
+
+
+bun run dist:win

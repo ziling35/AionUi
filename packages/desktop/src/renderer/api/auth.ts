@@ -6,6 +6,7 @@ export interface UserInfo {
   username: string;
   quota: number;
   usedQuota?: number;
+  cloudHistoryEnabled?: boolean;
 }
 
 export interface AuthResponse {

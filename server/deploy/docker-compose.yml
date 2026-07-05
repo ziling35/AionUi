@@ -1,0 +1,36 @@
+services:
+  admin-api:
+    build:
+      context: ..
+      dockerfile: deploy/docker/admin-api.Dockerfile
+    container_name: lingai-admin-api
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      PORT: 3000
+      DATABASE_URL: ${DATABASE_URL:-file:/data/dev.db}
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:8080}
+      RELEASES_DIR: ${RELEASES_DIR:-/data/releases}
+    volumes:
+      - ./data/admin-api:/data
+    expose:
+      - "3000"
+    healthcheck:
+      test: ["CMD-SHELL", "bun -e \"fetch('http://127.0.0.1:' + (process.env.PORT || '3000') + '/api/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))\""]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+  admin-web:
+    build:
+      context: ..
+      dockerfile: deploy/docker/admin-web.Dockerfile
+    container_name: lingai-admin-web
+    restart: unless-stopped
+    depends_on:
+      admin-api:
+        condition: service_healthy
+    ports:
+      - "${ADMIN_WEB_PORT:-8080}:80"

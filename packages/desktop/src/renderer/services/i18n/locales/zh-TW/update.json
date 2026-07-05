@@ -6,6 +6,7 @@
   "alreadyLatest": "已經是最新版本了",
   "currentVersion": "目前版本：{{version}}",
   "availableTitle": "有新版本可用",
+  "forceUpdateRequired": "這是強制更新版本，必須完成更新後才能繼續使用。",
   "noReleaseNotes": "沒有提供更新說明。",
   "downloadingTitle": "正在下載更新...",
   "downloadButton": "立即下載",

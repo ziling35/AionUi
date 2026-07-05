@@ -63,6 +63,12 @@ const AionrsModelSelector: React.FC<{
   }
 
   const { providers, getAvailableModels, handleSelectModel } = selection;
+  const handleDropdownVisibleChange = (visible: boolean) => {
+    if (!visible) return;
+    void selection.refreshModels().catch((error) => {
+      console.error('[AionrsModelSelector] Failed to refresh cloud models:', error);
+    });
+  };
 
   const label = getModelDisplayLabel({
     selected_value: current_model?.use_model,
@@ -79,6 +85,7 @@ const AionrsModelSelector: React.FC<{
   return (
     <Dropdown
       trigger='click'
+      onVisibleChange={handleDropdownVisibleChange}
       // Mobile: portal the popup to <body> so it escapes the titlebar slot.
       // Desktop: leave default container so click events reach Menu.Item normally.
       {...(isMobileHeaderCompact ? { getPopupContainer: () => document.body } : {})}

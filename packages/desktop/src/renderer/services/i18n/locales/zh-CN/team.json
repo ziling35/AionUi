@@ -15,7 +15,14 @@
     "renameOk": "保存",
     "renameCancel": "取消",
     "renameSuccess": "团队已重命名",
-    "deleteSuccess": "团队已删除"
+    "deleteSuccess": "团队已删除",
+    "importTeam": "导入团队",
+    "exportTeam": "导出团队",
+    "archiveFileFilter": "LingAI 团队备份文件",
+    "importSuccess": "已导入团队：{{conversations}} 条会话、{{messages}} 条消息、{{tasks}} 个任务",
+    "importFailed": "导入团队备份失败",
+    "exportSuccess": "已导出团队：{{conversations}} 条会话、{{messages}} 条消息、{{tasks}} 个任务",
+    "exportFailed": "导出团队备份失败"
   },
   "newAgent": "新助手",
   "noMessages": "暂无消息。",

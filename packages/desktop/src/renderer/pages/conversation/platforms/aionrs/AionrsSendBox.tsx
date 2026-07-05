@@ -643,7 +643,16 @@ const AionrsSendBox: React.FC<{
 
       <SendBox
         data-testid='aionrs-sendbox'
-        onMobilePlusClick={isMobile ? () => setIsMobileSheetOpen(true) : undefined}
+        onMobilePlusClick={
+          isMobile
+            ? () => {
+                void modelSelection.refreshModels().catch((error) => {
+                  console.error('[AionrsSendBox] Failed to refresh cloud models:', error);
+                });
+                setIsMobileSheetOpen(true);
+              }
+            : undefined
+        }
         value={content}
         onChange={handleContentChange}
         selectedWorkspaceItems={atPath}

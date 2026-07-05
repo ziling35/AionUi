@@ -72,7 +72,19 @@
     "removeProject": "프로젝트 제거",
     "removeProjectConfirm": "\"{{name}}\" 프로젝트를 제거하시겠습니까? 프로젝트의 {{count}}개 대화도 함께 제거됩니다.",
     "newConversationInProject": "이 프로젝트에서 새 대화",
-    "deleting": "삭제 중..."
+    "deleting": "삭제 중...",
+    "import": "Import",
+    "importFileFilter": "LingAI conversation export",
+    "importSuccess": "Imported {{count}} conversation(s), {{messages}} message(s)",
+    "importFailed": "Import failed",
+    "importInvalidFile": "Invalid import file",
+    "importUnsupportedFile": "Only .zip and .json files are supported",
+    "importUnsupportedVersion": "Unsupported import file version",
+    "importNoConversations": "No importable conversations found",
+    "importDesktopOnly": "Import is only available in the desktop app",
+    "openInNewWindow": "Open in new window",
+    "openProjectInNewWindow": "Open project in new window",
+    "openWindowFailed": "Failed to open new window"
   },
   "historySearch": {
     "tooltip": "메시지 검색",

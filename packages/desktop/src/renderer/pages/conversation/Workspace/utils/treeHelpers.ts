@@ -93,6 +93,18 @@ export function mergeLoadedChildren(newRes: IDirOrFile[], oldFiles: IDirOrFile[]
   return newRes.map(visit);
 }
 
+export function replaceNodeChildrenByKey(nodes: IDirOrFile[], targetKey: string, children: IDirOrFile[]): IDirOrFile[] {
+  return nodes.map((node) => {
+    if (node.relativePath === targetKey) {
+      return { ...node, children };
+    }
+    if (node.children) {
+      return { ...node, children: replaceNodeChildrenByKey(node.children, targetKey, children) };
+    }
+    return node;
+  });
+}
+
 /**
  * 获取第一层节点的 keys（用于初始展开）
  * Get first level node keys (for initial expansion)

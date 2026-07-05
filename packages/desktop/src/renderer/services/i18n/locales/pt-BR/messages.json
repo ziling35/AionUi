@@ -67,5 +67,11 @@
     "yesAlwaysAllowTool": "Sim, sempre permitir a ferramenta \"{{toolName}}\" do servidor \"{{serverName}}\"",
     "yesAlwaysAllowServer": "Sim, sempre permitir todas as ferramentas do servidor \"{{serverName}}\"",
     "no": "Não (esc)"
+  },
+  "permissionOptions": {
+    "yesProceed": "Yes, proceed",
+    "yesDoNotAskAgain": "Yes, and don't ask again",
+    "yesDoNotAskAgainForCommandsStarting": "Yes, and don't ask again for commands that start with `{{command}}`",
+    "no": "No"
   }
 }

@@ -24,7 +24,11 @@ type AgentCardProps =
       boundAssistants: Assistant[];
       onTestConnection: () => void;
       onConfigure: () => void;
+      onInstall?: () => void;
+      onLaunch?: () => void;
       isTesting?: boolean;
+      isInstalling?: boolean;
+      isLaunching?: boolean;
     }
   | {
       type: 'custom';
@@ -161,6 +165,30 @@ const AgentCard: React.FC<AgentCardProps> = (props) => {
 
       <div className='ml-12px flex flex-shrink-0 items-center gap-8px' onClick={stop}>
         <BoundAssistantStack assistants={boundAssistants} />
+        {props.type === 'official' && props.onInstall ? (
+          <Button
+            data-testid={`agent-row-install-${agent.id}`}
+            size='small'
+            type='outline'
+            loading={props.isInstalling}
+            onClick={props.onInstall}
+            className='!h-30px !rounded-8px !border-border-2 !bg-base !px-10px !text-12px !font-500 !text-t-primary hover:!border-border-1 hover:!bg-fill-1'
+          >
+            {t('settings.agentManagement.installCli')}
+          </Button>
+        ) : null}
+        {props.type === 'official' && props.onLaunch ? (
+          <Button
+            data-testid={`agent-row-launch-${agent.id}`}
+            size='small'
+            type='primary'
+            loading={props.isLaunching}
+            onClick={props.onLaunch}
+            className='!h-30px !rounded-8px !px-10px !text-12px !font-500'
+          >
+            {t('settings.agentManagement.launchCli')}
+          </Button>
+        ) : null}
         <Button
           data-testid={`agent-row-test-${agent.id}`}
           size='small'

@@ -15,7 +15,14 @@
     "renameOk": "Сохранить",
     "renameCancel": "Отмена",
     "renameSuccess": "Команда переименована",
-    "deleteSuccess": "Команда удалена"
+    "deleteSuccess": "Команда удалена",
+    "importTeam": "Import team",
+    "exportTeam": "Export team",
+    "archiveFileFilter": "LingAI team archive",
+    "importSuccess": "Imported team: {{conversations}} conversation(s), {{messages}} message(s), {{tasks}} task(s)",
+    "importFailed": "Failed to import team archive",
+    "exportSuccess": "Exported team: {{conversations}} conversation(s), {{messages}} message(s), {{tasks}} task(s)",
+    "exportFailed": "Failed to export team archive"
   },
   "newAgent": "Новый ассистент",
   "noMessages": "Пока нет сообщений.",

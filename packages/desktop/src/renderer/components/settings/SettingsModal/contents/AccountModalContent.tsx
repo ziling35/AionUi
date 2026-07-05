@@ -1,16 +1,32 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Button, Input, Message, Spin } from '@arco-design/web-react';
+import { Button, Input, Message, Spin, Switch } from '@arco-design/web-react';
 import { Wallet, Key, Logout, User } from '@icon-park/react';
 import { useUser } from '@renderer/hooks/context/UserContext';
+import { syncLocalCloudHistoryNow } from '@renderer/utils/chat/cloudHistorySync';
+import CloudHistoryRestoreModal from './CloudHistoryRestoreModal';
 
 const AccountModalContent: React.FC = () => {
   const { t } = useTranslation();
-  const { user, isLoggedIn, isLoading, activateCard, logout, refreshUser, showLoginModal } = useUser();
+  const {
+    user,
+    isLoggedIn,
+    isLoading,
+    activateCard,
+    logout,
+    refreshUser,
+    showLoginModal,
+    token,
+    cloudHistoryEnabled,
+    setCloudHistoryEnabled,
+  } = useUser();
   const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [savingCloudHistory, setSavingCloudHistory] = useState(false);
+  const [syncingCloudHistory, setSyncingCloudHistory] = useState(false);
+  const [restoreModalVisible, setRestoreModalVisible] = useState(false);
 
   // Refresh user data (quota etc.) every time the panel is opened
   useEffect(() => {
@@ -47,6 +63,45 @@ const AccountModalContent: React.FC = () => {
       Message.success(t('login.cloud.logoutSuccess'));
     } finally {
       setLoggingOut(false);
+    }
+  };
+
+  const handleCloudHistoryChange = async (enabled: boolean) => {
+    setSavingCloudHistory(true);
+    try {
+      const success = await setCloudHistoryEnabled(enabled);
+      if (success) {
+        Message.success(
+          enabled ? t('settings.accountPanel.cloudHistoryEnabled') : t('settings.accountPanel.cloudHistoryDisabled')
+        );
+      } else {
+        Message.error(t('settings.accountPanel.cloudHistoryUpdateFailed'));
+      }
+    } finally {
+      setSavingCloudHistory(false);
+    }
+  };
+
+  const handleSyncCloudHistoryNow = async () => {
+    if (!token || !cloudHistoryEnabled) {
+      Message.warning(t('settings.accountPanel.cloudHistorySyncDisabled'));
+      return;
+    }
+
+    setSyncingCloudHistory(true);
+    try {
+      const result = await syncLocalCloudHistoryNow(token);
+      Message.success(
+        t('settings.accountPanel.cloudHistorySyncSuccess', {
+          conversations: result.syncedConversations,
+          messages: result.syncedMessages,
+        })
+      );
+    } catch (error) {
+      console.error('[AccountModalContent] Failed to sync cloud history:', error);
+      Message.error(t('settings.accountPanel.cloudHistorySyncFailed'));
+    } finally {
+      setSyncingCloudHistory(false);
     }
   };
 
@@ -116,6 +171,32 @@ const AccountModalContent: React.FC = () => {
         <p className='text-13px text-t-tertiary mt-12px leading-relaxed'>{t('settings.accountPanel.quotaDesc')}</p>
       </div>
 
+      {/* Cloud history */}
+      <div className='rounded-12px bg-fill-1 p-16px border border-[var(--border-base)] flex items-center justify-between gap-16px'>
+        <div className='flex-1'>
+          <h3 className='text-14px font-600 text-t-primary mb-6px'>{t('settings.accountPanel.cloudHistory')}</h3>
+          <p className='text-12px text-t-secondary leading-relaxed'>
+            {t('settings.accountPanel.cloudHistoryDesc')}
+          </p>
+          <div className='flex flex-wrap gap-8px mt-10px'>
+            <Button
+              size='small'
+              loading={syncingCloudHistory}
+              disabled={!cloudHistoryEnabled}
+              onClick={() => {
+                void handleSyncCloudHistoryNow();
+              }}
+            >
+              {t('settings.accountPanel.cloudHistorySyncNow')}
+            </Button>
+            <Button size='small' onClick={() => setRestoreModalVisible(true)}>
+              {t('settings.accountPanel.cloudHistoryRestoreEntry')}
+            </Button>
+          </div>
+        </div>
+        <Switch checked={cloudHistoryEnabled} loading={savingCloudHistory} onChange={handleCloudHistoryChange} />
+      </div>
+
       {/* Recharge */}
       <div>
         <h3 className='text-16px font-600 mb-16px text-t-primary'>{t('settings.accountPanel.recharge')}</h3>
@@ -148,6 +229,11 @@ const AccountModalContent: React.FC = () => {
         <span className='font-600 text-t-primary'>{t('settings.accountPanel.cloudModels')}: </span>
         {t('settings.accountPanel.cloudModelsDesc')}
       </div>
+      <CloudHistoryRestoreModal
+        visible={restoreModalVisible}
+        token={token}
+        onClose={() => setRestoreModalVisible(false)}
+      />
     </div>
   );
 };

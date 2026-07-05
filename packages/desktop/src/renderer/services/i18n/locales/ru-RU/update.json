@@ -6,6 +6,7 @@
   "alreadyLatest": "У вас уже последняя версия",
   "currentVersion": "Текущая версия: {{version}}",
   "availableTitle": "Доступно обновление",
+  "forceUpdateRequired": "Это обязательное обновление. Установите его, чтобы продолжить.",
   "noReleaseNotes": "Примечания к выпуску не предоставлены.",
   "downloadingTitle": "Загрузка обновления...",
   "downloadButton": "Скачать сейчас",

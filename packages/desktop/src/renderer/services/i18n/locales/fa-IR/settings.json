@@ -1090,7 +1090,27 @@
     "boundAssistantsTitle": "دستیارهای استفاده‌کننده از این ایجنت",
     "boundAssistantsCount": "{{count}} دستیار",
     "boundAssistantsEmpty": "هنوز دستیاری به این ایجنت متصل نیست.",
-    "viewAssistant": "مشاهده"
+    "viewAssistant": "مشاهده",
+    "installCli": "Install",
+    "launchCli": "Launch",
+    "cloudCliModelTitle": "Cloud CLI model",
+    "cloudCliModelDescription": "CLI assistants launched here receive the model and gateway from LingAI Cloud.",
+    "cloudCliModelPlaceholder": "Select cloud model",
+    "cloudCliRoutingHint": "Codex uses OpenAI-compatible routing directly. Claude Code and Gemini receive best-effort cloud environment variables and may still require their own supported routing.",
+    "cloudModelsLoadFailed": "Failed to load cloud models",
+    "cliInstallStarted": "Install terminal opened",
+    "cliInstallFailed": "Failed to start CLI installation",
+    "cliLaunchStarted": "CLI terminal opened",
+    "cliLaunchFailed": "Failed to launch CLI assistant",
+    "cliLoginRequired": "Sign in before launching a cloud-routed CLI assistant",
+    "selectCloudModelFirst": "Select a cloud model first",
+    "cliCenterTitle": "CLI Assistant Center",
+    "cliInstalled": "Installed",
+    "cliNotInstalled": "Not installed",
+    "butlerInstallCli": "Ask Butler",
+    "butlerInstallConfirmTitle": "Install {{name}}?",
+    "butlerInstallConfirmContent": "LingAI Butler is requesting installation of {{name}}. This opens a terminal and runs the official global npm install command.",
+    "butlerInstallConfirmOk": "Install"
   },
   "repair": {
     "pathLabel": "مسیر راه‌اندازی",
@@ -1206,5 +1226,25 @@
       "diagnose": "در AionUi به مشکلی برخوردم، لطفاً کمک کن آن را عیب‌یابی کنم.\n\n[ماژول] {{module}}\n[توضیح] {{description}}\n[پیوست‌ها] اسکرین‌شات‌های ورودی را ببین.\n\nلطفاً علت را تشخیص بده و بگو چطور آن را رفع کنم."
     }
   },
-  "providerIdConflict": "شناسه ارائه‌دهنده از قبل وجود دارد. دوباره تلاش کنید."
+  "providerIdConflict": "شناسه ارائه‌دهنده از قبل وجود دارد. دوباره تلاش کنید.",
+  "accountPanel": {
+    "cloudHistory": "Cloud history",
+    "cloudHistoryDesc": "When enabled, conversation titles and messages for this signed-in account are saved to LingAI Cloud for future cross-device recovery. When disabled, history stays only on this device.",
+    "cloudHistoryEnabled": "Cloud history saving enabled",
+    "cloudHistoryDisabled": "Cloud history saving disabled",
+    "cloudHistoryUpdateFailed": "Failed to update cloud history setting",
+    "cloudHistoryRestoreEntry": "Restore from cloud",
+    "cloudHistoryRestoreTitle": "Restore cloud history",
+    "cloudHistoryRestoreDesc": "Choose a cloud-saved conversation to restore as a local copy. Existing local conversations will not be overwritten.",
+    "cloudHistoryRestoreEmpty": "No cloud history found",
+    "cloudHistoryRestoreAction": "Restore",
+    "cloudHistoryRestoreMeta": "{{messages}} message(s) ? {{time}}",
+    "cloudHistoryRestoreLoadFailed": "Failed to load cloud history",
+    "cloudHistoryRestoreFailed": "Failed to restore cloud history",
+    "cloudHistoryRestoreSuccess": "Restored {{count}} conversation(s), {{messages}} message(s)",
+    "cloudHistorySyncNow": "Save to cloud now",
+    "cloudHistorySyncSuccess": "Saved {{conversations}} conversation(s), {{messages}} message(s) to cloud",
+    "cloudHistorySyncFailed": "Failed to save history to cloud",
+    "cloudHistorySyncDisabled": "Turn on cloud history before saving"
+  }
 }

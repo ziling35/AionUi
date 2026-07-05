@@ -72,7 +72,19 @@
     "removeProject": "移除项目",
     "removeProjectConfirm": "确定要移除项目「{{name}}」吗？项目下的 {{count}} 个对话也会被一起移除。",
     "newConversationInProject": "在此项目中新建对话",
-    "deleting": "删除中..."
+    "deleting": "删除中...",
+    "import": "导入",
+    "importFileFilter": "LingAI 会话导出文件",
+    "importSuccess": "已导入 {{count}} 条会话，{{messages}} 条消息",
+    "importFailed": "导入失败",
+    "importInvalidFile": "导入文件无效",
+    "importUnsupportedFile": "仅支持 .zip 和 .json 文件",
+    "importUnsupportedVersion": "导入文件版本不支持",
+    "importNoConversations": "未找到可导入的会话",
+    "importDesktopOnly": "仅桌面客户端支持导入",
+    "openInNewWindow": "在新窗口打开",
+    "openProjectInNewWindow": "在新窗口打开项目",
+    "openWindowFailed": "打开新窗口失败"
   },
   "historySearch": {
     "tooltip": "检索会话",

@@ -8,9 +8,9 @@ import { ipcBridge } from '@/common';
 import type { IDirOrFile } from '@/common/adapter/ipcBridge';
 import { emitter } from '@/renderer/utils/emitter';
 import { dispatchWorkspaceHasFilesEvent } from '@/renderer/utils/workspace/workspaceEvents';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { SelectedNodeRef } from '../types';
-import { getFirstLevelKeys, mergeLoadedChildren } from '../utils/treeHelpers';
+import { getFirstLevelKeys, mergeLoadedChildren, replaceNodeChildrenByKey } from '../utils/treeHelpers';
 
 interface UseWorkspaceTreeOptions {
   workspace: string;
@@ -28,6 +28,11 @@ export function useWorkspaceTree({ workspace, conversation_id, eventPrefix }: Us
   const [loading, setLoading] = useState(false);
   const [treeKey, setTreeKey] = useState(Math.random());
   const [expandedKeys, setExpandedKeys] = useState<string[]>([]);
+  const expandedKeysRef = useRef<string[]>([]);
+
+  useEffect(() => {
+    expandedKeysRef.current = expandedKeys;
+  }, [expandedKeys]);
 
   // Selection state / 选中状态
   const [selected, setSelected] = useState<string[]>([]);
@@ -154,9 +159,28 @@ export function useWorkspaceTree({ workspace, conversation_id, eventPrefix }: Us
    * 刷新工作空间
    * Refresh workspace
    */
-  const refreshWorkspace = useCallback(() => {
-    return loadWorkspace(workspace);
-  }, [workspace, loadWorkspace]);
+  const refreshWorkspace = useCallback(async () => {
+    await loadWorkspace(workspace);
+    const expandedDirectoryKeys = expandedKeysRef.current
+      .filter((key) => key)
+      .sort((left, right) => left.split('/').length - right.split('/').length);
+
+    for (const relativePath of expandedDirectoryKeys) {
+      const directoryPath = `${workspace.replace(/[\\/]+$/, '')}/${relativePath}`;
+      try {
+        const res = await ipcBridge.conversation.getWorkspace.invoke({
+          conversation_id,
+          workspace,
+          path: directoryPath,
+        });
+        const children = res[0]?.children;
+        if (!children) continue;
+        setFiles((prev) => replaceNodeChildrenByKey(prev, relativePath, children));
+      } catch (error) {
+        console.error('[useWorkspaceTree] refresh expanded directory failed:', error);
+      }
+    }
+  }, [conversation_id, workspace, loadWorkspace]);
 
   /**
    * 确保节点被选中，并可选地发送事件

@@ -16,6 +16,10 @@ interface MessagePermissionProps {
   message: IMessagePermission;
 }
 
+function extractBacktickValue(value: string): string | undefined {
+  return /`([^`]+)`/.exec(value)?.[1];
+}
+
 const actionIcons: Record<string, string> = {
   exec: '⚡',
   edit: '✏️',
@@ -33,6 +37,23 @@ const MessagePermission: React.FC<MessagePermissionProps> = React.memo(({ messag
 
   const icon = actionIcons[action || ''] || '🔐';
   const displayTitle = title || description || t('messages.permissionRequest');
+  const getOptionLabel = (label: string, value: unknown, params?: Record<string, string>): string => {
+    const optionValue = String(value);
+    if (optionValue === 'proceed_once' || label === 'Yes, proceed') {
+      return t('messages.permissionOptions.yesProceed');
+    }
+    if (optionValue === 'proceed_always') {
+      const command = params?.command ?? params?.command_type ?? command_type ?? extractBacktickValue(label);
+      if (command && label.includes('commands that start')) {
+        return t('messages.permissionOptions.yesDoNotAskAgainForCommandsStarting', { command });
+      }
+      return t('messages.permissionOptions.yesDoNotAskAgain');
+    }
+    if (optionValue === 'reject' || optionValue === 'deny' || label === 'No') {
+      return t('messages.permissionOptions.no');
+    }
+    return t(label, { ...params, defaultValue: label });
+  };
 
   const handleConfirm = async () => {
     if (hasResponded || !selected) return;
@@ -84,7 +105,7 @@ const MessagePermission: React.FC<MessagePermissionProps> = React.memo(({ messag
                     data-testid={`message-permission-option-${String(option.value) || `option_${index}`}`}
                   >
                     <Radio value={String(option.value)}>
-                      {t(option.label, { ...option.params, defaultValue: option.label })}
+                      {getOptionLabel(option.label, option.value, option.params)}
                     </Radio>
                   </div>
                 ))

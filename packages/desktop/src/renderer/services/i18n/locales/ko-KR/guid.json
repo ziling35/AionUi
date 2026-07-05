@@ -13,5 +13,11 @@
     "specifyWorkspace": "프로젝트 폴더 선택",
     "searchPlaceholder": "프로젝트 검색…",
     "noProject": "프로젝트 없음"
+  },
+  "cloudCodex": {
+    "name": "LingAI Codex Cloud",
+    "codexMissing": "Local Codex runtime was not detected. Install or enable Codex first.",
+    "commandMissing": "Codex launch command is missing. Repair Codex in Agent settings first.",
+    "syncFailed": "Failed to enable Cloud Codex. Please try again later."
   }
 }

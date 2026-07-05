@@ -6,6 +6,7 @@
   "alreadyLatest": "すでに最新バージョンです",
   "currentVersion": "現在のバージョン：{{version}}",
   "availableTitle": "更新があります",
+  "forceUpdateRequired": "この更新は必須です。続行するにはインストールしてください。",
   "noReleaseNotes": "リリースノートはありません。",
   "downloadingTitle": "更新をダウンロードしています...",
   "downloadButton": "今すぐダウンロード",

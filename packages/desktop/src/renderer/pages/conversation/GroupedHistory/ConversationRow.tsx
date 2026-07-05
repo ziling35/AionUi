@@ -44,6 +44,7 @@ const ConversationRow: React.FC<ConversationRowProps> = (props) => {
     onEditStart,
     onDelete,
     onExport,
+    onOpenInNewWindow,
     onTogglePin,
     getJobStatus,
   } = props;
@@ -221,6 +222,10 @@ const ConversationRow: React.FC<ConversationRowProps> = (props) => {
                       onExport?.(conversation);
                       return;
                     }
+                    if (key === 'open-new-window') {
+                      onOpenInNewWindow?.(conversation);
+                      return;
+                    }
                     if (key === 'delete') {
                       onDelete(conversation.id);
                     }
@@ -243,6 +248,14 @@ const ConversationRow: React.FC<ConversationRowProps> = (props) => {
                       <div className='flex items-center gap-8px'>
                         <Export theme='outline' size='14' />
                         <span>{t('conversation.history.export')}</span>
+                      </div>
+                    </Menu.Item>
+                  )}
+                  {onOpenInNewWindow && (
+                    <Menu.Item key='open-new-window'>
+                      <div className='flex items-center gap-8px'>
+                        <MessageOne theme='outline' size='14' />
+                        <span>{t('conversation.history.openInNewWindow')}</span>
                       </div>
                     </Menu.Item>
                   )}

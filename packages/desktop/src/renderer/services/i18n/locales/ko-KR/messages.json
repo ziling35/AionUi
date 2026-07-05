@@ -67,5 +67,11 @@
     "yesAlwaysAllowTool": "예, 서버 \"{{serverName}}\"의 도구 \"{{toolName}}\" 항상 허용",
     "yesAlwaysAllowServer": "예, 서버 \"{{serverName}}\"의 모든 도구 항상 허용",
     "no": "아니요 (esc)"
+  },
+  "permissionOptions": {
+    "yesProceed": "Yes, proceed",
+    "yesDoNotAskAgain": "Yes, and don't ask again",
+    "yesDoNotAskAgainForCommandsStarting": "Yes, and don't ask again for commands that start with `{{command}}`",
+    "no": "No"
   }
 }

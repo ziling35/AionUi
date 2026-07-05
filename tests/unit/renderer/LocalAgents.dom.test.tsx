@@ -9,7 +9,7 @@
  * derives the detected/custom sections from it.
  */
 
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import React from 'react';
 
@@ -148,6 +148,10 @@ const makeAgents = () => [
 ];
 
 describe('LocalAgents', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   it('runs the health probe and shows a success toast after an official-agent test connection succeeds', async () => {
     const refreshCatalog = vi.fn().mockResolvedValue(undefined);
     useManagedAgents.mockReturnValue({ agents: makeAgents(), revalidate: vi.fn(), refreshCatalog });
@@ -202,6 +206,19 @@ describe('LocalAgents', () => {
     expect(screen.getByText('AI CLI')).toBeTruthy();
     expect(screen.getByText('Claude Code')).toBeTruthy();
     expect(screen.getByText('My Agent')).toBeTruthy();
+  });
+
+  it('does not render the removed CLI assistant center or cloud CLI selector', () => {
+    useManagedAgents.mockReturnValue({
+      agents: makeAgents(),
+      revalidate: vi.fn(),
+      refreshCatalog: vi.fn(),
+    });
+
+    render(<LocalAgents />);
+
+    expect(screen.queryByText('settings.agentManagement.cliCenterTitle')).toBeNull();
+    expect(screen.queryByText('settings.agentManagement.cloudCliModelTitle')).toBeNull();
   });
 
   it('shows the empty state when no detected agents are present', () => {

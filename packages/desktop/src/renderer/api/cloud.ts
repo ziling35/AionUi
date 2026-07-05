@@ -11,6 +11,7 @@
  */
 
 import { ipcBridge } from '@/common';
+import type { IProvider } from '@/common/config/storage';
 import { createApiClient } from './client';
 import { CLOUD_PROVIDER_ID, CLOUD_PROVIDER_NAME, getCloudApiBase, getCloudProxyBase } from './config';
 
@@ -39,6 +40,18 @@ export async function listCloudModels(): Promise<CloudModel[]> {
   return (res?.models ?? []).filter((m) => m.isActive);
 }
 
+export function buildCloudProviderFromModels(models: CloudModel[], token?: string | null): IProvider {
+  return {
+    id: CLOUD_PROVIDER_ID,
+    platform: 'custom',
+    name: CLOUD_PROVIDER_NAME,
+    base_url: getCloudProxyBase(),
+    api_key: token || 'guest-not-authenticated',
+    models: models.filter((model) => model.isActive && model.type !== 'embedding').map((model) => model.modelId),
+    enabled: true,
+  };
+}
+
 type ProviderLike = Awaited<ReturnType<typeof ipcBridge.mode.listProviders.invoke>>[number];
 
 /** Find the existing cloud provider by reserved id or name. */
@@ -60,8 +73,6 @@ function findCloudProvider(providers: ProviderLike[]): ProviderLike | undefined 
  */
 export async function syncCloudProvider(token?: string | null): Promise<void> {
   const models = await listCloudModels();
-  const modelIds = models.map((m) => m.modelId);
-
   const providers = await ipcBridge.mode.listProviders.invoke();
   const existing = findCloudProvider(providers);
 
@@ -72,7 +83,7 @@ export async function syncCloudProvider(token?: string | null): Promise<void> {
     // aioncore requires a non-empty api_key. Use a placeholder for guests —
     // the proxy gateway will reject it with 401, prompting login.
     api_key: token || 'guest-not-authenticated',
-    models: modelIds,
+    models: buildCloudProviderFromModels(models, token).models,
     enabled: true,
   };
 

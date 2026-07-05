@@ -67,6 +67,31 @@ describe('useAssistantList', () => {
     expect(result.current.assistants.map((assistant) => assistant.id)).toEqual(['cowork', 'writer']);
   });
 
+  it('normalizes LingAI Codex cloud as an official assistant', async () => {
+    const mockList: Assistant[] = [
+      {
+        id: 'cloud-codex-generated-id',
+        name: 'LingAI Codex Cloud',
+        name_i18n: { 'zh-CN': 'LingAI Codex 云端版' },
+        sort_order: 1,
+        source: 'user',
+        enabled: true,
+        deletable: true,
+      } as Assistant,
+    ];
+    (ipcBridge.assistants.list.invoke as any).mockResolvedValue(mockList);
+
+    const { result } = renderHook(() => useAssistantList());
+
+    await waitFor(() => expect(result.current.assistants).toHaveLength(1));
+
+    expect(result.current.assistants[0]).toMatchObject({
+      source: 'builtin',
+      deletable: false,
+      name: 'LingAI Codex 云端版',
+    });
+  });
+
   it('handles empty list', async () => {
     (ipcBridge.assistants.list.invoke as any).mockResolvedValue([]);
 

@@ -6,6 +6,7 @@
   "alreadyLatest": "Você já está na versão mais recente",
   "currentVersion": "Versão atual: {{version}}",
   "availableTitle": "Atualização disponível",
+  "forceUpdateRequired": "Esta atualização é obrigatória. Instale-a antes de continuar.",
   "noReleaseNotes": "Nenhuma nota de lançamento fornecida.",
   "downloadingTitle": "Baixando atualização...",
   "downloadButton": "Baixar agora",

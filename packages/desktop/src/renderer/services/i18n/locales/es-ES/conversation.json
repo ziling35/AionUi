@@ -72,7 +72,19 @@
     "removeProject": "Quitar proyecto",
     "removeProjectConfirm": "¿Quitar el proyecto \"{{name}}\"? Sus {{count}} conversación(es) también se quitarán.",
     "newConversationInProject": "Nuevo chat en este proyecto",
-    "deleting": "Eliminando..."
+    "deleting": "Eliminando...",
+    "import": "Import",
+    "importFileFilter": "LingAI conversation export",
+    "importSuccess": "Imported {{count}} conversation(s), {{messages}} message(s)",
+    "importFailed": "Import failed",
+    "importInvalidFile": "Invalid import file",
+    "importUnsupportedFile": "Only .zip and .json files are supported",
+    "importUnsupportedVersion": "Unsupported import file version",
+    "importNoConversations": "No importable conversations found",
+    "importDesktopOnly": "Import is only available in the desktop app",
+    "openInNewWindow": "Open in new window",
+    "openProjectInNewWindow": "Open project in new window",
+    "openWindowFailed": "Failed to open new window"
   },
   "historySearch": {
     "tooltip": "Buscar mensajes",

@@ -6,6 +6,7 @@
   "alreadyLatest": "شما از آخرین نسخه استفاده می‌کنید",
   "currentVersion": "نسخه فعلی: {{version}}",
   "availableTitle": "به‌روزرسانی موجود است",
+  "forceUpdateRequired": "این به‌روزرسانی اجباری است. برای ادامه ابتدا آن را نصب کنید.",
   "noReleaseNotes": "یادداشت‌های انتشار ارائه نشده است.",
   "downloadingTitle": "در حال دانلود به‌روزرسانی...",
   "downloadButton": "دانلود",

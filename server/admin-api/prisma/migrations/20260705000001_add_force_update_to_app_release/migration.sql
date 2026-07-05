@@ -1,0 +1,1 @@
+ALTER TABLE "AppRelease" ADD COLUMN "forceUpdate" BOOLEAN NOT NULL DEFAULT false;

@@ -16,9 +16,36 @@ interface MessageAcpPermissionProps {
   message: IMessageAcpPermission;
 }
 
+function extractBacktickValue(value: string): string | undefined {
+  return /`([^`]+)`/.exec(value)?.[1];
+}
+
 const MessageAcpPermission: React.FC<MessageAcpPermissionProps> = React.memo(({ message }) => {
   const { options = [], tool_call } = message.content || {};
   const { t } = useTranslation();
+  const commandText = tool_call?.raw_input?.command || tool_call?.title;
+  const getOptionName = (name: string, optionId: string): string => {
+    const normalizedName = name.trim();
+    const normalizedOptionId = optionId.toLowerCase();
+    if (normalizedOptionId.includes('always') || normalizedName.includes("don't ask again")) {
+      const command = commandText ?? extractBacktickValue(normalizedName);
+      if (command && normalizedName.includes('commands that start')) {
+        return t('messages.permissionOptions.yesDoNotAskAgainForCommandsStarting', { command });
+      }
+      return t('messages.permissionOptions.yesDoNotAskAgain');
+    }
+    if (
+      normalizedOptionId.includes('allow') ||
+      normalizedOptionId.includes('accept') ||
+      normalizedName === 'Yes, proceed'
+    ) {
+      return t('messages.permissionOptions.yesProceed');
+    }
+    if (normalizedOptionId.includes('deny') || normalizedOptionId.includes('reject') || normalizedName === 'No') {
+      return t('messages.permissionOptions.no');
+    }
+    return normalizedName;
+  };
 
   // 基于实际数据生成显示信息
   const getToolInfo = () => {
@@ -89,12 +116,10 @@ const MessageAcpPermission: React.FC<MessageAcpPermissionProps> = React.memo(({ 
           <span className='text-2xl'>{icon}</span>
           <Text className='block'>{title}</Text>
         </div>
-        {(tool_call.raw_input?.command || tool_call.title) && (
+        {commandText && (
           <div>
             <Text className='text-xs text-t-secondary mb-1'>{t('messages.command')}</Text>
-            <code className='text-xs bg-1 p-2 rounded block text-t-primary break-all'>
-              {tool_call.raw_input?.command || tool_call.title}
-            </code>
+            <code className='text-xs bg-1 p-2 rounded block text-t-primary break-all'>{commandText}</code>
           </div>
         )}
         {!hasResponded && (
@@ -103,20 +128,27 @@ const MessageAcpPermission: React.FC<MessageAcpPermissionProps> = React.memo(({ 
               options.map((option, index) => {
                 const optionName = option?.name || `${t('messages.option')} ${index + 1}`;
                 const option_id = option?.option_id || `option_${index}`;
-                
-                const isAccept = option_id.toLowerCase().includes('allow') || option_id.toLowerCase().includes('accept') || option_id.toLowerCase().includes('yes');
-                const isReject = option_id.toLowerCase().includes('deny') || option_id.toLowerCase().includes('reject') || option_id.toLowerCase().includes('no');
-                
+                const displayOptionName = getOptionName(optionName, option_id);
+
+                const isAccept =
+                  option_id.toLowerCase().includes('allow') ||
+                  option_id.toLowerCase().includes('accept') ||
+                  option_id.toLowerCase().includes('yes');
+                const isReject =
+                  option_id.toLowerCase().includes('deny') ||
+                  option_id.toLowerCase().includes('reject') ||
+                  option_id.toLowerCase().includes('no');
+
                 let buttonType: any = 'secondary';
                 let icon = null;
                 let className = 'flex-1 font-medium';
-                
+
                 if (isAccept) {
                   buttonType = 'primary';
-                  icon = <span className="mr-1">✓</span>;
+                  icon = <span className='mr-1'>✓</span>;
                 } else if (isReject) {
                   buttonType = 'secondary';
-                  icon = <span className="mr-1 text-red-500">✗</span>;
+                  icon = <span className='mr-1 text-red-500'>✗</span>;
                   className = 'flex-1 !text-red-500 !bg-red-50 hover:!bg-red-100 !border-red-200 font-medium';
                 }
 
@@ -129,8 +161,8 @@ const MessageAcpPermission: React.FC<MessageAcpPermissionProps> = React.memo(({ 
                     onClick={() => handleConfirmOption(option_id)}
                     data-testid={`message-acp-permission-option-${option_id}`}
                   >
-                    <span className="flex items-center justify-center">
-                      {icon} {optionName}
+                    <span className='flex items-center justify-center'>
+                      {icon} {displayOptionName}
                     </span>
                   </Button>
                 );

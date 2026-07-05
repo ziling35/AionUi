@@ -21,6 +21,7 @@ import {
   RuntimeSelectorMenuDivider,
   renderThoughtLevelMenuGroup,
 } from './runtimeSelectorOptions';
+import type { AcpModelInfo } from '@/common/types/platform/acpTypes';
 
 const configErrorMessageKey = (error: unknown) => {
   const errorKind = classifyConfigSetError(error);
@@ -29,6 +30,8 @@ const configErrorMessageKey = (error: unknown) => {
   if (errorKind === 'config_update_in_progress') return 'agent.config.busy';
   return 'agent.config.failed';
 };
+
+const getModelOptionKey = (model: AcpModelInfo['available_models'][number]): string => model.optionKey || model.id;
 
 /**
  * Model selector for ACP-based agents. Renders three states:
@@ -61,8 +64,8 @@ const AcpModelSelector: React.FC<{
 
   const defaultModelLabel = t('common.defaultModel');
   const rawDisplayLabel =
-    (model_info?.current_model_id &&
-      model_info.available_models.find((m) => m.id === model_info.current_model_id)?.label) ||
+    (model_info?.current_model_option_key &&
+      model_info.available_models.find((m) => getModelOptionKey(m) === model_info.current_model_option_key)?.label) ||
     model_info?.current_model_label ||
     model_info?.current_model_id ||
     '';
@@ -89,6 +92,34 @@ const AcpModelSelector: React.FC<{
   const tooltipContent = combinedLabel;
 
   const renderLogo = () => <Brain theme='outline' size='14' fill={iconColors.secondary} className='shrink-0' />;
+  const renderModelGroup = (
+    title: string,
+    models: AcpModelInfo['available_models'],
+    selectedOptionKey: string | null | undefined
+  ) => {
+    if (models.length === 0) return null;
+    return (
+      <Menu.ItemGroup title={title}>
+        {models.map((model) => {
+          const optionKey = getModelOptionKey(model);
+          const selected = optionKey === selectedOptionKey;
+          return (
+            <Menu.Item
+              key={optionKey}
+              className={selected ? 'bg-2!' : ''}
+              onClick={() => {
+                if (!isRuntimeSetting) selectModel(optionKey);
+              }}
+            >
+              <RuntimeSelectorCheckedItem selected={selected} description={model.description}>
+                {model.label || model.id}
+              </RuntimeSelectorCheckedItem>
+            </Menu.Item>
+          );
+        })}
+      </Menu.ItemGroup>
+    );
+  };
 
   if (!model_info) {
     return (
@@ -131,24 +162,7 @@ const AcpModelSelector: React.FC<{
             onSelect: (value) => void handleThoughtLevelSelect(value),
           })}
           {thoughtLevel && <RuntimeSelectorMenuDivider />}
-          <Menu.ItemGroup title={t('common.model', { defaultValue: 'Model' })}>
-            {model_info.available_models.map((model) => (
-              <Menu.Item
-                key={model.id}
-                className={model.id === model_info.current_model_id ? 'bg-2!' : ''}
-                onClick={() => {
-                  if (!isRuntimeSetting) selectModel(model.id);
-                }}
-              >
-                <RuntimeSelectorCheckedItem
-                  selected={model.id === model_info.current_model_id}
-                  description={model.description}
-                >
-                  {model.label || model.id}
-                </RuntimeSelectorCheckedItem>
-              </Menu.Item>
-            ))}
-          </Menu.ItemGroup>
+          {renderModelGroup(t('common.model'), model_info.available_models, model_info.current_model_option_key)}
         </Menu>
       }
     >

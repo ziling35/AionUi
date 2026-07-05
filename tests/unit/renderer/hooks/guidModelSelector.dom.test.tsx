@@ -13,6 +13,12 @@ vi.mock('@/renderer/hooks/agent/useModelProviderList', () => ({
   useProvidersQuery: () => ({ data: [] }),
 }));
 
+vi.mock('@/renderer/hooks/context/UserContext', () => ({
+  useUser: () => ({
+    refreshCloudModels: vi.fn().mockResolvedValue(undefined),
+  }),
+}));
+
 vi.mock('@/renderer/utils/model/agentLogo', () => ({
   getModelDisplayLabel: ({
     selectedLabel,

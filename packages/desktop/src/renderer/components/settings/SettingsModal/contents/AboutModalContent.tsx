@@ -32,6 +32,12 @@ type LinkItem =
   | { title: string; url: string; icon: React.ReactNode; onClick?: never }
   | { title: string; onClick: () => void; icon: React.ReactNode; url?: never };
 
+type UpdateCheckViewState =
+  | { kind: 'idle' }
+  | { kind: 'available'; version: string }
+  | { kind: 'upToDate'; version?: string }
+  | { kind: 'error'; message: string };
+
 const AboutModalContent: React.FC = () => {
   const { t } = useTranslation();
   const viewMode = useSettingsViewMode();
@@ -42,6 +48,7 @@ const AboutModalContent: React.FC = () => {
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [updateReadyState, setLocalUpdateReadyState] = useState<UpdateReadyState>(() => getUpdateReadyState());
   const [checking, setChecking] = useState(false);
+  const [updateCheckView, setUpdateCheckView] = useState<UpdateCheckViewState>({ kind: 'idle' });
 
   useEffect(() => {
     const saved = localStorage.getItem('update.includePrerelease');
@@ -80,6 +87,7 @@ const AboutModalContent: React.FC = () => {
 
     if (checking) return;
     setChecking(true);
+    setUpdateCheckView({ kind: 'idle' });
     try {
       const outcome = await runUpdateCheck({
         includePrerelease: getIncludePrerelease(),
@@ -87,12 +95,15 @@ const AboutModalContent: React.FC = () => {
         checkFailedLabel: t('update.checkFailed'),
       });
       if (outcome.kind === 'available') {
+        setUpdateCheckView({ kind: 'available', version: outcome.updateInfo?.version || outcome.autoUpdateInfo?.version || '' });
         // Only reveal the bottom-right card once an update is confirmed; hand
         // over the already-fetched outcome so the card skips the checking flash.
         window.dispatchEvent(new CustomEvent(UPDATE_AVAILABLE_EVENT, { detail: outcome }));
       } else if (outcome.kind === 'upToDate') {
+        setUpdateCheckView({ kind: 'upToDate', version: outcome.updateInfo?.version || outcome.currentVersion });
         Message.info(t('update.alreadyLatest'));
       } else {
+        setUpdateCheckView({ kind: 'error', message: outcome.message || t('update.checkFailed') });
         Message.error(outcome.message || t('update.checkFailed'));
       }
     } finally {
@@ -186,6 +197,20 @@ const AboutModalContent: React.FC = () => {
                   </Typography.Text>
                   <Switch size='small' checked={includePrerelease} onChange={handlePrereleaseChange} />
                 </div>
+                {updateCheckView.kind !== 'idle' && (
+                  <Typography.Text
+                    className={classNames(
+                      'text-12px text-center leading-18px',
+                      updateCheckView.kind === 'error' ? 'text-danger' : 'text-t-secondary'
+                    )}
+                  >
+                    {updateCheckView.kind === 'available'
+                      ? `${t('update.availableTitle')}: v${updateCheckView.version}`
+                      : updateCheckView.kind === 'upToDate'
+                        ? `${t('update.upToDateTitle')}${updateCheckView.version ? ` (v${updateCheckView.version})` : ''}`
+                        : `${t('update.errorTitle')}: ${updateCheckView.message}`}
+                  </Typography.Text>
+                )}
               </div>
             )}
           </div>

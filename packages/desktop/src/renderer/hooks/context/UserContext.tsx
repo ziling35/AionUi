@@ -1,8 +1,10 @@
-import React, { createContext, useCallback, useContext, useEffect, useRef, useState, ReactNode } from 'react';
+import type { ReactNode } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { mutate } from 'swr';
 import { authApi, type UserInfo } from '@renderer/api/auth';
 import { disableCloudProvider, syncCloudProvider } from '@renderer/api/cloud';
-import { PROVIDERS_SWR_KEY } from '@/renderer/hooks/agent/useModelProviderList';
+import { cloudHistoryApi } from '@renderer/api/cloudHistory';
+import { CLOUD_MODELS_SWR_KEY, PROVIDERS_SWR_KEY } from '@/renderer/hooks/agent/useModelProviderList';
 
 const TOKEN_KEY = 'aion_token';
 const USER_KEY = 'aion_user';
@@ -23,7 +25,7 @@ interface UserContextValue {
   /** Clear session and disable the cloud provider. */
   logout: () => Promise<void>;
   /** Re-fetch the current user (refreshes quota). */
-  refreshUser: () => Promise<void>;
+  refreshUser: () => Promise<UserInfo | null>;
   /**
    * Force re-sync cloud models from the admin server, bypassing the
    * token de-dup guard. Call this after the admin changes model configs
@@ -32,6 +34,10 @@ interface UserContextValue {
   refreshCloudModels: () => Promise<void>;
   /** True while a cloud model refresh is in progress. */
   isCloudSyncing: boolean;
+  /** Whether this account allows chat history to be saved to LingAI Cloud. */
+  cloudHistoryEnabled: boolean;
+  /** Update cloud history saving preference on the admin server. */
+  setCloudHistoryEnabled: (enabled: boolean) => Promise<boolean>;
   /** Activate a card secret to top up quota. Requires a logged-in user. */
   activateCard: (code: string) => Promise<ActivateCardResult>;
   isLoginModalVisible: boolean;
@@ -47,6 +53,7 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [isLoading, setIsLoading] = useState(true);
   const [isLoginModalVisible, setIsLoginModalVisible] = useState(false);
   const [isCloudSyncing, setIsCloudSyncing] = useState(false);
+  const [cloudHistoryEnabled, setCloudHistoryEnabledState] = useState(false);
   // Guard against syncing the cloud provider multiple times for the same token.
   const syncedTokenRef = useRef<string | null>(null);
 
@@ -90,7 +97,9 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     setToken(storedToken);
     try {
-      setUser(JSON.parse(storedUser));
+      const parsedUser = JSON.parse(storedUser) as UserInfo;
+      setUser(parsedUser);
+      setCloudHistoryEnabledState(parsedUser.cloudHistoryEnabled === true);
     } catch {
       localStorage.removeItem(USER_KEY);
     }
@@ -101,6 +110,7 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         if (cancelled) return;
         if (res.success && res.user) {
           setUser(res.user);
+          setCloudHistoryEnabledState(res.user.cloudHistoryEnabled === true);
           localStorage.setItem(USER_KEY, JSON.stringify(res.user));
           // Sync cloud provider after aioncore has had time to boot.
           void syncCloud(storedToken);
@@ -127,6 +137,7 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     async (newToken: string, newUser: UserInfo) => {
       setToken(newToken);
       setUser(newUser);
+      setCloudHistoryEnabledState(newUser.cloudHistoryEnabled === true);
       localStorage.setItem(TOKEN_KEY, newToken);
       localStorage.setItem(USER_KEY, JSON.stringify(newUser));
       setIsLoginModalVisible(false);
@@ -146,23 +157,55 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     syncedTokenRef.current = 'guest';
     setToken(null);
     setUser(null);
+    setCloudHistoryEnabledState(false);
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(USER_KEY);
   }, []);
 
-  const refreshUser = useCallback(async () => {
-    if (!token) return;
+  const refreshUser = useCallback(async (): Promise<UserInfo | null> => {
+    if (!token) return null;
     try {
       const res = await authApi.me(token);
       if (res.success && res.user) {
         setUser(res.user);
+        setCloudHistoryEnabledState(res.user.cloudHistoryEnabled === true);
         localStorage.setItem(USER_KEY, JSON.stringify(res.user));
         void syncCloud(token);
+        return res.user;
       }
     } catch (err) {
       console.error('Failed to refresh user', err);
     }
+    return null;
   }, [token, syncCloud]);
+
+  const setCloudHistoryEnabled = useCallback(
+    async (enabled: boolean): Promise<boolean> => {
+      if (!token) {
+        return false;
+      }
+
+      const previous = cloudHistoryEnabled;
+      setCloudHistoryEnabledState(enabled);
+
+      try {
+        const res = await cloudHistoryApi.updateSettings(token, enabled);
+        setCloudHistoryEnabledState(res.enabled);
+        setUser((current) => {
+          if (!current) return current;
+          const next = { ...current, cloudHistoryEnabled: res.enabled };
+          localStorage.setItem(USER_KEY, JSON.stringify(next));
+          return next;
+        });
+        return true;
+      } catch (err) {
+        console.error('Failed to update cloud history setting', err);
+        setCloudHistoryEnabledState(previous);
+        return false;
+      }
+    },
+    [cloudHistoryEnabled, token]
+  );
 
   const activateCard = useCallback(
     async (code: string): Promise<ActivateCardResult> => {
@@ -198,7 +241,7 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       await syncCloudProvider(token);
       // Invalidate the SWR providers cache so every component using
       // useProvidersQuery re-fetches the updated model list.
-      await mutate(PROVIDERS_SWR_KEY);
+      await Promise.all([mutate(CLOUD_MODELS_SWR_KEY), mutate(PROVIDERS_SWR_KEY)]);
       console.log('[UserContext] Cloud models force-refreshed');
     } catch (err) {
       console.error('[UserContext] Cloud model refresh failed:', err);
@@ -231,6 +274,8 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         refreshUser,
         refreshCloudModels,
         isCloudSyncing,
+        cloudHistoryEnabled,
+        setCloudHistoryEnabled,
         activateCard,
         isLoginModalVisible,
         showLoginModal,

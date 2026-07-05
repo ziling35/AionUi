@@ -1,19 +1,14 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<svg width="800" height="800" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <!-- LingAI Logo - 黑色背景版本 -->
-  
-  <!-- 黑色圆角背景 -->
-  <rect width="80" height="80" rx="12" fill="black"/>
-  
-  <!-- 简单白色边框 -->
-  <rect width="80" height="80" rx="12" fill="none" stroke="white" stroke-width="1"/>
-  
-  <!-- 上方的"^"代表A - 白色填充 -->
-  <path d="M40 20 Q38 22 25 40 Q23 42 26 42 L30 42 Q32 40 40 30 Q48 40 50 42 L54 42 Q57 42 55 40 Q42 22 40 20" fill="white"/>
-  
-  <!-- 中间的"."代表i - 白色圆点 -->
-  <circle cx="40" cy="46" r="3" fill="white"/>
-  
-  <!-- 下方的弧线代表UI - 白色弧线 -->
-  <path d="M18 50 Q40 70 62 50" stroke="white" stroke-width="3.5" fill="none" stroke-linecap="round"/>
-</svg> 
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="aGradient" x1="205" y1="154" x2="374" y2="360" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#7C3AED"/>
+      <stop offset="0.55" stop-color="#3B82F6"/>
+      <stop offset="1" stop-color="#22D3EE"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="96" fill="#071225"/>
+  <path d="M142 139 L194 172 V326 H285 L316 378 H142 V139Z" fill="white"/>
+  <path d="M288 154 C298 154 307 160 313 171 L399 378 H338 L288 255 L238 378 H179 L263 171 C268 160 278 154 288 154Z" fill="url(#aGradient)"/>
+  <path d="M288 252 L313 314 H263 L288 252Z" fill="#071225" fill-opacity="0.98"/>
+  <path d="M244 266 L259 274 L267 289 L275 274 L290 266 L275 258 L267 243 L259 258 L244 266Z" fill="white"/>
+</svg>

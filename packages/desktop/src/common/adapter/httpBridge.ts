@@ -263,42 +263,45 @@ export function httpGet<Data, Params = undefined>(
 
 export function httpPost<Data, Params = undefined>(
   path: string | ((params: Params) => string),
-  mapBody?: (params: Params) => unknown
+  mapBody?: (params: Params) => unknown,
+  options?: HttpRequestOptions
 ): ProviderLike<Data, Params> {
   return {
     provider: () => {},
     invoke: (async (params?: Params) => {
       const resolvedPath = typeof path === 'function' ? path(params!) : path;
       const body = mapBody ? mapBody(params!) : params;
-      return httpRequest<Data>('POST', resolvedPath, body);
+      return httpRequest<Data>('POST', resolvedPath, body, options);
     }) as ProviderLike<Data, Params>['invoke'],
   };
 }
 
 export function httpPut<Data, Params = undefined>(
   path: string | ((params: Params) => string),
-  mapBody?: (params: Params) => unknown
+  mapBody?: (params: Params) => unknown,
+  options?: HttpRequestOptions
 ): ProviderLike<Data, Params> {
   return {
     provider: () => {},
     invoke: (async (params?: Params) => {
       const resolvedPath = typeof path === 'function' ? path(params!) : path;
       const body = mapBody ? mapBody(params!) : params;
-      return httpRequest<Data>('PUT', resolvedPath, body);
+      return httpRequest<Data>('PUT', resolvedPath, body, options);
     }) as ProviderLike<Data, Params>['invoke'],
   };
 }
 
 export function httpPatch<Data, Params = undefined>(
   path: string | ((params: Params) => string),
-  mapBody?: (params: Params) => unknown
+  mapBody?: (params: Params) => unknown,
+  options?: HttpRequestOptions
 ): ProviderLike<Data, Params> {
   return {
     provider: () => {},
     invoke: (async (params?: Params) => {
       const resolvedPath = typeof path === 'function' ? path(params!) : path;
       const body = mapBody ? mapBody(params!) : params;
-      return httpRequest<Data>('PATCH', resolvedPath, body);
+      return httpRequest<Data>('PATCH', resolvedPath, body, options);
     }) as ProviderLike<Data, Params>['invoke'],
   };
 }

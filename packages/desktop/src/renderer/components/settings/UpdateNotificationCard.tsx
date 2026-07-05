@@ -27,6 +27,8 @@ const UpdateNotificationCard: React.FC = () => {
 
   if (!state.visible) return null;
 
+  const isForceUpdate = state.forceUpdate && state.status !== 'upToDate';
+
   if (state.presentation === 'mini') {
     const miniPercent = state.status === 'downloaded' ? 100 : state.progress.percent;
     const miniColor =
@@ -153,9 +155,11 @@ const UpdateNotificationCard: React.FC = () => {
     if (state.status === 'downloaded') {
       return (
         <>
-          <Button size='small' className={ACTION_BTN_CLASS} onClick={() => actions.dismiss('later')}>
-            {t('update.later')}
-          </Button>
+          {!isForceUpdate && (
+            <Button size='small' className={ACTION_BTN_CLASS} onClick={() => actions.dismiss('later')}>
+              {t('update.later')}
+            </Button>
+          )}
           <Button type='primary' size='small' className={ACTION_BTN_CLASS} onClick={actions.quitAndInstall}>
             {t('update.restartNow')}
           </Button>
@@ -165,9 +169,11 @@ const UpdateNotificationCard: React.FC = () => {
     if (state.status === 'success') {
       return (
         <>
-          <Button size='small' className={ACTION_BTN_CLASS} onClick={() => actions.dismiss('later')}>
-            {t('update.later')}
-          </Button>
+          {!isForceUpdate && (
+            <Button size='small' className={ACTION_BTN_CLASS} onClick={() => actions.dismiss('later')}>
+              {t('update.later')}
+            </Button>
+          )}
           <Button type='primary' size='small' className={ACTION_BTN_CLASS} onClick={actions.openFile}>
             {t('update.installNow')}
           </Button>
@@ -191,9 +197,11 @@ const UpdateNotificationCard: React.FC = () => {
     if (state.status === 'available') {
       return (
         <>
-          <Button size='small' className={ACTION_BTN_CLASS} onClick={() => actions.dismiss('later')}>
-            {t('update.later')}
-          </Button>
+          {!isForceUpdate && (
+            <Button size='small' className={ACTION_BTN_CLASS} onClick={() => actions.dismiss('later')}>
+              {t('update.later')}
+            </Button>
+          )}
           <Button type='primary' size='small' className={ACTION_BTN_CLASS} onClick={actions.startDownload}>
             {t('update.downloadButton')}
           </Button>
@@ -208,36 +216,55 @@ const UpdateNotificationCard: React.FC = () => {
   };
 
   const releaseNotes = state.updateInfo?.body || state.autoUpdateInfo?.releaseNotes || '';
+  const cardContent = (
+    <section
+      data-testid='update-notification-card'
+      data-force-update={isForceUpdate ? 'true' : 'false'}
+      className={
+        isForceUpdate
+          ? 'w-420px max-w-[calc(100vw-32px)] bg-1 border border-border-2 rd-8px shadow-[0_8px_32px_rgba(0,0,0,0.24)] overflow-hidden'
+          : 'fixed right-24px bottom-24px z-1000 w-max min-w-300px max-w-[calc(100vw-32px)] bg-1 border border-border-2 rd-8px shadow-[0_2px_16px_rgba(0,0,0,0.12)] overflow-hidden'
+      }
+    >
+      <div className='flex items-center gap-10px px-16px pt-12px pb-6px min-w-0'>
+        <Download size='18' fill='rgb(var(--primary-6))' />
+        <div className='text-14px text-t-primary font-600 truncate flex-1'>{t('update.modalTitle')}</div>
+        {state.status === 'downloading' && !isForceUpdate && (
+          <button
+            type='button'
+            className='flex items-center justify-center bg-transparent border-none p-0 cursor-pointer text-t-tertiary hover:text-t-primary transition-colors'
+            onClick={actions.cancelDownload}
+            aria-label={t('update.cancel')}
+          >
+            <Close size='16' />
+          </button>
+        )}
+      </div>
+      {isForceUpdate && (
+        <div className='mx-16px mt-6px px-10px py-8px rd-6px bg-[rgb(var(--warning-1))] text-[rgb(var(--warning-6))] text-12px leading-relaxed'>
+          {t('update.forceUpdateRequired')}
+        </div>
+      )}
+      {state.status === 'downloading' ? (
+        <div className='px-16px pt-6px pb-12px'>{renderBody()}</div>
+      ) : (
+        <>
+          <div className='px-16px py-6px'>{renderBody()}</div>
+          <div className='flex justify-start gap-8px px-16px pt-6px pb-12px'>{renderActions()}</div>
+        </>
+      )}
+    </section>
+  );
 
   return renderNotificationLayer(
     <>
-      <section
-        data-testid='update-notification-card'
-        className='fixed right-24px bottom-24px z-1000 w-max min-w-300px max-w-[calc(100vw-32px)] bg-1 border border-border-2 rd-8px shadow-[0_2px_16px_rgba(0,0,0,0.12)] overflow-hidden'
-      >
-        <div className='flex items-center gap-10px px-16px pt-12px pb-6px min-w-0'>
-          <Download size='18' fill='rgb(var(--primary-6))' />
-          <div className='text-14px text-t-primary font-600 truncate flex-1'>{t('update.modalTitle')}</div>
-          {state.status === 'downloading' && (
-            <button
-              type='button'
-              className='flex items-center justify-center bg-transparent border-none p-0 cursor-pointer text-t-tertiary hover:text-t-primary transition-colors'
-              onClick={actions.cancelDownload}
-              aria-label={t('update.cancel')}
-            >
-              <Close size='16' />
-            </button>
-          )}
+      {isForceUpdate ? (
+        <div className='fixed inset-0 z-1000 flex items-center justify-center bg-[rgba(0,0,0,0.45)]'>
+          {cardContent}
         </div>
-        {state.status === 'downloading' ? (
-          <div className='px-16px pt-6px pb-12px'>{renderBody()}</div>
-        ) : (
-          <>
-            <div className='px-16px py-6px'>{renderBody()}</div>
-            <div className='flex justify-start gap-8px px-16px pt-6px pb-12px'>{renderActions()}</div>
-          </>
-        )}
-      </section>
+      ) : (
+        cardContent
+      )}
       <Modal
         title={t('update.releaseLog')}
         visible={releaseLogVisible}

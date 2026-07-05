@@ -66,5 +66,11 @@
     "yesAlwaysAllowTool": "بله، همیشه اجازه ابزار «{{toolName}}» از سرور «{{serverName}}» بده",
     "yesAlwaysAllowServer": "بله، همیشه اجازه تمام ابزارها از سرور «{{serverName}}» بده",
     "no": "خیر (esc)"
+  },
+  "permissionOptions": {
+    "yesProceed": "Yes, proceed",
+    "yesDoNotAskAgain": "Yes, and don't ask again",
+    "yesDoNotAskAgainForCommandsStarting": "Yes, and don't ask again for commands that start with `{{command}}`",
+    "no": "No"
   }
 }

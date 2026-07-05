@@ -28,6 +28,7 @@ import {
 import type { ManagedAgent } from '@/renderer/utils/model/agentTypes';
 import { resolveBackendAssetUrl } from '@/renderer/utils/platform';
 import useSWR from 'swr';
+import OverrideAvatar from '@/renderer/assets/aionui-assistant-override.png';
 
 /** Map of lowercased backend id -> logo URL. */
 export type AgentLogoMap = Record<string, string>;
@@ -82,6 +83,10 @@ function normalizeLogoUrl(logo: string): string | null {
   if (!value || isLikelyLocalFilePath(value)) return null;
   if (value.startsWith('/') && !isBackendRelativeAssetPath(value)) return null;
 
+  if (value.includes('aionui-assistant.jpg') || value.includes('aion.svg')) {
+    return OverrideAvatar;
+  }
+
   const resolved = resolveBackendAssetUrl(value) ?? value;
   const isImage = /\.(svg|png|jpe?g|webp|gif)$/i.test(resolved) || /^(https?:|data:|\/)/i.test(resolved);
   return isImage ? resolved : null;
@@ -120,6 +125,8 @@ export function resolveAgentLogo(
     isExtension?: boolean;
   }
 ): string | null {
+  if (opts.backend === 'aionrs') return OverrideAvatar;
+
   if (opts.icon) return normalizeLogoUrl(opts.icon);
 
   if (opts.isExtension && opts.custom_agent_id) {

@@ -153,6 +153,8 @@ export default defineConfig(({ mode }) => {
         'process.env.NODE_ENV': JSON.stringify(mode),
         'process.env.env': JSON.stringify(process.env.env),
         'process.env.SENTRY_DSN': JSON.stringify(process.env.SENTRY_DSN ?? ''),
+        'process.env.LINGAI_UPDATE_BASE_URL': JSON.stringify(process.env.LINGAI_UPDATE_BASE_URL ?? ''),
+        'process.env.LINGAI_UPDATE_CHECK_URL': JSON.stringify(process.env.LINGAI_UPDATE_CHECK_URL ?? ''),
       },
     },
 

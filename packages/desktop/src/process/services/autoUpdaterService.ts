@@ -852,7 +852,7 @@ class AutoUpdaterService extends EventEmitter {
         status: 'error',
         error: userMessage,
       });
-      throw new Error(userMessage);
+      throw new Error(userMessage, { cause: error });
     }
     // On macOS, autoUpdater.quitAndInstall() closes all windows but the
     // 'window-all-closed' handler does NOT call app.quit() (standard macOS

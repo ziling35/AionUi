@@ -8,16 +8,18 @@ datasource db {
 }
 
 model User {
-  id          String       @id @default(uuid())
-  username    String?      @unique
-  password    String?
-  email       String?      @unique
-  deviceId    String?      @unique
-  quota       Int          @default(0)
-  usedQuota   Int          @default(0)
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
-  cardSecrets CardSecret[]
+  id                  String              @id @default(uuid())
+  username            String?             @unique
+  password            String?
+  email               String?             @unique
+  deviceId            String?             @unique
+  quota               Int                 @default(0)
+  usedQuota           Int                 @default(0)
+  cloudHistoryEnabled Boolean             @default(false)
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+  cardSecrets         CardSecret[]
+  cloudConversations  CloudConversation[]
 }
 
 model CardSecret {
@@ -53,10 +55,97 @@ model ModelConfig {
   apiBaseUrl String?
   apiKey     String?
   multiplier Float     @default(1.0)
+  billingMode String    @default("per_token")
+  inputTokenPrice  Float @default(1.0)
+  outputTokenPrice Float @default(1.0)
+  fixedCost        Int   @default(0)
+  minCost          Int   @default(1)
+  reserveCost      Int   @default(0)
   isActive   Boolean   @default(true)
   type       String    @default("chat")
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
   unitPrice  Float     @default(0)
   provider   Provider? @relation(fields: [providerId], references: [id], onDelete: Cascade)
+}
+
+model UsageRecord {
+  id               String   @id @default(uuid())
+  userId           String
+  deviceId         String?
+  modelId          String
+  providerId       String?
+  endpoint         String
+  billingMode      String
+  status           String   @default("SUCCESS")
+  promptTokens     Int      @default(0)
+  completionTokens Int      @default(0)
+  totalTokens      Int      @default(0)
+  reservedPoints   Int      @default(0)
+  chargedPoints    Int      @default(0)
+  refundedPoints   Int      @default(0)
+  detail           String?
+  createdAt        DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([modelId, createdAt])
+  @@index([status, createdAt])
+}
+
+model CloudConversation {
+  id                  String         @id @default(uuid())
+  userId              String
+  localConversationId String
+  name                String
+  type                String
+  source              String?
+  extraJson           String?
+  localCreatedAt      DateTime?
+  localUpdatedAt      DateTime?
+  syncedAt            DateTime       @default(now())
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+  user                User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages            CloudMessage[]
+
+  @@unique([userId, localConversationId])
+  @@index([userId, syncedAt])
+}
+
+model CloudMessage {
+  id                  String            @id @default(uuid())
+  cloudConversationId String
+  localMessageId      String
+  msgId               String?
+  type                String
+  position            String?
+  status              String?
+  hidden              Boolean           @default(false)
+  contentJson         String
+  localCreatedAt      DateTime?
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+  conversation        CloudConversation @relation(fields: [cloudConversationId], references: [id], onDelete: Cascade)
+
+  @@unique([cloudConversationId, localMessageId])
+  @@index([cloudConversationId, localCreatedAt])
+}
+
+model AppRelease {
+  id           String   @id @default(uuid())
+  version      String
+  channel      String   @default("latest")
+  platform     String   @default("win32")
+  arch         String   @default("x64")
+  fileName     String
+  sha512       String
+  size         Int?
+  releaseDate  DateTime @default(now())
+  releaseNotes String?
+  forceUpdate  Boolean  @default(false)
+  enabled      Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([channel, platform, arch, version])
 }

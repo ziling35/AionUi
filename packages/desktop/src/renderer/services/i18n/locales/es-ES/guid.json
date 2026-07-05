@@ -31,5 +31,11 @@
     "capabilities": "What can you do for me?",
     "skills": "What skills do you have?",
     "tools": "What tools do you have?"
+  },
+  "cloudCodex": {
+    "name": "LingAI Codex Cloud",
+    "codexMissing": "Local Codex runtime was not detected. Install or enable Codex first.",
+    "commandMissing": "Codex launch command is missing. Repair Codex in Agent settings first.",
+    "syncFailed": "Failed to enable Cloud Codex. Please try again later."
   }
 }

@@ -5,6 +5,7 @@
  */
 
 import { resolveBackendAssetUrl } from '@/renderer/utils/platform';
+import OverrideAvatar from '@/renderer/assets/aionui-assistant-override.png';
 
 export type AssistantAvatar =
   | { kind: 'image'; value: string }
@@ -33,6 +34,10 @@ export function resolveAssistantAvatar(avatar: string | undefined): AssistantAva
   }
   if (value.startsWith('/') && !isBackendRelativeAssetPath(value)) {
     return { kind: 'fallback' };
+  }
+
+  if (value.includes('aionui-assistant.jpg') || value.includes('aion.svg')) {
+    return { kind: 'image', value: OverrideAvatar };
   }
 
   const resolved = resolveBackendAssetUrl(value) ?? value;

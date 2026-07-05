@@ -1,4 +1,4 @@
-import { Table, Card, Input, Button, Space, Tag, Dropdown, Menu, Modal, Form, message } from 'antd';
+import { Table, Card, Input, Button, Space, Tag, Dropdown, Modal, Form, message } from 'antd';
 import { SearchOutlined, UserAddOutlined, MoreOutlined } from '@ant-design/icons';
 import { useEffect, useState } from 'react';
 
@@ -11,7 +11,7 @@ export default function Users() {
   const fetchUsers = async () => {
     setLoading(true);
     try {
-      const res = await fetch('http://localhost:3000/api/users');
+      const res = await fetch('/api/users');
       const data = await res.json();
       if (data.success) {
         setUsers(data.users);
@@ -29,7 +29,7 @@ export default function Users() {
 
   const handleAddUser = async (values: any) => {
     try {
-      const res = await fetch('http://localhost:3000/api/auth/register', {
+      const res = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username: values.username, password: values.password }),

@@ -124,7 +124,7 @@ describe('useAcpModelInfo', () => {
     });
   });
 
-  it('derives model info from the model config option and ignores thought_level values', async () => {
+  it('derives model info from local runtime config options only', async () => {
     ensureRuntimeInvokeMock.mockResolvedValue({
       recovered: true,
       config_options: buildConfigOptions('opus-4'),
@@ -145,7 +145,7 @@ describe('useAcpModelInfo', () => {
     expect(ensureRuntimeInvokeMock).toHaveBeenCalledWith({ conversation_id: 'conv-1' });
   });
 
-  it('preserves model option descriptions from config options', async () => {
+  it('preserves local runtime model descriptions', async () => {
     ensureRuntimeInvokeMock.mockResolvedValue({
       recovered: true,
       config_options: [
@@ -182,13 +182,17 @@ describe('useAcpModelInfo', () => {
     expect(result.current.model_info?.available_models).toEqual([
       {
         id: 'default',
+        optionKey: 'runtime:0:default',
         label: 'Default (recommended)',
         description: 'Use the default model (currently Opus 4.8) · $5/$25 per Mtok',
+        source: 'runtime',
       },
       {
         id: 'opus',
+        optionKey: 'runtime:1:opus',
         label: 'claude-opus-4-8',
         description: 'Custom Opus model (1M context)',
+        source: 'runtime',
       },
     ]);
   });
@@ -215,7 +219,7 @@ describe('useAcpModelInfo', () => {
     });
 
     act(() => {
-      result.current.selectModel('opus-4');
+      result.current.selectModel('runtime:1:opus-4');
     });
 
     await waitFor(() => {
@@ -264,7 +268,7 @@ describe('useAcpModelInfo', () => {
     });
 
     act(() => {
-      result.current.selectModel('opus-4');
+      result.current.selectModel('runtime:1:opus-4');
     });
 
     await waitFor(() => {
@@ -291,7 +295,7 @@ describe('useAcpModelInfo', () => {
     });
 
     act(() => {
-      first.result.current.selectModel('opus-4');
+      first.result.current.selectModel('runtime:1:opus-4');
     });
 
     await waitFor(() => {

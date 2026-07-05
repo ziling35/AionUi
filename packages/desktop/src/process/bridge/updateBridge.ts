@@ -22,6 +22,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import semver from 'semver';
 import { autoUpdaterService } from '../services/autoUpdaterService';
+import { getUpdateBaseUrl, getUpdateCheckUrl } from '../services/updateFeed';
 
 /** Lazily loads i18n to avoid pulling in initStorage chain at module load time */
 let _i18nCache: Promise<typeof import('../services/i18n')> | null = null;
@@ -33,73 +34,23 @@ const getI18n = async () => {
   return m.default;
 };
 
-type GitHubReleaseApiAsset = {
-  name: string;
-  browser_download_url: string;
-  size: number;
-  content_type?: string;
-};
-
-type GitHubReleaseApi = {
-  tag_name: string;
-  name?: string;
-  body?: string;
-  html_url: string;
-  published_at?: string;
-  prerelease: boolean;
-  draft: boolean;
-  assets?: GitHubReleaseApiAsset[];
-};
-
 /** Parameters for auto-update check via electron-updater */
 interface AutoUpdateCheckParams {
   /** Whether to include prerelease/dev builds in update check */
   includePrerelease?: boolean;
 }
 
-const DEFAULT_REPO = 'iOfficeAI/LingAI';
 const DEFAULT_USER_AGENT = 'LingAI';
-const ALLOWED_ASSET_EXTS = new Set(['.exe', '.msi', '.dmg', '.zip', '.deb', '.rpm']);
-const CDN_HOST = 'static.lingai.com';
-const CDN_BASE_URL = `https://${CDN_HOST}/releases`;
 const ALLOWED_DOWNLOAD_HOSTS = new Set<string>([
-  CDN_HOST,
-  'github.com',
-  'objects.githubusercontent.com',
-  'github-releases.githubusercontent.com',
-  'release-assets.githubusercontent.com',
-]);
+  (() => {
+    try {
+      return new URL(getUpdateBaseUrl()).hostname;
+    } catch {
+      return '';
+    }
+  })(),
+].filter(Boolean));
 const MAX_REDIRECTS = 8;
-
-const isAllowedAssetName = (name: string) => {
-  const ext = path.extname(name);
-  return ALLOWED_ASSET_EXTS.has(ext);
-};
-
-const normalizeTagToSemver = (tag: string): string | null => {
-  const trimmed = tag.trim();
-  const withoutV = trimmed.startsWith('v') ? trimmed.slice(1) : trimmed;
-  // Ensure it looks like a semver prefix at least.
-  if (!/^\d+\.\d+\.\d+/.test(withoutV)) return null;
-  return semver.valid(withoutV);
-};
-
-/**
- * Rewrite a GitHub release asset URL to the CDN URL for faster download.
- * The CDN path follows the fixed convention `{base}/{version}/{original-filename}`,
- * matching electron-builder's artifactName output, so no name conversion is needed.
- */
-const rewriteAssetUrlToCDN = (assetName: string, version: string): string => {
-  return `${CDN_BASE_URL}/${version}/${assetName}`;
-};
-
-const mapAsset = (asset: GitHubReleaseApiAsset, version: string): GitHubReleaseAsset => ({
-  name: asset.name,
-  url: rewriteAssetUrlToCDN(asset.name, version),
-  fallbackUrl: asset.browser_download_url,
-  size: asset.size,
-  contentType: asset.content_type,
-});
 
 type RuntimePlatformInfo = {
   platform: NodeJS.Platform;
@@ -195,12 +146,6 @@ export const pickRecommendedAsset = (
   return scored[0]?.asset;
 };
 
-const resolveRepo = (requestRepo?: string): string => {
-  const envRepo = process.env.LINGAI_GITHUB_REPO?.trim();
-  const repo = (requestRepo || envRepo || DEFAULT_REPO).trim();
-  return repo || DEFAULT_REPO;
-};
-
 const assertAllowedUrl = async (rawUrl: string) => {
   let parsed: URL;
   try {
@@ -246,31 +191,32 @@ const fetchWithAllowlistedRedirects = async (rawUrl: string, signal: AbortSignal
   throw new Error((await getI18n()).t('update.errors.tooManyRedirects'));
 };
 
-const fetchGitHubReleases = async (repo: string): Promise<GitHubReleaseApi[]> => {
-  const url = `https://api.github.com/repos/${repo}/releases`;
+const fetchConfiguredLatestRelease = async (): Promise<UpdateReleaseInfo | null> => {
+  const checkUrl = getUpdateCheckUrl();
+  if (!checkUrl) {
+    throw new Error('Update check URL is not configured');
+  }
 
-  // 添加超时控制，防止网络问题导致无限等待 / Add timeout to prevent infinite wait on network issues
+  const url = new URL(checkUrl);
+  url.searchParams.set('platform', process.platform);
+  url.searchParams.set('arch', process.arch);
+
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 秒超时 / 30 second timeout
-
+  const timeoutId = setTimeout(() => controller.abort(), 30000);
   try {
     const res = await fetch(url, {
       headers: {
-        Accept: 'application/vnd.github+json',
+        Accept: 'application/json',
         'User-Agent': DEFAULT_USER_AGENT,
       },
       signal: controller.signal,
     });
-
     if (!res.ok) {
       throw new Error((await getI18n()).t('update.errors.githubApiFailed', { status: res.status }));
     }
-
-    const json = (await res.json()) as unknown;
-    if (!Array.isArray(json)) {
-      throw new Error((await getI18n()).t('update.errors.githubApiNotArray'));
-    }
-    return json as GitHubReleaseApi[];
+    const json = (await res.json()) as { success?: boolean; latest?: UpdateReleaseInfo | null };
+    if (json.success === false) return null;
+    return json.latest ?? null;
   } catch (err: unknown) {
     if (err instanceof Error && err.name === 'AbortError') {
       throw new Error((await getI18n()).t('update.errors.githubApiTimeout'), { cause: err });
@@ -279,29 +225,6 @@ const fetchGitHubReleases = async (repo: string): Promise<GitHubReleaseApi[]> =>
   } finally {
     clearTimeout(timeoutId);
   }
-};
-
-const mapRelease = (rel: GitHubReleaseApi): UpdateReleaseInfo | null => {
-  const version = normalizeTagToSemver(rel.tag_name);
-  if (!version) return null;
-
-  const assets = (rel.assets || [])
-    .filter((asset) => asset && asset.name && asset.browser_download_url)
-    .filter((asset) => isAllowedAssetName(asset.name))
-    .map((asset) => mapAsset(asset, version));
-
-  return {
-    tagName: rel.tag_name,
-    version,
-    name: rel.name,
-    body: rel.body,
-    htmlUrl: rel.html_url,
-    publishedAt: rel.published_at,
-    prerelease: Boolean(rel.prerelease),
-    draft: Boolean(rel.draft),
-    assets,
-    recommendedAsset: pickRecommendedAsset(assets),
-  };
 };
 
 type DownloadState = {
@@ -554,7 +477,6 @@ export function initUpdateBridge(): void {
   ipcBridge.update.check.provider(
     async (params): Promise<{ success: boolean; data?: UpdateCheckResult; msg?: string }> => {
       try {
-        const repo = resolveRepo(params?.repo);
         const includePrerelease = Boolean(params?.includePrerelease);
         const currentVersion = app.getVersion();
 
@@ -570,12 +492,16 @@ export function initUpdateBridge(): void {
         // 注入为带 prerelease 的 semver（如 `1.7.2-dev.1234+sha.abcdef0`），以保证比较顺序正确。
         // 这里刻意不对“当前是稳定版版本号但用户勾选了 prerelease”做字符串猜测。
 
-        const releases = await fetchGitHubReleases(repo);
-        const candidates = releases
-          .filter((r) => r && !r.draft)
-          .filter((r) => (includePrerelease ? true : !r.prerelease))
-          .map(mapRelease)
-          .filter((r): r is UpdateReleaseInfo => Boolean(r));
+        const configuredLatest = await fetchConfiguredLatestRelease();
+        if (configuredLatest && !semver.valid(configuredLatest.version)) {
+          return {
+            success: false,
+            msg: `Invalid update version "${configuredLatest.version}". Use full semantic version format, for example 2.2.0.`,
+          };
+        }
+        const candidates = configuredLatest
+          ? [configuredLatest].filter((r) => (includePrerelease ? true : !r.prerelease))
+          : [];
 
         const currentSemver = semver.valid(currentVersion) || semver.coerce(currentVersion)?.version;
         if (!currentSemver) {
@@ -613,9 +539,8 @@ export function initUpdateBridge(): void {
         }
 
         // Defense-in-depth: do not allow arbitrary downloads from renderer.
-        // EN: Only allowlisted hosts (CDN + GitHub release hosts) are permitted;
-        // each redirect hop is re-validated against the allowlist.
-        // 中文：仅允许白名单内的域名（CDN + GitHub release 相关），并手动处理重定向，每一跳都校验白名单。
+        // Only the commercial update host is permitted; each redirect hop is
+        // re-validated against the allowlist.
         await assertAllowedUrl(params.url);
         if (params.fallbackUrl) {
           await assertAllowedUrl(params.fallbackUrl);

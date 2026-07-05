@@ -5,6 +5,8 @@ import { useCallback, useEffect, useMemo, useRef } from 'react';
 import useSWR, { type SWRConfiguration } from 'swr';
 import { useGoogleAuthModels } from './useGoogleAuthModels';
 import { hasSpecificModelCapability } from '@/renderer/utils/model/modelCapabilities';
+import { buildCloudProviderFromModels, listCloudModels } from '@/renderer/api/cloud';
+import { CLOUD_PROVIDER_ID } from '@/renderer/api/config';
 
 export interface ModelProviderListResult {
   providers: IProvider[];
@@ -30,6 +32,16 @@ export const useProvidersQuery = () => {
   return useSWR<IProvider[]>(PROVIDERS_SWR_KEY, fetchProviders, PROVIDERS_SWR_OPTIONS);
 };
 
+export const CLOUD_MODELS_SWR_KEY = 'cloud-models';
+
+export const useCloudModelsQuery = () => {
+  return useSWR(CLOUD_MODELS_SWR_KEY, listCloudModels, {
+    revalidateOnFocus: false,
+    revalidateOnReconnect: false,
+    shouldRetryOnError: false,
+  });
+};
+
 /**
  * Shared hook that builds the provider list (including Google Auth)
  * and exposes helpers consumed by both conversation and channel settings.
@@ -38,6 +50,7 @@ export const useModelProviderList = (): ModelProviderListResult => {
   const { isGoogleAuth } = useGoogleAuthModels();
 
   const { data: modelConfig } = useProvidersQuery();
+  const { data: cloudModels } = useCloudModelsQuery();
 
   // Mutable cache for available-model filtering
   const available_modelsCacheRef = useRef(new Map<string, string[]>());
@@ -76,6 +89,26 @@ export const useModelProviderList = (): ModelProviderListResult => {
     // 过滤掉被禁用的 provider（默认为启用）
     list = list.filter((p) => p.enabled !== false);
 
+    if (cloudModels?.length) {
+      const cloudProvider = buildCloudProviderFromModels(cloudModels);
+      const cloudProviderIndex = list.findIndex((provider) => provider.id === CLOUD_PROVIDER_ID);
+      if (cloudProviderIndex >= 0) {
+        list = list.map((provider, index) =>
+          index === cloudProviderIndex
+            ? {
+                ...provider,
+                name: cloudProvider.name,
+                base_url: cloudProvider.base_url,
+                models: cloudProvider.models,
+                enabled: true,
+              }
+            : provider
+        );
+      } else {
+        list = [cloudProvider, ...list];
+      }
+    }
+
     if (isGoogleAuth) {
       const googleProvider: IProvider = {
         id: GOOGLE_AUTH_PROVIDER_ID,
@@ -91,7 +124,7 @@ export const useModelProviderList = (): ModelProviderListResult => {
     }
     // 过滤掉没有可用模型的 provider
     return list.filter((p) => getAvailableModels(p).length > 0);
-  }, [getAvailableModels, isGoogleAuth, modelConfig]);
+  }, [cloudModels, getAvailableModels, isGoogleAuth, modelConfig]);
 
   const formatModelLabel = useCallback((_provider: { platform?: string } | undefined, modelName?: string) => {
     if (!modelName) return '';

@@ -19,8 +19,11 @@ export const LoginModal: React.FC = () => {
     setLoading(true);
     try {
       const { username, password } = values;
-      const res =
+      let res =
         activeTab === 'login' ? await authApi.login(username, password) : await authApi.register(username, password);
+      if (activeTab === 'register' && res.success && res.user && !res.token) {
+        res = await authApi.login(username, password);
+      }
 
       if (res.success && res.token && res.user) {
         Message.success(activeTab === 'login' ? t('login.cloud.successLogin') : t('login.cloud.successRegister'));

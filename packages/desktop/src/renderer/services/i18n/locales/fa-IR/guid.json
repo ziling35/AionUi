@@ -13,5 +13,11 @@
     "specifyWorkspace": "انتخاب پوشه پروژه",
     "searchPlaceholder": "جستجوی پروژه‌ها…",
     "noProject": "بدون پروژه"
+  },
+  "cloudCodex": {
+    "name": "LingAI Codex Cloud",
+    "codexMissing": "Local Codex runtime was not detected. Install or enable Codex first.",
+    "commandMissing": "Codex launch command is missing. Repair Codex in Agent settings first.",
+    "syncFailed": "Failed to enable Cloud Codex. Please try again later."
   }
 }

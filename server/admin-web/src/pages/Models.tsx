@@ -29,7 +29,7 @@ import {
 } from '@ant-design/icons';
 import axios from 'axios';
 
-const API_BASE = 'http://localhost:3000/api';
+const API_BASE = '/api';
 
 // ─── Platform presets (mirrors LingAI client's MODEL_PLATFORMS) ────────────
 // Simplified set for the admin panel — covers the most common providers.
@@ -77,12 +77,24 @@ const MODEL_TYPE_OPTIONS = [
   { label: '向量嵌入 (embedding)', value: 'embedding' },
 ];
 
+const BILLING_MODE_OPTIONS = [
+  { label: '按 Token 计费', value: 'per_token' },
+  { label: '按次固定扣费', value: 'per_call' },
+  { label: '按输入字符计费', value: 'per_character' },
+];
+
 // ─── Types ──────────────────────────────────────────────────
 interface ModelItem {
   id: string;
   modelId: string;
   name: string;
   multiplier: number;
+  billingMode: string;
+  inputTokenPrice: number;
+  outputTokenPrice: number;
+  fixedCost: number;
+  minCost: number;
+  reserveCost: number;
   isActive: boolean;
   type: string;
   unitPrice: number;
@@ -111,7 +123,6 @@ function ProviderModal({ open, editingProvider, onCancel, onSuccess }: ProviderM
   const [form] = Form.useForm();
   const [fetchingRemote, setFetchingRemote] = useState(false);
   const [remoteModels, setRemoteModels] = useState<{ id: string; name: string }[]>([]);
-  const [selectedModels, setSelectedModels] = useState<string[]>([]);
 
   const isEditing = !!editingProvider;
 
@@ -119,7 +130,6 @@ function ProviderModal({ open, editingProvider, onCancel, onSuccess }: ProviderM
   useEffect(() => {
     if (open) {
       setRemoteModels([]);
-      setSelectedModels([]);
       if (editingProvider) {
         form.setFieldsValue({
           name: editingProvider.name,
@@ -185,6 +195,12 @@ function ProviderModal({ open, editingProvider, onCancel, onSuccess }: ProviderM
           modelId: id,
           name: id,
           multiplier: 1.0,
+          billingMode: 'per_token',
+          inputTokenPrice: 1,
+          outputTokenPrice: 1,
+          fixedCost: 0,
+          minCost: 1,
+          reserveCost: 0,
           isActive: true,
           type: 'chat',
           unitPrice: 0,
@@ -286,7 +302,18 @@ function AddModelModal({ open, provider, onCancel, onSuccess }: AddModelModalPro
   useEffect(() => {
     if (open) {
       form.resetFields();
-      form.setFieldsValue({ multiplier: 1.0, isActive: true, type: 'chat', unitPrice: 0 });
+      form.setFieldsValue({
+        multiplier: 1.0,
+        billingMode: 'per_token',
+        inputTokenPrice: 1,
+        outputTokenPrice: 1,
+        fixedCost: 0,
+        minCost: 1,
+        reserveCost: 0,
+        isActive: true,
+        type: 'chat',
+        unitPrice: 0,
+      });
       setRemoteModels([]);
     }
   }, [open, form]);
@@ -330,12 +357,18 @@ function AddModelModal({ open, provider, onCancel, onSuccess }: AddModelModalPro
         modelId: id,
         name: id,
         multiplier: values.multiplier || 1.0,
+        billingMode: values.billingMode || 'per_token',
+        inputTokenPrice: values.inputTokenPrice || 1,
+        outputTokenPrice: values.outputTokenPrice || 1,
+        fixedCost: values.fixedCost || 0,
+        minCost: values.minCost || 1,
+        reserveCost: values.reserveCost || 0,
         isActive: values.isActive !== false,
         type: values.type || 'chat',
         unitPrice: values.unitPrice || 0,
       }));
 
-      await axios.post(`${API_BASE}/providers/${provider!.id}/models/add`, { models });
+      await axios.post(`${API_BASE}/providers/${provider!.id}/models/add`, { models: modelData });
       message.success(`成功添加 ${modelData.length} 个模型`);
       onSuccess();
     } catch (e: any) {
@@ -353,7 +386,7 @@ function AddModelModal({ open, provider, onCancel, onSuccess }: AddModelModalPro
       onCancel={onCancel}
       okText='确认添加'
       cancelText='取消'
-      width={520}
+      width={760}
       destroyOnHidden
     >
       <Form form={form} layout='vertical'>
@@ -387,6 +420,32 @@ function AddModelModal({ open, provider, onCancel, onSuccess }: AddModelModalPro
         <Form.Item name='multiplier' label='扣费倍率' rules={[{ required: true, message: '请输入扣费倍率' }]}>
           <InputNumber min={0.1} step={0.1} style={{ width: '100%' }} />
         </Form.Item>
+        <Form.Item
+          name='billingMode'
+          label='计费模式'
+          tooltip='按 Token 适合聊天；按次固定适合图片/语音/视频；按字符适合 TTS。'
+        >
+          <Select options={BILLING_MODE_OPTIONS} />
+        </Form.Item>
+        <Space style={{ width: '100%' }} size='middle'>
+          <Form.Item name='inputTokenPrice' label='输入千 Token 点数'>
+            <InputNumber min={0} step={0.1} style={{ width: 150 }} />
+          </Form.Item>
+          <Form.Item name='outputTokenPrice' label='输出千 Token 点数'>
+            <InputNumber min={0} step={0.1} style={{ width: 150 }} />
+          </Form.Item>
+        </Space>
+        <Space style={{ width: '100%' }} size='middle'>
+          <Form.Item name='fixedCost' label='固定扣点'>
+            <InputNumber min={0} step={1} style={{ width: 120 }} />
+          </Form.Item>
+          <Form.Item name='minCost' label='最低扣点'>
+            <InputNumber min={1} step={1} style={{ width: 120 }} />
+          </Form.Item>
+          <Form.Item name='reserveCost' label='预授权点数'>
+            <InputNumber min={0} step={1} style={{ width: 120 }} />
+          </Form.Item>
+        </Space>
 
         <Form.Item name='type' label='模型类型'>
           <Select options={MODEL_TYPE_OPTIONS} />
@@ -416,6 +475,12 @@ function EditModelModal({ open, model, onCancel, onSuccess }: EditModelModalProp
       form.setFieldsValue({
         name: model.name,
         multiplier: model.multiplier,
+        billingMode: model.billingMode || 'per_token',
+        inputTokenPrice: model.inputTokenPrice ?? 1,
+        outputTokenPrice: model.outputTokenPrice ?? 1,
+        fixedCost: model.fixedCost ?? 0,
+        minCost: model.minCost ?? 1,
+        reserveCost: model.reserveCost ?? 0,
         type: model.type,
         unitPrice: model.unitPrice || 0,
         isActive: model.isActive,
@@ -445,7 +510,7 @@ function EditModelModal({ open, model, onCancel, onSuccess }: EditModelModalProp
       onCancel={onCancel}
       okText='保存'
       cancelText='取消'
-      width={480}
+      width={760}
       destroyOnHidden
     >
       <Form form={form} layout='vertical'>
@@ -455,6 +520,44 @@ function EditModelModal({ open, model, onCancel, onSuccess }: EditModelModalProp
         <Form.Item name='multiplier' label='扣费倍率' rules={[{ required: true, message: '请输入扣费倍率' }]}>
           <InputNumber min={0.1} step={0.1} style={{ width: '100%' }} />
         </Form.Item>
+        <Form.Item
+          name='billingMode'
+          label='计费模式'
+          tooltip='按 Token 适合聊天；按次固定适合图片/语音/视频；按字符适合 TTS。'
+        >
+          <Select options={BILLING_MODE_OPTIONS} />
+        </Form.Item>
+        <Space style={{ width: '100%' }} size='middle'>
+          <Form.Item
+            name='inputTokenPrice'
+            label='输入千 Token 点数'
+            tooltip='per_token 模式下，每 1000 输入 token 扣多少算力点。'
+          >
+            <InputNumber min={0} step={0.1} style={{ width: 150 }} />
+          </Form.Item>
+          <Form.Item
+            name='outputTokenPrice'
+            label='输出千 Token 点数'
+            tooltip='per_token 模式下，每 1000 输出 token 扣多少算力点。'
+          >
+            <InputNumber min={0} step={0.1} style={{ width: 150 }} />
+          </Form.Item>
+        </Space>
+        <Space style={{ width: '100%' }} size='middle'>
+          <Form.Item name='fixedCost' label='固定扣点' tooltip='per_call 模式下每次请求扣多少点。'>
+            <InputNumber min={0} step={1} style={{ width: 120 }} />
+          </Form.Item>
+          <Form.Item name='minCost' label='最低扣点' tooltip='每次请求最低扣多少点，建议至少为 1。'>
+            <InputNumber min={1} step={1} style={{ width: 120 }} />
+          </Form.Item>
+          <Form.Item
+            name='reserveCost'
+            label='预授权点数'
+            tooltip='并发防亏损核心字段。为 0 时按模型输出上限估算预扣；高成本模型建议手动设置。'
+          >
+            <InputNumber min={0} step={1} style={{ width: 120 }} />
+          </Form.Item>
+        </Space>
         <Form.Item name='type' label='模型类型'>
           <Select options={MODEL_TYPE_OPTIONS} />
         </Form.Item>
@@ -758,6 +861,26 @@ export default function Models() {
                             {val && val > 0 ? val : '-'}
                           </Tag>
                         ),
+                      },
+                      {
+                        title: '计费模式',
+                        dataIndex: 'billingMode',
+                        key: 'billingMode',
+                        render: (val, record) => {
+                          const modeLabel = BILLING_MODE_OPTIONS.find((item) => item.value === val)?.label || val || '按 Token 计费';
+                          const fixedCost = record.fixedCost || record.unitPrice || 0;
+                          const priceText =
+                            val === 'per_call'
+                              ? `${fixedCost} 点/次`
+                              : `${record.inputTokenPrice ?? 1}/${record.outputTokenPrice ?? 1} 点/千Token`;
+                          return (
+                            <Tooltip title={`最低 ${record.minCost ?? 1} 点，预授权 ${record.reserveCost || '自动估算'} 点`}>
+                              <Tag color={val === 'per_call' ? 'orange' : 'blue'}>
+                                {modeLabel} · {priceText}
+                              </Tag>
+                            </Tooltip>
+                          );
+                        },
                       },
                       {
                         title: '启用',

@@ -15,7 +15,7 @@ import * as path from 'path';
 import { jsonrepair } from 'jsonrepair';
 import type OpenAI from 'openai';
 import { ClientFactory, type RotatingClient } from '@/common/api/ClientFactory';
-import { OpenAIRotatingClient } from '@/common/api/OpenAIRotatingClient';
+import type { OpenAIRotatingClient } from '@/common/api/OpenAIRotatingClient';
 import type { TProviderWithModel } from '@/common/config/storage';
 import type { UnifiedChatCompletionResponse } from '@/common/api/RotatingApiClient';
 import { IMAGE_EXTENSIONS, MIME_TYPE_MAP, MIME_TO_EXT_MAP, DEFAULT_IMAGE_EXTENSION } from '@/common/config/constants';

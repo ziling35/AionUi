@@ -38,6 +38,7 @@ const makeSelection = (overrides: Partial<AionrsModelSelection> = {}): AionrsMod
   providers: [provider],
   getAvailableModels: () => ['gpt-5.2', 'gpt-5.2-mini'],
   handleSelectModel: vi.fn().mockResolvedValue(undefined),
+  refreshModels: vi.fn().mockResolvedValue(undefined),
   getDisplayModelName: (modelName?: string) => modelName ?? '',
   ...overrides,
 });
@@ -122,8 +123,16 @@ vi.mock('@arco-design/web-react', () => {
         {children}
       </button>
     ),
-    Dropdown: ({ children, droplist }: { children?: React.ReactNode; droplist?: React.ReactNode }) => (
-      <div>
+    Dropdown: ({
+      children,
+      droplist,
+      onVisibleChange,
+    }: {
+      children?: React.ReactNode;
+      droplist?: React.ReactNode;
+      onVisibleChange?: (visible: boolean) => void;
+    }) => (
+      <div onClick={() => onVisibleChange?.(true)}>
         {children}
         {droplist}
       </div>
@@ -191,6 +200,17 @@ describe('AionrsModelSelector runtime options', () => {
 
     expect(screen.getByTestId('aionrs-model-selector')).toHaveTextContent('gpt-5.2');
     expect(screen.queryByRole('group', { name: 'Thinking Level' })).not.toBeInTheDocument();
+  });
+
+  it('refreshes cloud models when the dropdown opens', async () => {
+    const refreshModels = vi.fn().mockResolvedValue(undefined);
+    render(<AionrsModelSelector selection={makeSelection({ refreshModels })} />);
+
+    fireEvent.click(screen.getByTestId('aionrs-model-selector'));
+
+    await waitFor(() => {
+      expect(refreshModels).toHaveBeenCalledTimes(1);
+    });
   });
 
   it('sets thought level through the optional runtime callback', async () => {

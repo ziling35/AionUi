@@ -5,14 +5,15 @@
  */
 
 import type { TChatConversation } from '@/common/config/storage';
+import { ipcBridge } from '@/common';
 import AionModal from '@/renderer/components/base/AionModal';
 import DirectorySelectionModal from '@/renderer/components/settings/DirectorySelectionModal';
 import { useLayoutContext } from '@/renderer/hooks/context/LayoutContext';
 import { useCronJobsMap } from '@/renderer/pages/cron';
 import { DndContext, DragOverlay, closestCenter } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
-import { Button, Dropdown, Empty, Input, Menu, Modal, Tooltip } from '@arco-design/web-react';
-import { Delete, FolderOpen, MoreOne, Plus, Right } from '@icon-park/react';
+import { Button, Dropdown, Empty, Input, Menu, Message, Modal, Tooltip } from '@arco-design/web-react';
+import { Delete, FolderOpen, MessageOne, MoreOne, Plus, Right } from '@icon-park/react';
 import classNames from 'classnames';
 import React, { useCallback, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -27,6 +28,7 @@ import { useConversationActions } from './hooks/useConversationActions';
 import { useConversations } from './hooks/useConversations';
 import { useDragAndDrop } from './hooks/useDragAndDrop';
 import { useExport } from './hooks/useExport';
+import { useImport } from './hooks/useImport';
 import type { ConversationRowProps, WorkspaceGroupedHistoryProps } from './types';
 
 const WorkspaceGroupedHistory: React.FC<WorkspaceGroupedHistoryProps> = ({
@@ -142,9 +144,8 @@ const WorkspaceGroupedHistory: React.FC<WorkspaceGroupedHistoryProps> = ({
     closeExportModal,
     handleSelectExportDirectoryFromModal,
     handleSelectExportFolder,
-    // handleExportConversation / handleBatchExport are intentionally not
-    // destructured: their UI entries are disabled (kanban #14). The useExport
-    // hook and its underlying logic stay intact for a future re-enable.
+    handleExportConversation,
+    handleBatchExport,
     handleConfirmExport,
   } = useExport({
     conversations,
@@ -152,6 +153,46 @@ const WorkspaceGroupedHistory: React.FC<WorkspaceGroupedHistoryProps> = ({
     setSelectedConversationIds,
     onBatchModeChange,
   });
+  const { importLoading, handleImport } = useImport();
+
+  const historyActionsMenu = useMemo(
+    () => (
+      <Menu
+        onClickMenuItem={(key) => {
+          if (key === 'import') {
+            void handleImport();
+          }
+        }}
+      >
+        <Menu.Item key='import' disabled={importLoading}>
+          {t('conversation.history.import')}
+        </Menu.Item>
+      </Menu>
+    ),
+    [handleImport, importLoading, t]
+  );
+
+  const historyActions = useMemo(
+    () => (
+      <Dropdown
+        droplist={historyActionsMenu}
+        trigger='click'
+        position='br'
+        getPopupContainer={() => document.body}
+        unmountOnExit={false}
+      >
+        <Button
+          type='text'
+          size='mini'
+          className='!w-20px !h-20px !p-0 !min-w-0 text-t-secondary hover:text-t-primary sider-action-btn'
+          icon={<MoreOne theme='outline' size='14' fill='currentColor' className='block leading-none' />}
+          disabled={importLoading}
+          onClick={(event) => event.stopPropagation()}
+        />
+      </Dropdown>
+    ),
+    [historyActionsMenu, importLoading]
+  );
 
   const { sensors, activeId, activeConversation, handleDragStart, handleDragEnd, handleDragCancel, isDragEnabled } =
     useDragAndDrop({
@@ -159,6 +200,36 @@ const WorkspaceGroupedHistory: React.FC<WorkspaceGroupedHistoryProps> = ({
       batchMode,
       collapsed,
     });
+
+  const openRouteInNewWindow = useCallback(
+    async (route: string) => {
+      try {
+        const opened = await ipcBridge.application.openRouteInNewWindow.invoke({ route });
+        if (!opened) {
+          Message.error(t('conversation.history.openWindowFailed'));
+        }
+      } catch (error) {
+        console.error('[WorkspaceGroupedHistory] Failed to open new window:', error);
+        Message.error(t('conversation.history.openWindowFailed'));
+      }
+    },
+    [t]
+  );
+
+  const handleOpenConversationInNewWindow = useCallback(
+    (conversation: TChatConversation) => {
+      void openRouteInNewWindow(`/conversation/${conversation.id}`);
+    },
+    [openRouteInNewWindow]
+  );
+
+  const handleOpenProjectInNewWindow = useCallback(
+    (conversations: TChatConversation[]) => {
+      const firstConversation = conversations[0];
+      void openRouteInNewWindow(firstConversation ? `/conversation/${firstConversation.id}` : '/guid');
+    },
+    [openRouteInNewWindow]
+  );
 
   const getConversationRowProps = useCallback(
     (conversation: TChatConversation): ConversationRowProps => ({
@@ -177,10 +248,8 @@ const WorkspaceGroupedHistory: React.FC<WorkspaceGroupedHistoryProps> = ({
       onMenuVisibleChange: handleMenuVisibleChange,
       onEditStart: handleEditStart,
       onDelete: handleDeleteClick,
-      // Export UI entry intentionally disabled (kanban #14): omit onExport so
-      // ConversationRow's `{onExport && ...}` guard hides the menu item. The
-      // underlying handleExportConversation logic from useExport is kept for a
-      // future per-platform re-enable.
+      onExport: handleExportConversation,
+      onOpenInNewWindow: handleOpenConversationInNewWindow,
       onTogglePin: handleTogglePin,
       getJobStatus,
     }),
@@ -199,6 +268,8 @@ const WorkspaceGroupedHistory: React.FC<WorkspaceGroupedHistoryProps> = ({
       handleMenuVisibleChange,
       handleEditStart,
       handleDeleteClick,
+      handleExportConversation,
+      handleOpenConversationInNewWindow,
       handleTogglePin,
       getJobStatus,
     ]
@@ -248,8 +319,13 @@ const WorkspaceGroupedHistory: React.FC<WorkspaceGroupedHistoryProps> = ({
     return (
       <>
         {afterPinnedContent}
-        <div className='py-48px flex-center'>
+        <div className='py-48px flex-center flex-col gap-12px'>
           <Empty description={t('conversation.history.noHistory')} />
+          {!collapsed && (
+            <Button size='small' type='secondary' loading={importLoading} onClick={() => void handleImport()}>
+              {t('conversation.history.import')}
+            </Button>
+          )}
         </div>
       </>
     );
@@ -385,10 +461,7 @@ const WorkspaceGroupedHistory: React.FC<WorkspaceGroupedHistoryProps> = ({
             <div className='text-12px leading-18px text-t-secondary'>
               {t('conversation.history.selectedCount', { count: selectedCount })}
             </div>
-            {/* Batch export UI entry intentionally disabled (kanban #14): the
-                button is removed so select-all + delete share the two columns.
-                handleBatchExport from useExport is kept for a future re-enable. */}
-            <div className='grid grid-cols-2 gap-6px'>
+            <div className='grid grid-cols-3 gap-6px'>
               <Button
                 className='!w-full !justify-center !min-w-0 !h-30px !px-8px !text-12px whitespace-nowrap'
                 size='mini'
@@ -396,6 +469,14 @@ const WorkspaceGroupedHistory: React.FC<WorkspaceGroupedHistoryProps> = ({
                 onClick={handleToggleSelectAll}
               >
                 {allSelected ? t('common.cancel') : t('conversation.history.selectAll')}
+              </Button>
+              <Button
+                className='!w-full !justify-center !min-w-0 !h-30px !px-8px !text-12px whitespace-nowrap'
+                size='mini'
+                type='secondary'
+                onClick={handleBatchExport}
+              >
+                {t('conversation.history.batchExport')}
               </Button>
               <Button
                 className='!w-full !justify-center !min-w-0 !h-30px !px-8px !text-12px whitespace-nowrap'
@@ -517,17 +598,32 @@ const WorkspaceGroupedHistory: React.FC<WorkspaceGroupedHistoryProps> = ({
         {/* L1: Projects section — workspace folders, peer to conversations */}
         {projectGroups.length > 0 && (
           <div className='min-w-0'>
-            {!collapsed && <SectionLabel sectionKey='projects' label={t('conversation.history.projectsSection')} />}
+            {!collapsed && (
+              <SectionLabel
+                sectionKey='projects'
+                label={t('conversation.history.projectsSection')}
+                trailing={!batchMode && conversationOnlySections.length === 0 ? historyActions : undefined}
+              />
+            )}
             {!collapsedSections.has('projects') &&
               projectGroups.map((group) => {
                 const projectMenu = (
                   <Menu
                     onClickMenuItem={(key) => {
+                      if (key === 'open-new-window') {
+                        handleOpenProjectInNewWindow(group.conversations);
+                      }
                       if (key === 'remove') {
                         handleRemoveProject(group.displayName, group.conversations);
                       }
                     }}
                   >
+                    <Menu.Item key='open-new-window'>
+                      <span className='flex items-center gap-8px'>
+                        <MessageOne theme='outline' size='14' />
+                        {t('conversation.history.openProjectInNewWindow')}
+                      </span>
+                    </Menu.Item>
                     <Menu.Item key='remove' className='!text-[rgb(var(--danger-6))]'>
                       <span className='flex items-center gap-8px'>
                         <Delete theme='outline' size='14' />
@@ -610,7 +706,11 @@ const WorkspaceGroupedHistory: React.FC<WorkspaceGroupedHistoryProps> = ({
         {conversationOnlySections.length > 0 && (
           <div className='min-w-0'>
             {!collapsed && (
-              <SectionLabel sectionKey='conversations' label={t('conversation.history.conversationsSection')} />
+              <SectionLabel
+                sectionKey='conversations'
+                label={t('conversation.history.conversationsSection')}
+                trailing={!batchMode ? historyActions : undefined}
+              />
             )}
             {!collapsedSections.has('conversations') &&
               conversationOnlySections.map((section) => (

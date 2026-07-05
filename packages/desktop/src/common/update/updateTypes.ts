@@ -23,6 +23,8 @@ export interface UpdateReleaseInfo {
   publishedAt?: string;
   prerelease: boolean;
   draft: boolean;
+  /** Whether this version must be installed before continuing. */
+  forceUpdate?: boolean;
   assets: GitHubReleaseAsset[];
   recommendedAsset?: GitHubReleaseAsset;
 }

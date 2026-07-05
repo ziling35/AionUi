@@ -248,10 +248,19 @@ export interface AcpSessionModes {
 export interface AcpModelInfo {
   /** Currently active model ID */
   current_model_id: string | null;
+  /** Currently active model option key, used to distinguish duplicated model IDs from different sources */
+  current_model_option_key?: string | null;
   /** Display label for the current model */
   current_model_label: string | null;
   /** Available models for switching */
-  available_models: Array<{ id: string; label: string; description?: string }>;
+  available_models: Array<{
+    id: string;
+    label: string;
+    description?: string;
+    optionKey?: string;
+    source?: 'cloud' | 'runtime';
+    providerId?: string;
+  }>;
 }
 
 // ===== Permission request (session/request_permission) =====

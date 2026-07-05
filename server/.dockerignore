@@ -1,0 +1,9 @@
+**/node_modules
+**/dist
+**/build
+**/.vite
+**/.DS_Store
+deploy/data
+admin-api/.env
+admin-api/dev.db
+admin-api/prisma/dev.db

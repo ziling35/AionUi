@@ -150,17 +150,38 @@ export const shell = {
 // Assistants — routed to /api/assistants/*
 // ---------------------------------------------------------------------------
 
+const CLOUD_CODEX_ASSISTANT_IDS = new Set(['lingai-codex-cloud', 'builtin-lingai-codex-cloud']);
+const CLOUD_CODEX_ASSISTANT_NAMES = new Set(['LingAI Codex Cloud', 'LingAI Codex 云端版', 'LingAI Codex 雲端版']);
+
+function isCloudCodexAssistantCatalogItem(assistant: Pick<Assistant, 'id' | 'name' | 'name_i18n'>): boolean {
+  if (CLOUD_CODEX_ASSISTANT_IDS.has(assistant.id)) {
+    return true;
+  }
+
+  const names = [
+    assistant.name,
+    assistant.name_i18n?.['en-US'],
+    assistant.name_i18n?.['zh-CN'],
+    assistant.name_i18n?.['zh-TW'],
+  ];
+  return names.some((name) => typeof name === 'string' && CLOUD_CODEX_ASSISTANT_NAMES.has(name));
+}
+
+function filterCloudCodexAssistants(list: Assistant[]): Assistant[] {
+  return list.filter((assistant) => !isCloudCodexAssistantCatalogItem(assistant));
+}
+
 export const assistants = {
-  list: httpGet<Assistant[], void>('/api/assistants'),
+  list: withResponseMap(httpGet<Assistant[], void>('/api/assistants'), filterCloudCodexAssistants),
   get: httpGet<AssistantDetail, { id: string; locale?: string }>(
     ({ id, locale }) =>
       `/api/assistants/${encodeURIComponent(id)}${locale ? `?locale=${encodeURIComponent(locale)}` : ''}`
   ),
   create: httpPost<Assistant, CreateAssistantRequest>('/api/assistants'),
-  update: httpPut<Assistant, UpdateAssistantRequest>((p) => `/api/assistants/${p.id}`),
-  delete: httpDelete<void, { id: string }>((p) => `/api/assistants/${p.id}`),
+  update: httpPut<Assistant, UpdateAssistantRequest>((p) => `/api/assistants/${encodeURIComponent(p.id)}`),
+  delete: httpDelete<void, { id: string }>((p) => `/api/assistants/${encodeURIComponent(p.id)}`),
   setState: httpPatch<Assistant, SetAssistantStateRequest>(
-    (p) => `/api/assistants/${p.id}/state`,
+    (p) => `/api/assistants/${encodeURIComponent(p.id)}/state`,
     (p) => {
       const { id: _id, ...body } = p;
       return body;
@@ -196,12 +217,14 @@ export const conversation = {
     fromApiConversation
   ),
   get: withResponseMap(
-    httpGet<TChatConversation, { id: string }>((p) => `/api/conversations/${p.id}`, { silentStatuses: [404] }),
+    httpGet<TChatConversation, { id: string }>((p) => `/api/conversations/${encodeURIComponent(p.id)}`, {
+      silentStatuses: [404],
+    }),
     fromApiConversation
   ),
   getAssociateConversation: withResponseMap(
     httpGet<TChatConversation[], { conversation_id: string }>(
-      (p) => `/api/conversations/${p.conversation_id}/associated`
+      (p) => `/api/conversations/${encodeURIComponent(p.conversation_id)}/associated`
     ),
     (list) => list.map(fromApiConversation)
   ),
@@ -209,9 +232,9 @@ export const conversation = {
     httpGet<TChatConversation[], { cron_job_id: string }>((p) => `/api/cron/jobs/${p.cron_job_id}/conversations`),
     (list) => list.map(fromApiConversation)
   ),
-  remove: httpDelete<boolean, { id: string }>((p) => `/api/conversations/${p.id}`),
+  remove: httpDelete<boolean, { id: string }>((p) => `/api/conversations/${encodeURIComponent(p.id)}`),
   update: httpPatch<boolean, { id: string; updates: Partial<TChatConversation>; merge_extra?: boolean }>(
-    (p) => `/api/conversations/${p.id}`,
+    (p) => `/api/conversations/${encodeURIComponent(p.id)}`,
     (p) => {
       const updates = p.updates as Record<string, unknown>;
       const { model: rawModel, ...rest } = updates;
@@ -223,22 +246,23 @@ export const conversation = {
       };
     }
   ),
-  reset: httpPost<void, IResetConversationParams>((p) => `/api/conversations/${p.id}/reset`),
+  reset: httpPost<void, IResetConversationParams>((p) => `/api/conversations/${encodeURIComponent(p.id)}/reset`),
   ensureRuntime: httpPost<EnsureConversationRuntimeResponse, { conversation_id: string }>(
-    (p) => `/api/conversations/${p.conversation_id}/runtime/ensure`,
+    (p) => `/api/conversations/${encodeURIComponent(p.conversation_id)}/runtime/ensure`,
     () => undefined
   ),
   activeLease: httpPost<void, { conversation_id: string }>(
-    (p) => `/api/conversations/${p.conversation_id}/active-lease`,
-    () => undefined
+    (p) => `/api/conversations/${encodeURIComponent(p.conversation_id)}/active-lease`,
+    () => undefined,
+    { silentStatuses: [404] }
   ),
   stop: httpPost<{ runtime: TConversationRuntimeSummary }, { conversation_id: string; turn_id: string }>(
-    (p) => `/api/conversations/${p.conversation_id}/cancel`,
+    (p) => `/api/conversations/${encodeURIComponent(p.conversation_id)}/cancel`,
     (p) => ({ turn_id: p.turn_id })
   ),
   activeCount: httpGet<{ count: number }>('/api/conversations/active-count'),
   sendMessage: httpPost<ISendMessageResult, ISendMessageParams>(
-    (p) => `/api/conversations/${p.conversation_id}/messages`,
+    (p) => `/api/conversations/${encodeURIComponent(p.conversation_id)}/messages`,
     (p) => ({
       content: p.input,
       files: p.files,
@@ -247,24 +271,25 @@ export const conversation = {
     })
   ),
   getSlashCommands: httpGet<AcpSlashCommandApiItem[], { conversation_id: string }>(
-    (p) => `/api/conversations/${p.conversation_id}/slash-commands`
+    (p) => `/api/conversations/${encodeURIComponent(p.conversation_id)}/slash-commands`
   ),
   askSideQuestion: httpPost<ConversationSideQuestionResult, { conversation_id: string; question: string }>(
-    (p) => `/api/conversations/${p.conversation_id}/side-question`,
+    (p) => `/api/conversations/${encodeURIComponent(p.conversation_id)}/side-question`,
     (p) => ({ question: p.question })
   ),
   confirmMessage: httpPost<void, IConfirmMessageParams>(
-    (p) => `/api/conversations/${p.conversation_id}/confirmations/${encodeURIComponent(p.call_id)}/confirm`,
+    (p) =>
+      `/api/conversations/${encodeURIComponent(p.conversation_id)}/confirmations/${encodeURIComponent(p.call_id)}/confirm`,
     (p) => ({ msg_id: p.msg_id, data: p.confirm_key })
   ),
   listArtifacts: httpGet<IConversationArtifact[], { conversation_id: string }>(
-    (p) => `/api/conversations/${p.conversation_id}/artifacts`
+    (p) => `/api/conversations/${encodeURIComponent(p.conversation_id)}/artifacts`
   ),
   updateArtifact: httpPatch<
     IConversationArtifact,
     { conversation_id: string; artifact_id: string; status: IConversationArtifactStatus }
   >(
-    (p) => `/api/conversations/${p.conversation_id}/artifacts/${p.artifact_id}`,
+    (p) => `/api/conversations/${encodeURIComponent(p.conversation_id)}/artifacts/${p.artifact_id}`,
     (p) => ({ status: p.status })
   ),
   responseStream: wsEmitter<IResponseMessage>('message.stream'),
@@ -332,7 +357,7 @@ export const conversation = {
     provider: () => {},
     invoke: (async (p: { conversation_id: string; workspace: string; path: string; search?: string }) => {
       const rel = absoluteToRelativePath(p.path, p.workspace);
-      const url = `/api/conversations/${p.conversation_id}/workspace?path=${encodeURIComponent(rel)}${p.search ? `&search=${encodeURIComponent(p.search)}` : ''}`;
+      const url = `/api/conversations/${encodeURIComponent(p.conversation_id)}/workspace?path=${encodeURIComponent(rel)}${p.search ? `&search=${encodeURIComponent(p.search)}` : ''}`;
       const raw = await httpRequest<Array<{ name: string; type: string }>>('GET', url);
       return fromBackendWorkspaceList(raw, p.workspace, rel);
     }) as (p: { conversation_id: string; workspace: string; path: string; search?: string }) => Promise<IDirOrFile[]>,
@@ -348,20 +373,67 @@ export const conversation = {
       void,
       { conversation_id: string; msg_id: string; data: unknown; call_id: string; always_allow?: boolean }
     >(
-      (p) => `/api/conversations/${p.conversation_id}/confirmations/${encodeURIComponent(p.call_id)}/confirm`,
+      (p) =>
+        `/api/conversations/${encodeURIComponent(p.conversation_id)}/confirmations/${encodeURIComponent(p.call_id)}/confirm`,
       (p) => ({ msg_id: p.msg_id, data: p.data, always_allow: p.always_allow ?? false })
     ),
     list: httpGet<IConfirmation<unknown>[], { conversation_id: string }>(
-      (p) => `/api/conversations/${p.conversation_id}/confirmations`
+      (p) => `/api/conversations/${encodeURIComponent(p.conversation_id)}/confirmations`
     ),
     remove: wsEmitter<{ conversation_id: string; id: string }>('confirmation.remove'),
   },
   approval: {
     check: httpGet<{ approved: boolean }, { conversation_id: string; action: string; command_type?: string }>(
       (p) =>
-        `/api/conversations/${p.conversation_id}/approvals/check?action=${encodeURIComponent(p.action)}${p.command_type ? `&command_type=${encodeURIComponent(p.command_type)}` : ''}`
+        `/api/conversations/${encodeURIComponent(p.conversation_id)}/approvals/check?action=${encodeURIComponent(p.action)}${p.command_type ? `&command_type=${encodeURIComponent(p.command_type)}` : ''}`
     ),
   },
+};
+
+export type ConversationImportResult = {
+  importedCount: number;
+  messageCount: number;
+  workspaceFileCount: number;
+  conversationIds: string[];
+};
+
+export type ConversationImportPayload = {
+  version: number;
+  exportedAt?: string;
+  conversation: import('@/common/config/storage').TChatConversation;
+  messages: import('@/common/chat/chatLib').TMessage[];
+};
+
+export const conversationImport = {
+  importFromFile: bridge.buildProvider<ConversationImportResult, { file_path: string }>(
+    'conversation.import.from-file'
+  ),
+  importFromPayload: bridge.buildProvider<ConversationImportResult, { payload: ConversationImportPayload }>(
+    'conversation.import.from-payload'
+  ),
+};
+
+export type TeamArchiveExportResult = {
+  path: string;
+  conversationCount: number;
+  messageCount: number;
+  taskCount: number;
+};
+
+export type TeamArchiveImportResult = {
+  teamId: string;
+  conversationCount: number;
+  messageCount: number;
+  taskCount: number;
+};
+
+export const teamArchive = {
+  exportToFile: bridge.buildProvider<TeamArchiveExportResult, { team_id: string; directory: string }>(
+    'team.archive.export-to-file'
+  ),
+  importFromFile: bridge.buildProvider<TeamArchiveImportResult, { file_path: string; user_id?: string }>(
+    'team.archive.import-from-file'
+  ),
 };
 
 export const runtime = {
@@ -475,6 +547,7 @@ export const application = {
     })
   ),
   getPath: bridge.buildProvider<string, { name: 'desktop' | 'home' | 'downloads' }>('app.get-path'),
+  openRouteInNewWindow: bridge.buildProvider<boolean, { route: string }>('app.open-route-in-new-window'),
   // Electron-local: copies cache dir + persists to ProcessEnv, paired with restart.
   // The backend reads LINGAI_*_DIR env vars on boot, so it does not own this config.
   updateSystemInfo: bridge.buildProvider<void, { cacheDir: string; workDir: string; logDir?: string }>(
@@ -793,15 +866,15 @@ export const mode = {
   listProviders: httpGet<IProvider[], void>('/api/providers'),
   createProvider: httpPost<IProvider, CreateProviderRequest>('/api/providers'),
   updateProvider: httpPut<IProvider, { id: string } & UpdateProviderRequest>(
-    (p) => `/api/providers/${p.id}`,
+    (p) => `/api/providers/${encodeURIComponent(p.id)}`,
     (p) => {
       const { id: _id, ...body } = p;
       return body;
     }
   ),
-  deleteProvider: httpDelete<void, { id: string }>((p) => `/api/providers/${p.id}`),
+  deleteProvider: httpDelete<void, { id: string }>((p) => `/api/providers/${encodeURIComponent(p.id)}`),
   fetchProviderModels: httpPost<FetchModelsResponse, { id: string; try_fix?: boolean }>(
-    (p) => `/api/providers/${p.id}/models`,
+    (p) => `/api/providers/${encodeURIComponent(p.id)}/models`,
     (p) => ({ try_fix: p.try_fix })
   ),
   /**
@@ -872,26 +945,29 @@ export const acpConversation = {
       };
     }
   >(
-    (p) => `/api/agents/custom/${p.id}`,
+    (p) => `/api/agents/custom/${encodeURIComponent(p.id)}`,
     (p) => {
       const { id: _id, ...rest } = p;
       return rest;
     }
   ),
-  deleteCustomAgent: httpDelete<{ deleted: boolean }, { id: string }>((p) => `/api/agents/custom/${p.id}`),
+  deleteCustomAgent: httpDelete<{ deleted: boolean }, { id: string }>(
+    (p) => `/api/agents/custom/${encodeURIComponent(p.id)}`
+  ),
   setAgentEnabled: httpPatch<AgentMetadata, { id: string; enabled: boolean }>(
-    (p) => `/api/agents/${p.id}/enabled`,
+    (p) => `/api/agents/${encodeURIComponent(p.id)}/enabled`,
     (p) => ({ enabled: p.enabled })
   ),
   checkManagedAgentHealthById: httpPost<import('@/renderer/utils/model/agentTypes').ManagedAgent, { id: string }>(
-    (p) => `/api/agents/${p.id}/health-check`,
+    (p) => `/api/agents/${encodeURIComponent(p.id)}/health-check`,
     () => undefined
   ),
   checkProviderHealth: httpPost<ProviderHealthCheckResponse, ProviderHealthCheckRequest>(
     '/api/agents/provider-health-check'
   ),
   setConfigOption: httpPut<SetConfigOptionResponse, { conversation_id: string; option_id: string; value: string }>(
-    (p) => `/api/conversations/${p.conversation_id}/config-options/${encodeURIComponent(p.option_id)}`,
+    (p) =>
+      `/api/conversations/${encodeURIComponent(p.conversation_id)}/config-options/${encodeURIComponent(p.option_id)}`,
     (p): SetConfigOptionRequest => ({ value: p.value })
   ),
 };
@@ -917,12 +993,12 @@ export const mcpService = {
       data: Partial<Pick<IMcpServer, 'name' | 'description' | 'transport' | 'original_json' | 'builtin'>>;
     }
   >(
-    (p) => `/api/mcp/servers/${p.id}`,
+    (p) => `/api/mcp/servers/${encodeURIComponent(p.id)}`,
     (p) => p.data
   ),
-  deleteServer: httpDelete<void, { id: string }>((p) => `/api/mcp/servers/${p.id}`),
+  deleteServer: httpDelete<void, { id: string }>((p) => `/api/mcp/servers/${encodeURIComponent(p.id)}`),
   toggleServer: httpPost<IMcpServer, { id: string }>(
-    (p) => `/api/mcp/servers/${p.id}/toggle`,
+    (p) => `/api/mcp/servers/${encodeURIComponent(p.id)}/toggle`,
     () => undefined
   ),
   batchImportServers: httpPost<
@@ -996,7 +1072,7 @@ export const openclawConversation = {
       };
     },
     { conversation_id: string }
-  >((p) => `/api/conversations/${p.conversation_id}/openclaw/runtime`),
+  >((p) => `/api/conversations/${encodeURIComponent(p.conversation_id)}/openclaw/runtime`),
 };
 
 // ---------------------------------------------------------------------------
@@ -1006,7 +1082,7 @@ export const openclawConversation = {
 export const remoteAgent = {
   list: httpGet<import('@/common/types/agent/remoteAgentTypes').RemoteAgentConfig[], void>('/api/remote-agents'),
   get: httpGet<import('@/common/types/agent/remoteAgentTypes').RemoteAgentConfig | null, { id: string }>(
-    (p) => `/api/remote-agents/${p.id}`
+    (p) => `/api/remote-agents/${encodeURIComponent(p.id)}`
   ),
   create: httpPost<
     import('@/common/types/agent/remoteAgentTypes').RemoteAgentConfig,
@@ -1016,16 +1092,16 @@ export const remoteAgent = {
     boolean,
     { id: string; updates: Partial<import('@/common/types/agent/remoteAgentTypes').RemoteAgentInput> }
   >(
-    (p) => `/api/remote-agents/${p.id}`,
+    (p) => `/api/remote-agents/${encodeURIComponent(p.id)}`,
     (p) => p.updates
   ),
-  delete: httpDelete<boolean, { id: string }>((p) => `/api/remote-agents/${p.id}`),
+  delete: httpDelete<boolean, { id: string }>((p) => `/api/remote-agents/${encodeURIComponent(p.id)}`),
   testConnection: httpPost<
     { success: boolean; error?: string },
     { url: string; auth_type: string; auth_token?: string; allow_insecure?: boolean }
   >('/api/remote-agents/test-connection'),
   handshake: httpPost<{ status: 'ok' | 'pending_approval' | 'error'; error?: string }, { id: string }>(
-    (p) => `/api/remote-agents/${p.id}/handshake`
+    (p) => `/api/remote-agents/${encodeURIComponent(p.id)}/handshake`
   ),
 };
 
@@ -1068,12 +1144,12 @@ export const database = {
     if (p.anchor_message_id) params.set('anchor_message_id', p.anchor_message_id);
     if (p.content_mode) params.set('content_mode', p.content_mode);
     const qs = params.toString();
-    return `/api/conversations/${p.conversation_id}/messages${qs ? `?${qs}` : ''}`;
+    return `/api/conversations/${encodeURIComponent(p.conversation_id)}/messages${qs ? `?${qs}` : ''}`;
   }),
   getConversationMessage: httpGet<
     import('@/common/chat/chatLib').TMessage,
     { conversation_id: string; message_id: string }
-  >((p) => `/api/conversations/${p.conversation_id}/messages/${encodeURIComponent(p.message_id)}`),
+  >((p) => `/api/conversations/${encodeURIComponent(p.conversation_id)}/messages/${encodeURIComponent(p.message_id)}`),
   getUserConversations: withResponseMap(
     httpGet<PaginatedResult<import('@/common/config/storage').TChatConversation>, { cursor?: string; limit?: number }>(
       (p) => {
@@ -1201,6 +1277,16 @@ export const theme = {
   setActive: bridge.buildProvider<void, Theme>('theme:set-active'),
   // any window → main: pull the currently cached resolved theme on load (null if none yet)
   requestCurrent: bridge.buildProvider<Theme | null, void>('theme:request-current'),
+};
+
+// ---------------------------------------------------------------------------
+// CLI Assistant — stays IPC (main process owns native command detection/launch)
+// ---------------------------------------------------------------------------
+
+export const cliAssistant = {
+  list: bridge.buildProvider<CliAssistantStatus[], void>('cli-assistant:list'),
+  install: bridge.buildProvider<CliAssistantCommandResult, CliAssistantInstallRequest>('cli-assistant:install'),
+  launch: bridge.buildProvider<CliAssistantCommandResult, CliAssistantLaunchRequest>('cli-assistant:launch'),
 };
 
 // ---------------------------------------------------------------------------
@@ -1672,6 +1758,39 @@ export interface IConversationTurnCompletedEvent {
   };
 }
 
+export type CliAssistantId = 'codex' | 'claude-code' | 'gemini';
+
+export type CliAssistantRoutingMode = 'openai-compatible' | 'best-effort';
+
+export type CliAssistantStatus = {
+  id: CliAssistantId;
+  name: string;
+  command: string;
+  installed: boolean;
+  version?: string;
+  executablePath?: string;
+  installCommand: string;
+  routingMode: CliAssistantRoutingMode;
+};
+
+export type CliAssistantInstallRequest = {
+  id: CliAssistantId;
+};
+
+export type CliAssistantLaunchRequest = {
+  id: CliAssistantId;
+  workspace?: string;
+  token: string;
+  apiBaseUrl: string;
+  proxyBaseUrl: string;
+  modelId: string;
+};
+
+export type CliAssistantCommandResult = {
+  success: boolean;
+  message?: string;
+};
+
 export interface IConversationListChangedEvent {
   conversation_id: string;
   action: 'created' | 'updated' | 'deleted';
@@ -1939,10 +2058,10 @@ export const team = {
     fromBackendTeamList
   ),
   get: withResponseMap(
-    httpGet<TTeam | null, { id: string }>((p) => `/api/teams/${p.id}`),
+    httpGet<TTeam | null, { id: string }>((p) => `/api/teams/${encodeURIComponent(p.id)}`),
     fromBackendTeamOptional
   ),
-  remove: httpDelete<void, { id: string }>((p) => `/api/teams/${p.id}`),
+  remove: httpDelete<void, { id: string }>((p) => `/api/teams/${encodeURIComponent(p.id)}`),
   addAgent: withResponseMap(
     httpPost<TeamAssistant, IAddTeamAssistantParams>(
       (p) => `/api/teams/${p.team_id}/agents`,
@@ -1956,15 +2075,16 @@ export const team = {
   stop: httpDelete<void, { team_id: string }>((p) => `/api/teams/${p.team_id}/session`),
   ensureSession: httpPost<void, { team_id: string }>((p) => `/api/teams/${p.team_id}/session`),
   activeLease: httpPost<void, { team_id: string }>(
-    (p) => `/api/teams/${p.team_id}/active-lease`,
-    () => undefined
+    (p) => `/api/teams/${encodeURIComponent(p.team_id)}/active-lease`,
+    () => undefined,
+    { silentStatuses: [404] }
   ),
   renameAgent: httpPatch<void, { team_id: string; slot_id: string; new_name: string }>(
     (p) => `/api/teams/${p.team_id}/agents/${p.slot_id}/name`,
     (p) => ({ name: p.new_name })
   ),
   renameTeam: httpPatch<void, { id: string; name: string }>(
-    (p) => `/api/teams/${p.id}/name`,
+    (p) => `/api/teams/${encodeURIComponent(p.id)}/name`,
     (p) => ({ name: p.name })
   ),
   setSessionMode: httpPost<void, { team_id: string; session_mode: string }>(
