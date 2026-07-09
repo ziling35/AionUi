@@ -5,7 +5,7 @@ import { useCallback, useEffect, useState } from 'react';
 export interface GoogleModelSelection {
   current_model?: TProviderWithModel;
   providers: IProvider[];
-  formatModelLabel: (provider?: { platform?: string }, modelName?: string) => string;
+  formatModelLabel: (provider?: Pick<IProvider, 'model_labels'>, modelName?: string) => string;
   getDisplayModelName: (modelName?: string) => string;
   getAvailableModels: (provider: IProvider) => string[];
   handleSelectModel: (provider: IProvider, modelName: string) => Promise<void>;

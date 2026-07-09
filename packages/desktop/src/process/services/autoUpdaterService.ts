@@ -75,6 +75,7 @@ export interface AutoUpdateStatus {
   currentVersion?: string;
   releaseDate?: string;
   releaseNotes?: string;
+  filePath?: string;
   progress?: {
     bytesPerSecond: number;
     percent: number;
@@ -117,6 +118,7 @@ class AutoUpdaterService extends EventEmitter {
     timer: ReturnType<typeof setTimeout>;
   } | null = null;
   private _downloadedUpdateVersion: string | undefined;
+  private _downloadedUpdateFilePath: string | undefined;
   /** Stores registered autoUpdater event handlers for cleanup and test access */
   private readonly _autoUpdaterHandlers = new Map<string, (...args: unknown[]) => void>();
   private readonly _nativeAutoUpdaterHandlers = new Map<string, (...args: unknown[]) => void>();
@@ -258,6 +260,7 @@ class AutoUpdaterService extends EventEmitter {
     this.clearNativeInstallReadyWait();
     this._nativeInstallReady = process.platform !== 'darwin';
     this._downloadedUpdateVersion = undefined;
+    this._downloadedUpdateFilePath = undefined;
   }
 
   /**
@@ -276,6 +279,7 @@ class AutoUpdaterService extends EventEmitter {
     this.clearNativeInstallReadyWait();
     this._nativeInstallReady = process.platform !== 'darwin';
     this._downloadedUpdateVersion = undefined;
+    this._downloadedUpdateFilePath = undefined;
     // Remove listeners from this EventEmitter instance
     this.removeAllListeners();
     // Remove each registered handler from autoUpdater to prevent
@@ -397,7 +401,7 @@ class AutoUpdaterService extends EventEmitter {
       });
     });
 
-    register('update-downloaded', (info: UpdateInfo) => {
+    register('update-downloaded', (info: UpdateInfo & { downloadedFile?: string }) => {
       if (this._ignoreActiveDownloadEvents) {
         log.debug('[auto-update] Ignoring update-downloaded after cancellation');
         return;
@@ -406,6 +410,7 @@ class AutoUpdaterService extends EventEmitter {
       this._activeDownloadPromise = null;
       this._activeDownloadCancellationToken = null;
       this._downloadedUpdateVersion = info.version;
+      this._downloadedUpdateFilePath = info.downloadedFile || this._downloadedUpdateFilePath;
       if (process.platform === 'darwin' && !this._nativeInstallReady) {
         log.debug('[auto-update] macOS service-level update-downloaded received before native install readiness', {
           version: info.version,
@@ -414,6 +419,7 @@ class AutoUpdaterService extends EventEmitter {
       this.broadcastStatus({
         status: 'downloaded',
         version: info.version,
+        filePath: this._downloadedUpdateFilePath,
       });
     });
 
@@ -459,6 +465,7 @@ class AutoUpdaterService extends EventEmitter {
     void this.rejectNativeInstallReadyWaitWithLocalizedError('update.errors.prepareInstallFailed');
     this._nativeInstallReady = process.platform !== 'darwin';
     this._downloadedUpdateVersion = version;
+    this._downloadedUpdateFilePath = undefined;
   }
 
   private getAutoUpdateDiagnosticOptions() {
@@ -774,7 +781,10 @@ class AutoUpdaterService extends EventEmitter {
 
         log.debug('[auto-update] downloadUpdate requested');
         this._ignoreActiveDownloadEvents = false;
-        await autoUpdater.downloadUpdate(cancellationToken);
+        const downloadedFiles = await autoUpdater.downloadUpdate(cancellationToken);
+        this._downloadedUpdateFilePath = Array.isArray(downloadedFiles)
+          ? downloadedFiles[0]
+          : this._downloadedUpdateFilePath;
         log.debug('[auto-update] downloadUpdate started');
         return { success: true };
       } catch (error) {
@@ -837,7 +847,7 @@ class AutoUpdaterService extends EventEmitter {
 
     log.info('Quitting and installing update...');
     try {
-      autoUpdater.quitAndInstall(true, true);
+      autoUpdater.quitAndInstall(false, true);
       recordAutoUpdateQuitAndInstall(this.getAutoUpdateDiagnosticOptions());
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -854,14 +864,16 @@ class AutoUpdaterService extends EventEmitter {
       });
       throw new Error(userMessage, { cause: error });
     }
-    // On macOS, autoUpdater.quitAndInstall() closes all windows but the
-    // 'window-all-closed' handler does NOT call app.quit() (standard macOS
-    // behavior + close-to-tray). This leaves the process alive and Squirrel
-    // cannot finish replacing the app bundle. Force-exit after a short delay
-    // to let Squirrel receive the install signal.
-    setTimeout(() => {
-      app.exit(0);
-    }, 1000);
+    if (process.platform === 'darwin') {
+      // On macOS, autoUpdater.quitAndInstall() closes all windows but the
+      // 'window-all-closed' handler does NOT call app.quit() (standard macOS
+      // behavior + close-to-tray). This leaves the process alive and Squirrel
+      // cannot finish replacing the app bundle. Force-exit after a short delay
+      // to let Squirrel receive the install signal.
+      setTimeout(() => {
+        app.exit(0);
+      }, 1000);
+    }
   }
 
   /**

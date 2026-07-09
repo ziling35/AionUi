@@ -1,15 +1,12 @@
 import type { TMessage } from '@/common/chat/chatLib';
 import type { TChatConversation } from '@/common/config/storage';
-import { repairLegacyHandoffSchema } from '@process/services/database/repairLegacyHandoffSchema';
-import { resolveLegacyDatabasePath } from '@process/services/database/runLegacyDatabaseMigrations';
-import { initSchema } from '@process/services/database/schema';
-import { ensureDirectory, getDataPath } from '@process/utils';
+import { httpRequest } from '@/common/adapter/httpBridge';
+import { getDataPath } from '@process/utils';
 import fs from 'fs/promises';
 import path from 'path';
 import { randomUUID } from 'crypto';
 import * as yauzl from 'yauzl';
 
-const DEFAULT_USER_ID = 'system_default_user';
 const MAX_IMPORT_JSON_BYTES = 50 * 1024 * 1024;
 
 export type ExportedConversationPayload = {
@@ -43,7 +40,41 @@ export type ConversationImportResult = {
 
 export type ConversationImportOptions = {
   dataDir?: string;
-  dbPath?: string;
+};
+
+type BackendImportConversation = {
+  id: string;
+  name: string;
+  type: string;
+  extra: unknown;
+  model?: unknown;
+  source?: string;
+  channel_chat_id?: string;
+  created_at?: number;
+  modified_at?: number;
+};
+
+type BackendImportMessage = {
+  msg_id?: string;
+  type: string;
+  content: unknown;
+  position?: string;
+  status?: string;
+  hidden?: boolean;
+  created_at?: number;
+};
+
+type BackendImportRequest = {
+  conversations: Array<{
+    conversation: BackendImportConversation;
+    messages: BackendImportMessage[];
+  }>;
+};
+
+type BackendImportResult = {
+  imported_count: number;
+  message_count: number;
+  conversation_ids: string[];
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -170,29 +201,6 @@ async function readImportItems(filePath: string): Promise<ConversationImportItem
   return [...groups.values()];
 }
 
-function serializeJsonField(value: unknown, fallback: string): string {
-  if (value === undefined || value === null) return fallback;
-  return JSON.stringify(value);
-}
-
-function serializeMessageContent(value: unknown): string {
-  if (typeof value === 'string') return value;
-  return serializeJsonField(value, '');
-}
-
-function getTableColumns(db: import('@process/services/database/drivers/ISqliteDriver').ISqliteDriver, table: string) {
-  const rows = db.pragma(`table_info(${table})`) as Array<{ name: string }>;
-  return new Set(rows.map((row) => row.name));
-}
-
-function ensureSystemUser(db: import('@process/services/database/drivers/ISqliteDriver').ISqliteDriver): void {
-  const now = Date.now();
-  db.prepare(
-    `INSERT OR IGNORE INTO users (id, username, email, password_hash, avatar_path, created_at, updated_at, last_login, jwt_secret)
-     VALUES (?, ?, NULL, ?, NULL, ?, ?, NULL, NULL)`
-  ).run(DEFAULT_USER_ID, DEFAULT_USER_ID, '', now, now);
-}
-
 function createImportedConversation(
   source: TChatConversation,
   workspacePath: string | undefined,
@@ -240,6 +248,42 @@ async function restoreWorkspaceFiles(
   return workspaceRoot;
 }
 
+function toBackendImportConversation(conversation: TChatConversation): BackendImportConversation {
+  const model = (conversation as TChatConversation & { model?: unknown }).model;
+  return {
+    id: conversation.id,
+    name: conversation.name,
+    type: conversation.type,
+    extra: conversation.extra ?? {},
+    ...(model !== undefined ? { model } : {}),
+    source: conversation.source,
+    channel_chat_id: conversation.channel_chat_id,
+    created_at: conversation.created_at,
+    modified_at: conversation.modified_at,
+  };
+}
+
+function toBackendImportMessage(message: TMessage): BackendImportMessage {
+  return {
+    msg_id: message.msg_id ?? message.id,
+    type: message.type,
+    content: message.content,
+    position: message.position,
+    status: message.status,
+    hidden: Boolean((message as TMessage & { hidden?: boolean }).hidden),
+    created_at: message.created_at,
+  };
+}
+
+function buildBackendImportRequest(restoredItems: Array<ConversationImportItem & { conversation: TChatConversation }>) {
+  return {
+    conversations: restoredItems.map((item) => ({
+      conversation: toBackendImportConversation(item.conversation),
+      messages: item.payload.messages.map(toBackendImportMessage),
+    })),
+  } satisfies BackendImportRequest;
+}
+
 async function importConversationItems(
   items: ConversationImportItem[],
   options: ConversationImportOptions = {}
@@ -248,133 +292,32 @@ async function importConversationItems(
     throw new Error('no_importable_conversations');
   }
 
-  const { BetterSqlite3Driver } = await import('@process/services/database/drivers/BetterSqlite3Driver');
   const dataDir = options.dataDir ?? getDataPath();
-  const dbPath = options.dbPath ?? resolveLegacyDatabasePath(dataDir);
-  ensureDirectory(path.dirname(dbPath));
-  const db = new BetterSqlite3Driver(dbPath);
+  const restoredItems = await Promise.all(
+    items.map(async (item) => {
+      const previewConversation = createImportedConversation(item.payload.conversation, undefined, item.payload.exportedAt);
+      const workspacePath = await restoreWorkspaceFiles(previewConversation.id, item.workspaceFiles, dataDir);
+      return {
+        ...item,
+        conversation: workspacePath
+          ? createImportedConversation(item.payload.conversation, workspacePath, item.payload.exportedAt)
+          : previewConversation,
+      };
+    })
+  );
 
-  try {
-    initSchema(db);
-    repairLegacyHandoffSchema(db);
-    ensureSystemUser(db);
-    db.pragma('busy_timeout = 5000');
-    const conversationColumns = getTableColumns(db, 'conversations');
-    const messageColumns = getTableColumns(db, 'messages');
-    const hasMessageHidden = messageColumns.has('hidden');
+  const result = await httpRequest<BackendImportResult>(
+    'POST',
+    '/api/conversations/import',
+    buildBackendImportRequest(restoredItems)
+  );
 
-    const insertConversation = db.prepare(
-      `INSERT INTO conversations (${[
-        'id',
-        'user_id',
-        'name',
-        'type',
-        'extra',
-        'model',
-        'status',
-        'source',
-        'channel_chat_id',
-        ...(conversationColumns.has('pinned') ? ['pinned'] : []),
-        ...(conversationColumns.has('pinned_at') ? ['pinned_at'] : []),
-        'created_at',
-        'updated_at',
-      ].join(', ')}) VALUES (${[
-        '?',
-        '?',
-        '?',
-        '?',
-        '?',
-        '?',
-        '?',
-        '?',
-        '?',
-        ...(conversationColumns.has('pinned') ? ['?'] : []),
-        ...(conversationColumns.has('pinned_at') ? ['?'] : []),
-        '?',
-        '?',
-      ].join(', ')})`
-    );
-    const insertMessage = db.prepare(
-      `INSERT INTO messages (${[
-        'id',
-        'conversation_id',
-        'msg_id',
-        'type',
-        'content',
-        'position',
-        'status',
-        'created_at',
-        ...(hasMessageHidden ? ['hidden'] : []),
-      ].join(', ')}) VALUES (${['?', '?', '?', '?', '?', '?', '?', '?', ...(hasMessageHidden ? ['?'] : [])].join(', ')})`
-    );
-
-    const restoredItems = await Promise.all(
-      items.map(async (item) => {
-        const previewConversation = createImportedConversation(item.payload.conversation, undefined, item.payload.exportedAt);
-        const workspacePath = await restoreWorkspaceFiles(previewConversation.id, item.workspaceFiles, dataDir);
-        return {
-          ...item,
-          conversation: workspacePath
-            ? createImportedConversation(item.payload.conversation, workspacePath, item.payload.exportedAt)
-            : previewConversation,
-        };
-      })
-    );
-
-    const conversationIds: string[] = [];
-    let messageCount = 0;
-    const transaction = db.transaction(() => {
-      for (const item of restoredItems) {
-        const conversation = item.conversation;
-        conversationIds.push(conversation.id);
-        insertConversation.run(
-          ...[
-            conversation.id,
-            DEFAULT_USER_ID,
-            conversation.name,
-            conversation.type,
-            serializeJsonField(conversation.extra, '{}'),
-            serializeJsonField('model' in conversation ? conversation.model : undefined, '{}'),
-            conversation.status ?? 'finished',
-            conversation.source ?? 'lingai',
-            conversation.channel_chat_id ?? null,
-            ...(conversationColumns.has('pinned') ? [0] : []),
-            ...(conversationColumns.has('pinned_at') ? [null] : []),
-            conversation.created_at,
-            conversation.modified_at,
-          ]
-        );
-
-        item.payload.messages.forEach((message, index) => {
-          insertMessage.run(
-            ...[
-              randomUUID(),
-              conversation.id,
-              message.msg_id ?? message.id ?? null,
-              message.type,
-              serializeMessageContent(message.content),
-              message.position ?? null,
-              message.status ?? null,
-              typeof message.created_at === 'number' ? message.created_at : conversation.created_at + index,
-              ...(hasMessageHidden ? [(message as { hidden?: boolean }).hidden ? 1 : 0] : []),
-            ]
-          );
-          messageCount += 1;
-        });
-      }
-    });
-
-    transaction();
-
-    return {
-      importedCount: restoredItems.length,
-      messageCount,
-      workspaceFileCount: restoredItems.reduce((count, item) => count + item.workspaceFiles.length, 0),
-      conversationIds,
-    };
-  } finally {
-    db.close();
-  }
+  return {
+    importedCount: result.imported_count,
+    messageCount: result.message_count,
+    workspaceFileCount: restoredItems.reduce((count, item) => count + item.workspaceFiles.length, 0),
+    conversationIds: result.conversation_ids,
+  };
 }
 
 export async function importConversationsFromFile(

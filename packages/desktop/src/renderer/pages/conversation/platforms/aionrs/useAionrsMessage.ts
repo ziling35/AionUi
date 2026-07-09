@@ -15,11 +15,145 @@ import { logStreamTerminalObserved } from '@/renderer/pages/conversation/runtime
 import { getConversationOrNull } from '@/renderer/pages/conversation/utils/conversationCache';
 import { isConversationProcessing } from '@/renderer/pages/conversation/utils/conversationRuntime';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { updateAionrsToolProgress, type AionrsToolCallData } from './aionrsToolProgress';
 import { processLocalCronResponse } from './localCronCommands';
 
 type TokenUsage = {
   input_tokens?: number;
   output_tokens?: number;
+};
+
+const textMessageTypes = new Set(['content', 'text']);
+const DUPLICATE_FULL_TEXT_MIN_LENGTH = 8;
+const REPLAY_PREFIX_MIN_BUFFER_LENGTH = 32;
+
+type TextReplayState = {
+  offset: number;
+  suppressed: string;
+};
+
+type TextChunkRenderState =
+  | {
+      buffer: string;
+      message?: undefined;
+    }
+  | {
+      buffer: string;
+      message: IResponseMessage;
+    };
+
+const isObjectRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
+
+const hasExplicitReplace = (message: IResponseMessage): boolean =>
+  message.replace === true || (isObjectRecord(message.data) && message.data.replace === true);
+
+const shouldReplaceTextChunk = (message: IResponseMessage, previous: string, chunk: string): boolean => {
+  if (!previous || !chunk) {
+    return false;
+  }
+
+  if (hasExplicitReplace(message)) {
+    return true;
+  }
+
+  if (chunk.length > previous.length && chunk.startsWith(previous)) {
+    return true;
+  }
+
+  return chunk === previous && chunk.length >= DUPLICATE_FULL_TEXT_MIN_LENGTH;
+};
+
+const withTextChunkReplace = (message: IResponseMessage): IResponseMessage => ({
+  ...message,
+  replace: true,
+});
+
+const withTextChunkContent = (message: IResponseMessage, chunk: string): IResponseMessage => ({
+  ...message,
+  data: isObjectRecord(message.data) ? { ...message.data, content: chunk } : chunk,
+});
+
+const applyTextReplayGuard = (
+  message: IResponseMessage,
+  previous: string,
+  chunk: string,
+  replayStates: Map<string, TextReplayState>
+): TextChunkRenderState => {
+  const existingReplay = replayStates.get(message.msg_id);
+
+  if (existingReplay) {
+    const remainingReplay = previous.slice(existingReplay.offset);
+
+    if (remainingReplay.startsWith(chunk)) {
+      const nextOffset = existingReplay.offset + chunk.length;
+      if (nextOffset >= previous.length) {
+        replayStates.delete(message.msg_id);
+      } else {
+        replayStates.set(message.msg_id, {
+          offset: nextOffset,
+          suppressed: existingReplay.suppressed + chunk,
+        });
+      }
+      return { buffer: previous };
+    }
+
+    if (chunk.startsWith(remainingReplay)) {
+      replayStates.delete(message.msg_id);
+      const suffix = chunk.slice(remainingReplay.length);
+      if (!suffix) {
+        return { buffer: previous };
+      }
+      return {
+        buffer: previous + suffix,
+        message: withTextChunkContent(message, suffix),
+      };
+    }
+
+    replayStates.delete(message.msg_id);
+    const restoredChunk = existingReplay.suppressed + chunk;
+    return {
+      buffer: previous + restoredChunk,
+      message: withTextChunkContent(message, restoredChunk),
+    };
+  }
+
+  if (previous.length >= REPLAY_PREFIX_MIN_BUFFER_LENGTH && previous.startsWith(chunk)) {
+    replayStates.set(message.msg_id, {
+      offset: chunk.length,
+      suppressed: chunk,
+    });
+    return { buffer: previous };
+  }
+
+  return {
+    buffer: previous + chunk,
+    message,
+  };
+};
+
+const getTextChunkAndPhase = (message: IResponseMessage): { chunk: string; phase?: 'commentary' | 'final_answer' } => {
+  const payload = message.data;
+  const phase =
+    typeof payload === 'object' &&
+    payload !== null &&
+    'phase' in payload &&
+    ((payload as { phase?: unknown }).phase === 'commentary' ||
+      (payload as { phase?: unknown }).phase === 'final_answer')
+      ? (payload as { phase: 'commentary' | 'final_answer' }).phase
+      : message.phase;
+
+  const chunk =
+    typeof payload === 'string'
+      ? payload
+      : typeof payload === 'object' &&
+          payload !== null &&
+          'content' in payload &&
+          typeof (payload as { content?: unknown }).content === 'string'
+        ? ((payload as { content: string }).content ?? '')
+        : '';
+
+  return { chunk, phase };
 };
 
 export const useAionrsMessage = (
@@ -45,12 +179,15 @@ export const useAionrsMessage = (
   // Current active message ID to filter out events from old requests (prevents aborted request events from interfering with new ones)
   const activeMsgIdRef = useRef<string | null>(null);
   const messageBufferRef = useRef(new Map<string, string>());
+  const textReplayStateRef = useRef(new Map<string, TextReplayState>());
+  const finalTextMsgIdsRef = useRef(new Set<string>());
   const processedCronMsgIdsRef = useRef(new Set<string>());
 
   // Use refs to avoid useEffect re-subscription when these states change
   const hasActiveToolsRef = useRef(hasActiveTools);
   const streamRunningRef = useRef(streamRunning);
   const waitingResponseRef = useRef(waitingResponse);
+  const activeToolCallIdsRef = useRef(new Set<string>());
 
   // Track whether current turn has content output
   // Only reset waitingResponse when finish arrives after content (not after tool calls)
@@ -106,6 +243,16 @@ export const useAionrsMessage = (
     };
   }, []);
 
+  const clearThought = useCallback(() => {
+    const ref = thoughtThrottleRef.current;
+    if (ref.timer) {
+      clearTimeout(ref.timer);
+      ref.timer = null;
+    }
+    ref.pending = null;
+    setThought({ subject: '', description: '' });
+  }, []);
+
   // Cleanup throttle timer
   useEffect(() => {
     return () => {
@@ -149,6 +296,7 @@ export const useAionrsMessage = (
             content: {
               content: result.displayContent,
               replace: true,
+              phase: 'final_answer',
             },
           });
         }
@@ -190,7 +338,10 @@ export const useAionrsMessage = (
         waitingResponseRef.current = false;
         setHasActiveTools(false);
         hasActiveToolsRef.current = false;
-        setThought({ subject: '', description: '' });
+        activeToolCallIdsRef.current.clear();
+        textReplayStateRef.current.clear();
+        finalTextMsgIdsRef.current.clear();
+        clearThought();
         hasContentInTurnRef.current = false;
         const transformedMessage = transformMessage(message);
         if (transformedMessage) {
@@ -207,21 +358,28 @@ export const useAionrsMessage = (
         }
       }
 
-      if ((message.type === 'content' || message.type === 'text') && message.msg_id) {
-        const payload = message.data;
-        const chunk =
-          typeof payload === 'string'
-            ? payload
-            : typeof payload === 'object' &&
-                payload !== null &&
-                'content' in payload &&
-                typeof (payload as { content?: unknown }).content === 'string'
-              ? ((payload as { content: string }).content ?? '')
-              : '';
+      let renderMessage: IResponseMessage | undefined = message;
 
-        if (chunk) {
+      if (textMessageTypes.has(message.type) && message.msg_id) {
+        const { chunk, phase } = getTextChunkAndPhase(message);
+
+        if (chunk && phase !== 'commentary') {
           const previous = messageBufferRef.current.get(message.msg_id) ?? '';
-          messageBufferRef.current.set(message.msg_id, previous + chunk);
+          if (shouldReplaceTextChunk(message, previous, chunk)) {
+            messageBufferRef.current.set(message.msg_id, chunk);
+            textReplayStateRef.current.delete(message.msg_id);
+            renderMessage = withTextChunkReplace(message);
+          } else {
+            const nextTextState = applyTextReplayGuard(
+              message,
+              previous,
+              chunk,
+              textReplayStateRef.current
+            );
+            messageBufferRef.current.set(message.msg_id, nextTextState.buffer);
+            renderMessage = nextTextState.message;
+          }
+          finalTextMsgIdsRef.current.add(message.msg_id);
         }
       }
 
@@ -237,6 +395,8 @@ export const useAionrsMessage = (
         case 'start':
           setStreamRunning(true);
           streamRunningRef.current = true;
+          finalTextMsgIdsRef.current.clear();
+          textReplayStateRef.current.clear();
           // Don't reset waitingResponse here - let tool completion flow handle it
           break;
         case 'finish':
@@ -258,10 +418,21 @@ export const useAionrsMessage = (
               });
             }
             setStreamRunning(false);
+            streamRunningRef.current = false;
             setWaitingResponse(false);
-            setThought({ subject: '', description: '' });
+            waitingResponseRef.current = false;
+            setHasActiveTools(false);
+            hasActiveToolsRef.current = false;
+            activeToolCallIdsRef.current.clear();
+            textReplayStateRef.current.clear();
+            clearThought();
+            const completedTextMsgIds = new Set(finalTextMsgIdsRef.current);
             if (message.msg_id) {
-              void processCompletedAssistantMessage(message.msg_id);
+              completedTextMsgIds.add(message.msg_id);
+            }
+            finalTextMsgIdsRef.current.clear();
+            for (const msgId of completedTextMsgIds) {
+              void processCompletedAssistantMessage(msgId);
             }
           }
           break;
@@ -313,7 +484,40 @@ export const useAionrsMessage = (
             }
 
             // Continue passing message to message list update
-            mergeLiveMessage(transformMessage(message));
+            if (renderMessage) {
+              mergeLiveMessage(transformMessage(renderMessage));
+            }
+          }
+          break;
+        case 'tool_call':
+          {
+            hasContentInTurnRef.current = true;
+
+            if (!streamRunningRef.current) {
+              setStreamRunning(true);
+              streamRunningRef.current = true;
+            }
+
+            const progress = updateAionrsToolProgress(activeToolCallIdsRef.current, message.data as AionrsToolCallData);
+
+            setHasActiveTools(progress.hasActiveTools);
+            hasActiveToolsRef.current = progress.hasActiveTools;
+
+            if (progress.hasActiveTools) {
+              setWaitingResponse(false);
+              waitingResponseRef.current = false;
+            } else if (progress.transitionedToWaiting) {
+              setWaitingResponse(true);
+              waitingResponseRef.current = true;
+            }
+
+            if (progress.thought) {
+              throttledSetThought(progress.thought);
+            }
+
+            if (renderMessage) {
+              mergeLiveMessage(transformMessage(renderMessage));
+            }
           }
           break;
         case 'permission':
@@ -325,7 +529,9 @@ export const useAionrsMessage = (
           // Backend aionrs emits wire type 'acp_permission' but the payload is
           // Confirmation-shaped (legacy), which matches MessagePermission, not
           // MessageAcpPermission. Re-tag so transformMessage routes it correctly.
-          mergeLiveMessage(transformMessage({ ...message, type: 'permission' }));
+          if (renderMessage) {
+            mergeLiveMessage(transformMessage({ ...renderMessage, type: 'permission' }));
+          }
           break;
         case 'config_changed':
           onConfigChangedRef.current?.(message.data as Record<string, unknown>);
@@ -337,7 +543,12 @@ export const useAionrsMessage = (
             streamRunningRef.current = false;
             setWaitingResponse(false);
             waitingResponseRef.current = false;
-            setThought({ subject: '', description: '' });
+            setHasActiveTools(false);
+            hasActiveToolsRef.current = false;
+            activeToolCallIdsRef.current.clear();
+            textReplayStateRef.current.clear();
+            finalTextMsgIdsRef.current.clear();
+            clearThought();
             onError?.(message as IResponseMessage);
           } else {
             // Mark that current turn has content output (exclude error type)
@@ -354,18 +565,20 @@ export const useAionrsMessage = (
             }
           }
           // Backend handles persistence, Frontend only updates UI
-          mergeLiveMessage(transformMessage(message));
+          if (renderMessage) {
+            mergeLiveMessage(transformMessage(renderMessage));
+          }
           break;
         }
       }
     });
     // Note: hasActiveTools and streamRunning are accessed via refs to avoid re-subscription
-  }, [conversation_id, mergeLiveMessage, onError, processCompletedAssistantMessage]);
+  }, [conversation_id, mergeLiveMessage, onError, processCompletedAssistantMessage, clearThought, throttledSetThought]);
 
   useEffect(() => {
     let cancelled = false;
 
-    setThought({ subject: '', description: '' });
+    clearThought();
     setTokenUsage(null);
     hasContentInTurnRef.current = false;
     setHasHydratedRunningState(false);
@@ -382,6 +595,9 @@ export const useAionrsMessage = (
         streamRunningRef.current = false;
         setHasActiveTools(false);
         hasActiveToolsRef.current = false;
+        activeToolCallIdsRef.current.clear();
+        textReplayStateRef.current.clear();
+        finalTextMsgIdsRef.current.clear();
         setWaitingResponse(false);
         waitingResponseRef.current = false;
         setHasHydratedRunningState(true);
@@ -393,6 +609,9 @@ export const useAionrsMessage = (
       // Reset tool states - they will be restored by incoming messages if still active
       setHasActiveTools(false);
       hasActiveToolsRef.current = false;
+      activeToolCallIdsRef.current.clear();
+      textReplayStateRef.current.clear();
+      finalTextMsgIdsRef.current.clear();
       setWaitingResponse(isRunning);
       waitingResponseRef.current = isRunning;
       // Load persisted token usage stats
@@ -408,7 +627,7 @@ export const useAionrsMessage = (
     return () => {
       cancelled = true;
     };
-  }, [conversation_id]);
+  }, [conversation_id, clearThought]);
 
   const resetState = useCallback(() => {
     setWaitingResponse(false);
@@ -417,11 +636,14 @@ export const useAionrsMessage = (
     streamRunningRef.current = false;
     setHasActiveTools(false);
     hasActiveToolsRef.current = false;
-    setThought({ subject: '', description: '' });
+    activeToolCallIdsRef.current.clear();
+    textReplayStateRef.current.clear();
+    finalTextMsgIdsRef.current.clear();
+    clearThought();
     hasContentInTurnRef.current = false;
     // Clear active message ID to prevent filtering events from new messages after stop
     activeMsgIdRef.current = null;
-  }, []);
+  }, [clearThought]);
 
   return {
     thought,

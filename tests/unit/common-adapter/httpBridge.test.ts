@@ -117,6 +117,24 @@ describe('httpBridge', () => {
 
       expect(result).toBe('');
     });
+
+    it('updates the Electron backend port from the backend:port-changed event', async () => {
+      vi.resetModules();
+      const listeners = new Map<string, (event: Event) => void>();
+      vi.stubGlobal('window', {
+        __backendPort: 11111,
+        addEventListener: vi.fn((eventName: string, listener: (event: Event) => void) => {
+          listeners.set(eventName, listener);
+        }),
+      });
+
+      const module = await import('@/common/adapter/httpBridge');
+      expect(module.getBaseUrl()).toBe('http://127.0.0.1:11111');
+
+      listeners.get('backend:port-changed')?.({ detail: { port: 22222 } } as unknown as Event);
+
+      expect(module.getBaseUrl()).toBe('http://127.0.0.1:22222');
+    });
   });
 
   describe('httpGet', () => {

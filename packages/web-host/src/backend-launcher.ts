@@ -330,6 +330,14 @@ function parseBackendBoundaryError(text: string): ParsedBackendBoundaryError | u
   return undefined;
 }
 
+function isBackendBindFailure(error: unknown): boolean {
+  if (!(error instanceof BackendStartupError)) return false;
+  return (
+    error.details.backendBoundaryCode === 'BOOTSTRAP_BIND_FAILED' ||
+    error.details.backendBoundaryStage === 'bind.listener'
+  );
+}
+
 function applyHealthCheckErrorDiagnostics(diagnostics: HealthCheckDiagnostics, error: unknown): void {
   const cause = getErrorCause(error);
   diagnostics.healthCheckLastError = getErrorMessage(error);
@@ -469,6 +477,11 @@ export class BackendLifecycleManager {
   private _lastLogDir?: string;
   private _lastDirs?: BackendDirConfig;
   private _lastOptions?: BackendStartOptions;
+  private backendProcessStartedAt = 0;
+  private backendPid?: number;
+  private backendBinaryPath?: string;
+  private backendStdoutTail = '';
+  private backendStderrTail = '';
   private restartCount = 0;
   private restartWindowStart = 0;
   private readonly maxRestarts = 3;
@@ -575,6 +588,11 @@ export class BackendLifecycleManager {
       recoverCorruptedDatabase: launchFlags.recoverCorruptedDatabase === true,
     });
     console.log(`[aioncore] starting: ${binaryPath} ${args.join(' ')}`);
+    this.backendProcessStartedAt = startupStartedAt;
+    this.backendBinaryPath = binaryPath;
+    this.backendPid = undefined;
+    this.backendStdoutTail = '';
+    this.backendStderrTail = '';
 
     try {
       this.childProcess = spawn(binaryPath, args, {
@@ -591,6 +609,7 @@ export class BackendLifecycleManager {
     this.childProcess.stdin?.end();
 
     backendPid = this.childProcess.pid;
+    this.backendPid = backendPid;
     const pid = backendPid;
     const killOnExit = () => {
       if (pid) void killBackendProcessTree(this.childProcess, 'SIGKILL');
@@ -694,6 +713,7 @@ export class BackendLifecycleManager {
 
     this.childProcess.stdout?.on('data', (data: Buffer) => {
       stdoutTail = appendOutputTail(stdoutTail, data);
+      this.backendStdoutTail = stdoutTail;
       for (const line of data.toString().split('\n')) {
         const trimmed = line.trim();
         const port = parseAioncoreListeningPort(trimmed);
@@ -718,6 +738,7 @@ export class BackendLifecycleManager {
 
     this.childProcess.stderr?.on('data', (data: Buffer) => {
       stderrTail = appendOutputTail(stderrTail, data);
+      this.backendStderrTail = stderrTail;
       for (const line of data.toString().split('\n')) {
         if (line.trim()) console.error(`[aioncore] ${line}`);
       }
@@ -885,13 +906,26 @@ export class BackendLifecycleManager {
     }
     this.restartCount++;
 
-    const crashContext = {
+    const crashContext: Record<string, unknown> = {
       exitCode: code ?? undefined,
       signal: signal ?? undefined,
       port: this._port,
+      backendPid: this.backendPid,
+      uptimeMs: this.backendProcessStartedAt > 0 ? now - this.backendProcessStartedAt : undefined,
+      binaryPath: this.backendBinaryPath,
+      dataDir: this._lastDbPath || undefined,
+      logDir: this._lastLogDir,
+      workDir: this._lastDirs?.workDir,
+      stdoutTail: this.backendStdoutTail || undefined,
+      stderrTail: this.backendStderrTail || undefined,
       restartCount: this.restartCount,
       maxRestarts: this.maxRestarts,
     };
+    for (const key of Object.keys(crashContext)) {
+      if (crashContext[key] === undefined) {
+        delete crashContext[key];
+      }
+    }
 
     if (this.restartCount > this.maxRestarts) {
       this._status = 'error';
@@ -915,6 +949,31 @@ export class BackendLifecycleManager {
           }
         })
         .catch((error) => {
+          if (isBackendBindFailure(error)) {
+            console.warn('[aioncore] restart port is unavailable; retrying with a fresh port', {
+              previousPort: this._port,
+              restartCount: this.restartCount,
+              maxRestarts: this.maxRestarts,
+              error: getErrorMessage(error),
+            });
+            this.start(this._lastDbPath, this._lastLogDir, this._lastDirs, this._lastOptions, undefined)
+              .then(async (port) => {
+                if (this._status === 'running') {
+                  await this._lastOptions?.onReady?.(port);
+                }
+              })
+              .catch((retryError) => {
+                this._status = 'error';
+                console.error('[aioncore] restart after fresh-port retry failed', {
+                  port: this._port,
+                  restartCount: this.restartCount,
+                  maxRestarts: this.maxRestarts,
+                  delayMs: delay,
+                  error: getErrorMessage(retryError),
+                });
+              });
+            return;
+          }
           this._status = 'error';
           console.error('[aioncore] restart after crash failed', {
             port: this._port,

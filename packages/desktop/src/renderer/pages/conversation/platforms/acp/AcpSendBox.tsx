@@ -66,6 +66,7 @@ const useAcpSendBoxDraft = getSendBoxDraftHook('acp', {
 
 const EMPTY_AT_PATH: Array<string | FileOrFolderItem> = [];
 const EMPTY_UPLOAD_FILES: string[] = [];
+const getModelOptionKey = (model: { id: string; optionKey?: string }): string => model.optionKey || model.id;
 
 const useSendBoxDraft = (conversation_id: string) => {
   const { data, mutate } = useAcpSendBoxDraft(conversation_id);
@@ -122,7 +123,6 @@ const AcpSendBox: React.FC<{
     messageState;
   const { t } = useTranslation();
   const teamPermission = useTeamPermission();
-  // In team mode, all agents show the permission mode selector (members don't propagate)
   const showModeSelector = true;
   const isLeaderInTeam = teamPermission && conversation_id === teamPermission.leaderConversationId;
   const { checkAndUpdateTitle } = useAutoTitle();
@@ -148,7 +148,7 @@ const AcpSendBox: React.FC<{
   const runtimeConfig = useAcpConfigOptions({
     conversation_id,
     prepareRuntime: prepareRuntimeConfig,
-    enabled: true,
+    enabled: showModeSelector,
   });
   const runtimeMode = runtimeConfig.mode;
   const runtimeThoughtLevel = runtimeConfig.thoughtLevel;
@@ -461,10 +461,10 @@ Please check your local CLI tool authentication status`,
 
     const modelOptions: MobileActionSheetOption[] = canSwitchModel
       ? (model_info?.available_models ?? []).map((model) => ({
-          key: model.id,
+          key: getModelOptionKey(model),
           label: model.label || model.id,
           description: model.description,
-          active: model_info?.current_model_id === model.id,
+          active: (model_info?.current_model_option_key || model_info?.current_model_id) === getModelOptionKey(model),
         }))
       : [];
 

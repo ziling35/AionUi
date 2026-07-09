@@ -567,6 +567,9 @@
       },
       "ACP_EMPTY_TURN_REFUSAL": {
         "body": "The model refused this request before producing any visible reply."
+      },
+      "AIONRS_RUNTIME_ENV_QUEUE": {
+        "body": "AI CLI is finishing another task. This reply is queued and will start automatically."
       }
     }
   },

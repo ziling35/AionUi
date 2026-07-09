@@ -1,4 +1,6 @@
-const SUMMARY_PREVIEW_LENGTH = 60;
+import { createApiClient } from '../../api/client';
+import { getCloudApiBase } from '../../api/config';
+
 const LOG_PREFIX = '[FeedbackReport]';
 type FeedbackLogLevel = 'info' | 'warn' | 'error';
 type FeedbackLogAttachmentStatus = 'collected' | 'empty' | 'failed' | 'skipped' | 'unavailable';
@@ -22,6 +24,39 @@ export type SubmitFeedbackReportInput = {
   moduleLabel: string;
   tags?: FeedbackEventTags;
 };
+
+type AdminFeedbackAttachment = {
+  filename: string;
+  contentType: string;
+  size: number;
+  dataBase64: string;
+};
+
+type AdminFeedbackResponse = {
+  success: boolean;
+  report?: {
+    id: string;
+  };
+};
+
+function uint8ArrayToBase64(data: Uint8Array): string {
+  const chunkSize = 0x8000;
+  const chunks: string[] = [];
+  for (let index = 0; index < data.byteLength; index += chunkSize) {
+    const chunk = data.subarray(index, index + chunkSize);
+    chunks.push(String.fromCharCode(...chunk));
+  }
+  return btoa(chunks.join(''));
+}
+
+function toAdminFeedbackAttachments(attachments: FeedbackAttachment[]): AdminFeedbackAttachment[] {
+  return attachments.map((attachment) => ({
+    filename: attachment.filename,
+    contentType: attachment.contentType,
+    size: attachment.data.byteLength,
+    dataBase64: uint8ArrayToBase64(attachment.data),
+  }));
+}
 
 function summarizeAttachments(attachments: FeedbackAttachment[]): Array<{
   contentType: string;
@@ -119,17 +154,23 @@ function normalizeDescription(description: string): string {
   return description.trim().replace(/\s+/g, ' ');
 }
 
-function buildSummary(moduleLabel: string, description: string): string {
-  const summaryPreview =
-    description.length > SUMMARY_PREVIEW_LENGTH
-      ? `${description.slice(0, SUMMARY_PREVIEW_LENGTH).trimEnd()}...`
-      : description;
-  return `${moduleLabel}: ${summaryPreview}`;
+async function submitToAdminFeedback(input: SubmitFeedbackReportInput, description: string, attachments: FeedbackAttachment[]) {
+  const api = createApiClient(getCloudApiBase());
+  return api.post<AdminFeedbackResponse>('/api/feedback/reports', {
+    module: input.module,
+    moduleLabel: input.moduleLabel,
+    description,
+    tags: input.tags ?? {},
+    extra: input.extra ?? {},
+    attachments: toAdminFeedbackAttachments(attachments),
+    appVersion: typeof input.extra?.appVersion === 'string' ? input.extra.appVersion : undefined,
+    platform: typeof navigator === 'undefined' ? undefined : navigator.platform,
+  });
 }
 
 export async function submitFeedbackReport(input: SubmitFeedbackReportInput): Promise<void> {
   const attachments = [...(input.attachments ?? [])];
-  let eventId: string | undefined;
+  let adminReportId: string | undefined;
   let logAttachmentStatus: FeedbackLogAttachmentStatus = input.collectLogs ? 'empty' : 'skipped';
   let logAttachment: FeedbackAttachment | null = null;
 
@@ -144,46 +185,15 @@ export async function submitFeedbackReport(input: SubmitFeedbackReportInput): Pr
     }
 
     const normalizedDescription = normalizeDescription(input.description);
-    const eventSummary = buildSummary(input.moduleLabel, normalizedDescription);
-    const Sentry = await import('@sentry/electron/renderer');
-
-    Sentry.withScope((scope) => {
-      scope.setTag('type', 'user-feedback');
-      scope.setTag('module', input.module);
-      Object.entries(input.tags ?? {}).forEach(([key, value]) => {
-        if (value.trim()) {
-          scope.setTag(key, value);
-        }
-      });
-
-      eventId = Sentry.captureEvent(
-        {
-          level: 'info',
-          message: eventSummary,
-          extra: {
-            description: normalizedDescription,
-            ...input.extra,
-          },
-        },
-        { attachments }
-      );
-    });
-
-    if (input.flushTimeoutMs !== undefined) {
-      const client = Sentry.getClient();
-      if (!client) {
-        throw new Error(`Failed to flush feedback report${eventId ? ` (${eventId})` : ''}: Sentry is not initialized`);
-      }
-
-      const flushed = await client.flush(input.flushTimeoutMs);
-      if (!flushed) {
-        throw new Error(`Failed to flush feedback report${eventId ? ` (${eventId})` : ''}`);
-      }
+    const adminResponse = await submitToAdminFeedback(input, normalizedDescription, attachments);
+    if (!adminResponse.success) {
+      throw new Error('Failed to submit feedback report to admin backend');
     }
+    adminReportId = adminResponse.report?.id;
 
     logFeedbackReport('info', 'submitted', {
       module: input.module,
-      eventId,
+      adminReportId,
       collectLogs: Boolean(input.collectLogs),
       logAttachment: summarizeLogAttachment(logAttachmentStatus, logAttachment),
       attachmentCount: attachments.length,
@@ -194,7 +204,7 @@ export async function submitFeedbackReport(input: SubmitFeedbackReportInput): Pr
   } catch (error) {
     logFeedbackReport('error', 'failed', {
       module: input.module,
-      eventId,
+      adminReportId,
       collectLogs: Boolean(input.collectLogs),
       logAttachment: summarizeLogAttachment(logAttachmentStatus, logAttachment),
       attachmentCount: attachments.length,

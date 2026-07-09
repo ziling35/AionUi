@@ -272,6 +272,8 @@
     "bodyTurnCompleted": "ایجنت پاسخ را کامل کرده است"
   },
   "notification": "اعلان‌ها",
+  "notificationSoundEnabled": "یادآوری صوتی",
+  "notificationSoundEnabledDesc": "هنگامی که گفتگو به تأیید نیاز دارد یا پاسخ دستیار کامل می‌شود، صدا پخش شود",
   "cronNotificationEnabled": "اتمام کار زمان‌بندی‌شده",
   "promptTimeout": "مهلت پرامپت LLM (ثانیه)",
   "groupAiCore": "هسته هوش مصنوعی",
@@ -1176,6 +1178,22 @@
     "pendingCancel": "لغو",
     "pendingTimeRemaining": "زمان باقی‌مانده: {{time}}"
   },
+  "aionrsApprovalRules": {
+    "title": "AI CLI approval rules",
+    "description": "Manage command and category approvals saved from \"always allow\". Removing a rule also revokes it from running AI CLI tasks.",
+    "refresh": "Refresh",
+    "empty": "No saved approval rules",
+    "loadFailed": "Failed to load AI CLI approval rules",
+    "delete": "Delete",
+    "deleteConfirm": "Delete this approval rule?",
+    "deleteSuccess": "Approval rule deleted. Revoked {{count}} active task(s).",
+    "deleteFailed": "Failed to delete approval rule",
+    "scopeCommandPrefix": "Command prefix",
+    "scopeCategory": "Category",
+    "scopeUnknown": "Unknown",
+    "category": "Category",
+    "updatedAt": "Updated"
+  },
   "retry": "تلاش مجدد",
   "runtimeStatus": {
     "waitingForLock": "در انتظار اتمام کار دیگری برای آماده‌سازی {{resource}}.",
@@ -1245,6 +1263,9 @@
     "cloudHistorySyncNow": "Save to cloud now",
     "cloudHistorySyncSuccess": "Saved {{conversations}} conversation(s), {{messages}} message(s) to cloud",
     "cloudHistorySyncFailed": "Failed to save history to cloud",
-    "cloudHistorySyncDisabled": "Turn on cloud history before saving"
+    "cloudHistorySyncDisabled": "Turn on cloud history before saving",
+    "resetWindowPlan": "Resetting quota package",
+    "resetAfter": "Resets in",
+    "validUntil": "Valid until"
   }
 }

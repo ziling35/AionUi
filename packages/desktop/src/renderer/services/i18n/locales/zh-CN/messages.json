@@ -2,6 +2,7 @@
   "fileChanges": "文件变更",
   "fileChangesCount": "{{count}} 个文件变更",
   "conversationInProgress": "当前正在进行对话中...",
+  "executionPlan": "执行计划",
   "confirm": "确认",
   "canceledExecution": "已取消执行",
   "openLinkFailed": "打开链接失败",
@@ -57,6 +58,24 @@
   "noOptionsAvailable": "无可用选项",
   "processing": "处理中...",
   "responseSentSuccessfully": "响应已成功发送",
+  "permissionAllowedAgentContinuing": "已允许权限，智能体将继续执行。",
+  "permissionRejectedTurnStopped": "已拒绝权限，当前任务已停止。",
+  "timeTravel": {
+    "tooltip": "回到此处状态",
+    "noWorkspace": "当前对话没有绑定工作区，无法回滚文件。",
+    "backendUnsupported": "此对话还没有可用的回滚快照。升级后端并从新对话开始后才能使用。",
+    "unavailable": "这条消息没有可用的回滚快照。",
+    "previewFailed": "加载回滚预览失败。",
+    "restoreFailed": "恢复工作区失败。",
+    "previewTitle": "要把工作区恢复到这条消息时吗？",
+    "previewDescription": "这会撤销此消息之后的文件修改。恢复前会自动创建备份。",
+    "fileChangeCount": "将变更 {{count}} 个文件",
+    "moreFiles": "+ 还有 {{count}} 个",
+    "messageDeleteHint": "此位置之后的 {{count}} 条消息可能会从可见历史中移除。",
+    "confirm": "恢复",
+    "restoreSuccess": "工作区已恢复到这条消息时的状态。",
+    "restoreSuccessWithBackup": "工作区已恢复。备份：{{path}}"
+  },
   "confirmation": {
     "applyChange": "应用此更改？",
     "allowExecution": "允许执行？",
@@ -73,5 +92,20 @@
     "yesDoNotAskAgain": "同意，并且不再询问",
     "yesDoNotAskAgainForCommandsStarting": "同意，并且以后不再询问以 `{{command}}` 开头的命令",
     "no": "拒绝"
+  },
+  "toolSummary": {
+    "viewSteps": "查看步骤",
+    "suggestion": "建议：{{hint}}",
+    "partialResults": "部分结果",
+    "loading": "正在加载...",
+    "loadFailed": "加载完整输出失败",
+    "input": "输入",
+    "output": "输出",
+    "truncated": "已截断",
+    "truncatedHint": "预览已截断，展开后会加载完整输出。",
+    "running": "运行中",
+    "runningWithElapsed": "运行中 · {{elapsed}}",
+    "elapsedSeconds": "{{count}} 秒",
+    "elapsedMinutes": "{{count}} 分钟"
   }
 }

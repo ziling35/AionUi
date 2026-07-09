@@ -1,4 +1,18 @@
-import { Button, Card, Form, Input, InputNumber, Modal, Popconfirm, Select, Space, Switch, Table, Tag, message } from 'antd';
+import {
+  Button,
+  Card,
+  Form,
+  Input,
+  InputNumber,
+  Modal,
+  Popconfirm,
+  Select,
+  Space,
+  Switch,
+  Table,
+  Tag,
+  message,
+} from 'antd';
 import { DeleteOutlined, EditOutlined, PlusOutlined, ReloadOutlined } from '@ant-design/icons';
 import axios from 'axios';
 import { useEffect, useState } from 'react';
@@ -19,8 +33,15 @@ type AppRelease = {
 };
 
 const API_BASE = '/api';
-const PLATFORM_OPTIONS = [{ label: 'Windows', value: 'win32' }, { label: 'macOS', value: 'darwin' }, { label: 'Linux', value: 'linux' }];
-const ARCH_OPTIONS = [{ label: 'x64', value: 'x64' }, { label: 'arm64', value: 'arm64' }];
+const PLATFORM_OPTIONS = [
+  { label: 'Windows', value: 'win32' },
+  { label: 'macOS', value: 'darwin' },
+  { label: 'Linux', value: 'linux' },
+];
+const ARCH_OPTIONS = [
+  { label: 'x64', value: 'x64' },
+  { label: 'arm64', value: 'arm64' },
+];
 
 export default function Releases() {
   const [releases, setReleases] = useState<AppRelease[]>([]);
@@ -94,8 +115,12 @@ export default function Releases() {
           <p className='page-subtitle'>配置客户端自动更新检测版本、安装包文件名和 sha512 校验值。</p>
         </div>
         <Space>
-          <Button icon={<ReloadOutlined />} onClick={() => void fetchReleases()}>刷新</Button>
-          <Button type='primary' icon={<PlusOutlined />} onClick={openCreate}>新增版本</Button>
+          <Button icon={<ReloadOutlined />} onClick={() => void fetchReleases()}>
+            刷新
+          </Button>
+          <Button type='primary' icon={<PlusOutlined />} onClick={openCreate}>
+            新增版本
+          </Button>
         </Space>
       </div>
 
@@ -125,7 +150,11 @@ export default function Releases() {
                 <Tag color={forceUpdate ? 'error' : 'processing'}>{forceUpdate ? '强制' : '可选'}</Tag>
               ),
             },
-            { title: '状态', dataIndex: 'enabled', render: (enabled) => <Tag color={enabled ? 'success' : 'default'}>{enabled ? '启用' : '停用'}</Tag> },
+            {
+              title: '状态',
+              dataIndex: 'enabled',
+              render: (enabled) => <Tag color={enabled ? 'success' : 'default'}>{enabled ? '启用' : '停用'}</Tag>,
+            },
             { title: '发布时间', dataIndex: 'releaseDate', render: (value) => new Date(value).toLocaleString() },
             {
               title: '操作',
@@ -143,7 +172,15 @@ export default function Releases() {
         />
       </Card>
 
-      <Modal title={editing ? '编辑版本' : '新增版本'} open={modalOpen} onOk={() => form.submit()} onCancel={() => setModalOpen(false)} width={760} okText='保存' cancelText='取消'>
+      <Modal
+        title={editing ? '编辑版本' : '新增版本'}
+        open={modalOpen}
+        onOk={() => form.submit()}
+        onCancel={() => setModalOpen(false)}
+        width={760}
+        okText='保存'
+        cancelText='取消'
+      >
         <Form form={form} layout='vertical' onFinish={submit}>
           <Space style={{ width: '100%' }} size='large'>
             <Form.Item
@@ -156,20 +193,23 @@ export default function Releases() {
             >
               <Input placeholder='2.2.0' />
             </Form.Item>
-            <Form.Item name='channel' label='通道' rules={[{ required: true }]}><Input placeholder='latest' /></Form.Item>
-            <Form.Item name='platform' label='平台' rules={[{ required: true }]}><Select options={PLATFORM_OPTIONS} style={{ width: 140 }} /></Form.Item>
-            <Form.Item name='arch' label='架构' rules={[{ required: true }]}><Select options={ARCH_OPTIONS} style={{ width: 120 }} /></Form.Item>
+            <Form.Item name='channel' label='通道' rules={[{ required: true }]}>
+              <Input placeholder='latest' />
+            </Form.Item>
+            <Form.Item name='platform' label='平台' rules={[{ required: true }]}>
+              <Select options={PLATFORM_OPTIONS} style={{ width: 140 }} />
+            </Form.Item>
+            <Form.Item name='arch' label='架构' rules={[{ required: true }]}>
+              <Select options={ARCH_OPTIONS} style={{ width: 120 }} />
+            </Form.Item>
           </Space>
           <Form.Item
             name='fileName'
-            label='安装包文件名'
-            rules={[
-              { required: true, message: '请输入安装包文件名' },
-              { pattern: /\.(exe|msi|dmg|zip|deb|rpm)$/i, message: '文件名必须是安装包，例如 .exe/.dmg/.deb' },
-            ]}
+            label='发布文件名'
+            rules={[{ required: true, message: '请输入发布文件名' }]}
             extra='必须和服务器 releases/<version>/ 目录中的文件名完全一致。'
           >
-            <Input placeholder='LingAI-2.2.0-win-x64.exe' />
+            <Input placeholder='LingAI-2.2.0-win-x64' />
           </Form.Item>
           <Form.Item
             name='sha512'
@@ -182,12 +222,22 @@ export default function Releases() {
             <Input.TextArea rows={2} placeholder='复制 out/latest.yml 中的 sha512，不是随便填 1' />
           </Form.Item>
           <Space style={{ width: '100%' }} size='large'>
-            <Form.Item name='size' label='文件大小（字节）'><InputNumber min={0} style={{ width: 180 }} /></Form.Item>
-            <Form.Item name='releaseDate' label='发布时间'><Input placeholder='留空则使用当前时间' /></Form.Item>
-            <Form.Item name='forceUpdate' label='强制更新' valuePropName='checked'><Switch /></Form.Item>
-            <Form.Item name='enabled' label='启用' valuePropName='checked'><Switch /></Form.Item>
+            <Form.Item name='size' label='文件大小（字节）'>
+              <InputNumber min={0} style={{ width: 180 }} />
+            </Form.Item>
+            <Form.Item name='releaseDate' label='发布时间'>
+              <Input placeholder='留空则使用当前时间' />
+            </Form.Item>
+            <Form.Item name='forceUpdate' label='强制更新' valuePropName='checked'>
+              <Switch />
+            </Form.Item>
+            <Form.Item name='enabled' label='启用' valuePropName='checked'>
+              <Switch />
+            </Form.Item>
           </Space>
-          <Form.Item name='releaseNotes' label='更新说明'><Input.TextArea rows={4} placeholder='展示给客户端的更新说明' /></Form.Item>
+          <Form.Item name='releaseNotes' label='更新说明'>
+            <Input.TextArea rows={4} placeholder='展示给客户端的更新说明' />
+          </Form.Item>
         </Form>
       </Modal>
     </div>

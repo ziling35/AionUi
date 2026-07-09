@@ -20,7 +20,10 @@ import {
   localStopAcknowledgedConversationRuntimeView,
   localStopRequested,
   localStopRequestedConversationRuntimeView,
+  resetLocalGateConversationRuntimeView,
   resetConversationRuntimeViewStoreForTest,
+  streamRuntimeStateObserved,
+  streamStateConversationRuntimeView,
   turnCompleted,
   turnCompletedConversationRuntimeView,
 } from '@/renderer/pages/conversation/runtime/conversationRuntimeViewStore';
@@ -103,6 +106,43 @@ describe('conversationRuntimeViewStore', () => {
       canSendMessage: false,
       localSubmitting: true,
       hydrated: true,
+    });
+  });
+
+  it('applies stream runtime state without releasing send gate', () => {
+    const started = localSendStartedConversationRuntimeView(undefined, conversation_id).view;
+    const { view, logs } = streamStateConversationRuntimeView(
+      started,
+      conversation_id,
+      'turn-1',
+      'waiting_tool',
+      'tool_call'
+    );
+
+    expect(view).toMatchObject({
+      activeTurnId: 'turn-1',
+      state: 'waiting_tool',
+      isProcessing: true,
+      canSendMessage: false,
+      localSubmitting: false,
+      hydrated: true,
+    });
+    expect(logs[0]?.event).toBe('runtime_stream_state');
+  });
+
+  it('dedupes repeated stream runtime state events', () => {
+    resetConversationRuntimeViewStoreForTest();
+
+    const firstLogs = streamRuntimeStateObserved(conversation_id, 'turn-1', 'stalled', 'stream_idle_timeout');
+    const secondLogs = streamRuntimeStateObserved(conversation_id, 'turn-1', 'stalled', 'stream_idle_timeout');
+
+    expect(firstLogs).toHaveLength(1);
+    expect(secondLogs).toHaveLength(0);
+    expect(getConversationRuntimeViewSnapshot(conversation_id)).toMatchObject({
+      activeTurnId: 'turn-1',
+      state: 'stalled',
+      isProcessing: true,
+      canSendMessage: false,
     });
   });
 
@@ -304,6 +344,31 @@ describe('conversationRuntimeViewStore', () => {
       isProcessing: false,
       canSendMessage: true,
       localSubmitting: false,
+      localStopping: false,
+    });
+  });
+
+  it('releases processing after stop request fails', () => {
+    const running = hydrateSucceededConversationRuntimeView(
+      undefined,
+      conversation_id,
+      runtime({
+        state: 'running',
+        can_send_message: false,
+        has_task: true,
+        task_status: 'running',
+        is_processing: true,
+        turn_id: 'turn-1',
+      })
+    ).view;
+    const requested = localStopRequestedConversationRuntimeView(running, conversation_id, 'turn-1').view;
+    const { view } = resetLocalGateConversationRuntimeView(requested, conversation_id, 'stop_failed');
+
+    expect(view).toMatchObject({
+      activeTurnId: null,
+      state: 'idle',
+      isProcessing: false,
+      canSendMessage: true,
       localStopping: false,
     });
   });

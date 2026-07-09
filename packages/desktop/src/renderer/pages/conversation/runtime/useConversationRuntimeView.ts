@@ -5,7 +5,8 @@
  */
 
 import { ipcBridge } from '@/common';
-import type { TConversationRuntimeSummary } from '@/common/config/storage';
+import type { IResponseMessage } from '@/common/adapter/ipcBridge';
+import type { TConversationRuntimeStateKind, TConversationRuntimeSummary } from '@/common/config/storage';
 import { getConversationOrNull } from '@/renderer/pages/conversation/utils/conversationCache';
 import { useCallback, useEffect, useSyncExternalStore } from 'react';
 import {
@@ -20,6 +21,7 @@ import {
   localStopAcknowledged,
   localStopRequested,
   resetLocalGate,
+  streamRuntimeStateObserved,
   subscribeConversationRuntimeView,
   turnCompleted,
   type ConversationRuntimeView,
@@ -65,6 +67,36 @@ const flushRuntimeViewLogs = (logs: ConversationRuntimeViewLogEntry[]): void => 
 
 const getRuntimeOrNull = (runtime: TConversationRuntimeSummary | undefined): TConversationRuntimeSummary | null =>
   runtime ?? null;
+
+const runtimeStreamStates = new Set<TConversationRuntimeStateKind>([
+  'idle',
+  'starting',
+  'running',
+  'waiting_tool',
+  'cancelling',
+  'waiting_confirmation',
+  'stalled',
+  'error',
+  'done',
+]);
+
+const parseRuntimeStateMessage = (
+  message: IResponseMessage
+): { state: TConversationRuntimeStateKind; reason: string } | null => {
+  if (message.type !== 'runtime_state' || typeof message.data !== 'object' || message.data === null) {
+    return null;
+  }
+
+  const data = message.data as { state?: unknown; reason?: unknown };
+  if (typeof data.state !== 'string' || !runtimeStreamStates.has(data.state as TConversationRuntimeStateKind)) {
+    return null;
+  }
+
+  return {
+    state: data.state as TConversationRuntimeStateKind,
+    reason: typeof data.reason === 'string' ? data.reason : 'stream',
+  };
+};
 
 export const useConversationRuntimeView = (conversation_id: string): UseConversationRuntimeViewReturn => {
   const getSnapshot = useCallback(() => getConversationRuntimeViewSnapshot(conversation_id), [conversation_id]);
@@ -126,6 +158,36 @@ export const useConversationRuntimeView = (conversation_id: string): UseConversa
     return () => {
       disposeTurnCompleted();
       disposeListChanged();
+    };
+  }, [conversation_id]);
+
+  useEffect(() => {
+    if (!conversation_id) {
+      return;
+    }
+
+    const handleRuntimeState = (message: IResponseMessage) => {
+      if (message.conversation_id !== conversation_id) {
+        return;
+      }
+
+      const runtimeState = parseRuntimeStateMessage(message);
+      if (!runtimeState) {
+        return;
+      }
+
+      flushRuntimeViewLogs(
+        streamRuntimeStateObserved(conversation_id, message.turn_id ?? null, runtimeState.state, runtimeState.reason)
+      );
+    };
+
+    const disposers = [
+      ipcBridge.conversation.responseStream.on(handleRuntimeState),
+      ipcBridge.acpConversation.responseStream.on(handleRuntimeState),
+    ];
+
+    return () => {
+      disposers.forEach((dispose) => dispose());
     };
   }, [conversation_id]);
 

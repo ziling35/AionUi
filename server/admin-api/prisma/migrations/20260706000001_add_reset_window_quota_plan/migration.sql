@@ -1,0 +1,11 @@
+ALTER TABLE "User" ADD COLUMN "quotaPlanType" TEXT NOT NULL DEFAULT 'balance';
+ALTER TABLE "User" ADD COLUMN "quotaWindowHours" INTEGER;
+ALTER TABLE "User" ADD COLUMN "quotaWindowLimit" INTEGER;
+ALTER TABLE "User" ADD COLUMN "quotaWindowUsed" INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE "User" ADD COLUMN "quotaWindowStartedAt" DATETIME;
+ALTER TABLE "User" ADD COLUMN "quotaWindowEndsAt" DATETIME;
+ALTER TABLE "User" ADD COLUMN "quotaExpiresAt" DATETIME;
+
+ALTER TABLE "CardSecret" ADD COLUMN "planType" TEXT NOT NULL DEFAULT 'balance';
+ALTER TABLE "CardSecret" ADD COLUMN "windowHours" INTEGER;
+ALTER TABLE "CardSecret" ADD COLUMN "validDays" INTEGER;

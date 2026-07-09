@@ -11,6 +11,7 @@ import { CronJobIndicator } from '@/renderer/pages/cron';
 import { resolveConversationLeadingMark } from '@/renderer/pages/conversation/utils/conversationAssistantIdentity';
 import { cleanupSiderTooltips, getSiderTooltipProps } from '@/renderer/utils/ui/siderTooltip';
 import { useLayoutContext } from '@/renderer/hooks/context/LayoutContext';
+import { useOverflowState } from '@/renderer/hooks/ui/useOverflowState';
 import { Checkbox, Dropdown, Menu, Spin, Tooltip } from '@arco-design/web-react';
 import { DeleteOne, EditOne, Export, MessageOne, MoreOne, Pushpin, Robot } from '@icon-park/react';
 import classNames from 'classnames';
@@ -19,6 +20,12 @@ import { useTranslation } from 'react-i18next';
 
 import type { ConversationRowProps } from './types';
 import { isConversationPinned } from './utils/groupingHelpers';
+
+const getDocumentBody = () => document.body;
+
+const renderTitleTooltipContent = (title: string) => (
+  <span className='block max-w-320px whitespace-normal break-words text-left'>{title}</span>
+);
 
 const ConversationRow: React.FC<ConversationRowProps> = (props) => {
   const {
@@ -54,6 +61,16 @@ const ConversationRow: React.FC<ConversationRowProps> = (props) => {
   const cronStatus = getJobStatus(conversation.id);
   const siderTooltipProps = getSiderTooltipProps(tooltipEnabled);
   const inlineNameTooltipEnabled = !collapsed && !isMobile && !!conversation.name;
+  const {
+    ref: nameRef,
+    overflowing: nameOverflowing,
+    updateOverflowState: updateNameOverflowState,
+  } = useOverflowState<HTMLSpanElement>();
+  const showInlineNameTooltip = inlineNameTooltipEnabled && nameOverflowing;
+
+  React.useLayoutEffect(() => {
+    updateNameOverflowState();
+  }, [conversation.name, collapsed, isMobile, updateNameOverflowState]);
 
   const renderLeadingIcon = () => {
     if (cronStatus !== 'none') {
@@ -178,16 +195,19 @@ const ConversationRow: React.FC<ConversationRowProps> = (props) => {
         </span>
         <FlexFullContainer className='h-24px min-w-0 flex-1 collapsed-hidden'>
           <Tooltip
-            content={conversation.name}
-            disabled={!inlineNameTooltipEnabled}
+            content={renderTitleTooltipContent(conversation.name || '')}
+            disabled={!showInlineNameTooltip}
             trigger='hover'
-            popupVisible={inlineNameTooltipEnabled ? undefined : false}
+            popupVisible={showInlineNameTooltip ? undefined : false}
             unmountOnExit
             popupHoverStay={false}
-            position='top'
+            position='right'
+            getPopupContainer={getDocumentBody}
           >
             <div className='chat-history__item-name overflow-hidden text-ellipsis block w-full text-14px font-[500] lh-24px whitespace-nowrap min-w-0 text-t-primary'>
-              <span className='block overflow-hidden text-ellipsis whitespace-nowrap'>{conversation.name}</span>
+              <span ref={nameRef} className='block overflow-hidden text-ellipsis whitespace-nowrap'>
+                {conversation.name}
+              </span>
             </div>
           </Tooltip>
         </FlexFullContainer>

@@ -63,6 +63,14 @@ contextBridge.exposeInMainWorld('__lingaiE2ETest', process.env.LINGAI_E2E_TEST =
 contextBridge.exposeInMainWorld('__backendStartupFailed', backendStartupFailed === true);
 contextBridge.exposeInMainWorld('__backendStartupFailure', backendStartupFailure ?? null);
 
+ipcRenderer.on('backend:port-changed', (_event, payload: { port?: unknown }) => {
+  const port = payload?.port;
+  if (typeof port !== 'number' || !Number.isInteger(port) || port <= 0) {
+    return;
+  }
+  window.dispatchEvent(new CustomEvent('backend:port-changed', { detail: { port } }));
+});
+
 // 托盘事件监听 - 将 IPC 事件转换为 DOM 事件
 // Tray event listeners - convert IPC events to DOM events
 const trayEvents = [

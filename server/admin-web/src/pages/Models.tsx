@@ -95,6 +95,7 @@ interface ModelItem {
   fixedCost: number;
   minCost: number;
   reserveCost: number;
+  sortOrder: number;
   isActive: boolean;
   type: string;
   unitPrice: number;
@@ -201,6 +202,7 @@ function ProviderModal({ open, editingProvider, onCancel, onSuccess }: ProviderM
           fixedCost: 0,
           minCost: 1,
           reserveCost: 0,
+          sortOrder: 0,
           isActive: true,
           type: 'chat',
           unitPrice: 0,
@@ -310,6 +312,7 @@ function AddModelModal({ open, provider, onCancel, onSuccess }: AddModelModalPro
         fixedCost: 0,
         minCost: 1,
         reserveCost: 0,
+        sortOrder: 0,
         isActive: true,
         type: 'chat',
         unitPrice: 0,
@@ -363,6 +366,7 @@ function AddModelModal({ open, provider, onCancel, onSuccess }: AddModelModalPro
         fixedCost: values.fixedCost || 0,
         minCost: values.minCost || 1,
         reserveCost: values.reserveCost || 0,
+        sortOrder: values.sortOrder || 0,
         isActive: values.isActive !== false,
         type: values.type || 'chat',
         unitPrice: values.unitPrice || 0,
@@ -419,6 +423,9 @@ function AddModelModal({ open, provider, onCancel, onSuccess }: AddModelModalPro
 
         <Form.Item name='multiplier' label='扣费倍率' rules={[{ required: true, message: '请输入扣费倍率' }]}>
           <InputNumber min={0.1} step={0.1} style={{ width: '100%' }} />
+        </Form.Item>
+        <Form.Item name='sortOrder' label='显示排序' tooltip='数值越小越靠前；相同数值按创建时间排序。'>
+          <InputNumber min={0} step={1} style={{ width: '100%' }} />
         </Form.Item>
         <Form.Item
           name='billingMode'
@@ -481,6 +488,7 @@ function EditModelModal({ open, model, onCancel, onSuccess }: EditModelModalProp
         fixedCost: model.fixedCost ?? 0,
         minCost: model.minCost ?? 1,
         reserveCost: model.reserveCost ?? 0,
+        sortOrder: model.sortOrder ?? 0,
         type: model.type,
         unitPrice: model.unitPrice || 0,
         isActive: model.isActive,
@@ -519,6 +527,9 @@ function EditModelModal({ open, model, onCancel, onSuccess }: EditModelModalProp
         </Form.Item>
         <Form.Item name='multiplier' label='扣费倍率' rules={[{ required: true, message: '请输入扣费倍率' }]}>
           <InputNumber min={0.1} step={0.1} style={{ width: '100%' }} />
+        </Form.Item>
+        <Form.Item name='sortOrder' label='显示排序' tooltip='数值越小越靠前；相同数值按创建时间排序。'>
+          <InputNumber min={0} step={1} style={{ width: '100%' }} />
         </Form.Item>
         <Form.Item
           name='billingMode'
@@ -832,6 +843,14 @@ export default function Models() {
                         ),
                       },
                       { title: '显示名称', dataIndex: 'name', key: 'name' },
+                      {
+                        title: '显示排序',
+                        dataIndex: 'sortOrder',
+                        key: 'sortOrder',
+                        width: 90,
+                        sorter: (a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0),
+                        render: (val) => <Tag>{val ?? 0}</Tag>,
+                      },
                       {
                         title: '类型',
                         dataIndex: 'type',

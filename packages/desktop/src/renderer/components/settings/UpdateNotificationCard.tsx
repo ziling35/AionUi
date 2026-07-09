@@ -28,6 +28,8 @@ const UpdateNotificationCard: React.FC = () => {
   if (!state.visible) return null;
 
   const isForceUpdate = state.forceUpdate && state.status !== 'upToDate';
+  const hasManualInstallerPath = Boolean(state.downloadPath);
+  const displayedInstallerPath = state.downloadPath || state.autoUpdateFilePath;
 
   if (state.presentation === 'mini') {
     const miniPercent = state.status === 'downloaded' ? 100 : state.progress.percent;
@@ -123,16 +125,31 @@ const UpdateNotificationCard: React.FC = () => {
         return renderProgress();
       case 'downloaded':
         return (
-          <div className='flex items-start gap-10px text-13px text-t-secondary leading-relaxed'>
+          <div className='flex items-start gap-10px text-13px text-t-secondary leading-relaxed min-w-0'>
             <CheckOne theme='filled' size='18' fill='rgb(var(--success-6))' className='mt-2px shrink-0' />
-            <span>{t('update.downloadCompleteTitle')}</span>
+            <div className='min-w-0'>
+              <div>{t(state.downloadRestored ? 'update.downloadRestoredTitle' : 'update.downloadCompleteTitle')}</div>
+              <div className='mt-4px'>
+                {hasManualInstallerPath
+                  ? t('update.manualInstallPreservesData')
+                  : t(state.downloadRestored ? 'update.downloadRestoredDesc' : 'update.autoInstallPreservesData')}
+              </div>
+              {displayedInstallerPath && (
+                <div className='mt-6px break-all text-12px text-t-tertiary'>
+                  {t('update.manualInstallerSavedTo')} {displayedInstallerPath}
+                </div>
+              )}
+            </div>
           </div>
         );
       case 'preparing-install':
         return (
-          <div className='flex items-start gap-10px text-13px text-t-secondary leading-relaxed'>
+          <div className='flex items-start gap-10px text-13px text-t-secondary leading-relaxed min-w-0'>
             <CheckOne theme='filled' size='18' fill='rgb(var(--success-6))' className='mt-2px shrink-0' />
-            <span>{t('update.downloadCompleteTitle')}</span>
+            <div className='min-w-0'>
+              <div>{t('update.preparingInstall')}</div>
+              <div className='mt-4px'>{t('update.autoInstallPreservesData')}</div>
+            </div>
           </div>
         );
       case 'success':
@@ -160,8 +177,15 @@ const UpdateNotificationCard: React.FC = () => {
               {t('update.later')}
             </Button>
           )}
+          {hasManualInstallerPath && (
+            <Button size='small' className={ACTION_BTN_CLASS} onClick={actions.showInFolder}>
+              {t('update.showInFolder')}
+            </Button>
+          )}
           <Button type='primary' size='small' className={ACTION_BTN_CLASS} onClick={actions.quitAndInstall}>
-            {t('update.restartNow')}
+            {hasManualInstallerPath
+              ? t('update.openInstaller')
+              : t(state.downloadRestored ? 'update.continueInstall' : 'update.restartNow')}
           </Button>
         </>
       );
@@ -259,9 +283,7 @@ const UpdateNotificationCard: React.FC = () => {
   return renderNotificationLayer(
     <>
       {isForceUpdate ? (
-        <div className='fixed inset-0 z-1000 flex items-center justify-center bg-[rgba(0,0,0,0.45)]'>
-          {cardContent}
-        </div>
+        <div className='fixed inset-0 z-1000 flex items-center justify-center bg-[rgba(0,0,0,0.45)]'>{cardContent}</div>
       ) : (
         cardContent
       )}

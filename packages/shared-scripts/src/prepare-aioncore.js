@@ -2,8 +2,10 @@
  * Prepare aioncore binary for packaging.
  *
  * Resolution order:
- *  1. GitHub Actions artifact download when LINGAI_BACKEND_RUN_ID is set
- *  2. GitHub release download (requires version or defaults to "latest")
+ *  1. LINGAI_BACKEND_BINARY when set
+ *  2. Existing resources/bundled-aioncore/{platform}-{arch}/ bundle
+ *  3. GitHub Actions artifact download when LINGAI_BACKEND_RUN_ID is set
+ *  4. GitHub release download (requires version or defaults to "latest")
  *
  * Output: {projectRoot}/resources/bundled-aioncore/{platform}-{arch}/
  *   - aioncore[.exe]
@@ -17,9 +19,12 @@ const { execSync, execFileSync } = require('child_process');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const { verifyBundledAioncoreResources } = require('./verify-bundled-aioncore-resources');
 
 const GITHUB_OWNER = 'iOfficeAI';
 const GITHUB_REPO = 'AionCore';
+const LOCAL_BINARY_ENV = 'LINGAI_BACKEND_BINARY';
+const FORCE_DOWNLOAD_ENV = 'LINGAI_BACKEND_FORCE_DOWNLOAD';
 
 const ACTIONS_ARTIFACT_TARGETS = {
   'darwin-arm64': {
@@ -76,6 +81,19 @@ function ensureExecutableMode(filePath) {
 
 function writeJson(filePath, payload) {
   fs.writeFileSync(filePath, JSON.stringify(payload, null, 2) + '\n', 'utf-8');
+}
+
+function readJson(filePath) {
+  try {
+    return JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+  } catch {
+    return null;
+  }
+}
+
+function isTruthyEnv(name) {
+  const value = process.env[name];
+  return typeof value === 'string' && ['1', 'true', 'yes', 'on'].includes(value.trim().toLowerCase());
 }
 
 function getBinaryName(platform) {
@@ -249,6 +267,69 @@ function findAioncoreArchiveInDir(dir) {
     }
   }
   return null;
+}
+
+function isSamePath(left, right) {
+  return path.resolve(left).toLowerCase() === path.resolve(right).toLowerCase();
+}
+
+function hasPreparedManagedResources({ targetDir, platform, arch }) {
+  const managedResourcesDir = path.join(targetDir, 'managed-resources');
+  try {
+    if (!fs.statSync(managedResourcesDir).isDirectory()) return false;
+
+    const resourcesDir = path.resolve(targetDir, '..', '..');
+    const result = verifyBundledAioncoreResources({
+      resourcesDir,
+      electronPlatformName: platform,
+      targetArch: arch,
+    });
+
+    const missingManagedResources = result.missing.filter((item) => item.includes('/managed-resources/'));
+    if (missingManagedResources.length > 0) {
+      console.log(
+        [
+          '  Existing bundled managed resources are incomplete; regenerating.',
+          `Missing: ${missingManagedResources.join(', ')}`,
+        ].join(' ')
+      );
+      return false;
+    }
+
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function writeBundledManifest({ targetDir, platform, arch, version, sourceType, sourceDetail, binaryName }) {
+  writeJson(path.join(targetDir, 'manifest.json'), {
+    platform,
+    arch,
+    version,
+    generatedAt: new Date().toISOString(),
+    sourceType,
+    source: sourceDetail,
+    files: [binaryName, 'managed-resources/'],
+  });
+}
+
+function getReusableExistingBundle({ targetDir, binaryName, platform, arch, tag }) {
+  const binaryPath = path.join(targetDir, binaryName);
+  if (!fs.existsSync(binaryPath)) {
+    return null;
+  }
+
+  const manifest = readJson(path.join(targetDir, 'manifest.json'));
+  if (manifest && (manifest.platform !== platform || manifest.arch !== arch || manifest.version !== tag)) {
+    return null;
+  }
+
+  return {
+    binaryPath,
+    hasManagedResources: hasPreparedManagedResources({ targetDir, platform, arch }),
+    manifestMatched: Boolean(manifest),
+  };
 }
 
 function getGitHubToken() {
@@ -442,10 +523,66 @@ function prepareAioncore(options) {
   const targetDir = path.join(projectRoot, 'resources', 'bundled-aioncore', runtimeKey);
   const binaryName = getBinaryName(platform);
   const targetBinaryPath = path.join(targetDir, binaryName);
+  const localBinaryOverride = (process.env[LOCAL_BINARY_ENV] || '').trim();
 
   console.log(
     `Preparing aioncore for ${runtimeKey} (${actionsRunId ? `actions run: ${actionsRunId}` : `version: ${tag}`})`
   );
+
+  if (localBinaryOverride) {
+    if (!fs.existsSync(localBinaryOverride)) {
+      throw new Error(`${LOCAL_BINARY_ENV} points to a missing file: ${localBinaryOverride}`);
+    }
+    ensureDirectory(targetDir);
+    if (!isSamePath(localBinaryOverride, targetBinaryPath)) {
+      copyFileSafe(localBinaryOverride, targetBinaryPath);
+    }
+    ensureExecutableMode(targetBinaryPath);
+    const bundledManagedResourcesDir = prepareManagedResources(targetBinaryPath, targetDir);
+    writeBundledManifest({
+      targetDir,
+      platform,
+      arch,
+      version: tag || `actions-run-${actionsRunId}`,
+      sourceType: 'local-binary',
+      sourceDetail: { path: localBinaryOverride },
+      binaryName,
+    });
+    console.log(
+      `  Bundled aioncore prepared: resources/bundled-aioncore/${runtimeKey}/${binaryName} [source=local-binary]`
+    );
+    console.log(`  Bundled managed resources prepared: ${bundledManagedResourcesDir}`);
+    return { prepared: true, dir: targetDir, sourceType: 'local-binary' };
+  }
+
+  const reusableExistingBundle = isTruthyEnv(FORCE_DOWNLOAD_ENV)
+    ? null
+    : getReusableExistingBundle({ targetDir, binaryName, platform, arch, tag });
+  if (reusableExistingBundle) {
+    console.log(
+      reusableExistingBundle.manifestMatched
+        ? `  Reusing existing bundled aioncore for ${runtimeKey}`
+        : `  Reusing existing bundled aioncore for ${runtimeKey} (manifest missing)`
+    );
+    ensureExecutableMode(reusableExistingBundle.binaryPath);
+    const bundledManagedResourcesDir = reusableExistingBundle.hasManagedResources
+      ? path.join(targetDir, 'managed-resources')
+      : prepareManagedResources(targetBinaryPath, targetDir);
+    writeBundledManifest({
+      targetDir,
+      platform,
+      arch,
+      version: tag || `actions-run-${actionsRunId}`,
+      sourceType: 'existing-bundle',
+      sourceDetail: { path: targetBinaryPath },
+      binaryName,
+    });
+    console.log(
+      `  Bundled aioncore prepared: resources/bundled-aioncore/${runtimeKey}/${binaryName} [source=existing-bundle]`
+    );
+    console.log(`  Bundled managed resources prepared: ${bundledManagedResourcesDir}`);
+    return { prepared: true, dir: targetDir, sourceType: 'existing-bundle' };
+  }
 
   removeDirectorySafe(targetDir);
   ensureDirectory(targetDir);
@@ -492,17 +629,15 @@ function prepareAioncore(options) {
     // The release tag is the authoritative version — the aioncore
     // binary does not expose a --version flag (it has --app-version which
     // takes a value, not a self-report).
-    const manifest = {
+    writeBundledManifest({
+      targetDir,
       platform,
       arch,
       version: tag || `actions-run-${actionsRunId}`,
-      generatedAt: new Date().toISOString(),
       sourceType,
-      source: sourceDetail,
-      files: [binaryName, 'managed-resources/'],
-    };
-
-    writeJson(path.join(targetDir, 'manifest.json'), manifest);
+      sourceDetail,
+      binaryName,
+    });
     console.log(
       `  Bundled aioncore prepared: resources/bundled-aioncore/${runtimeKey}/${binaryName} [source=${sourceType}]`
     );
@@ -518,5 +653,6 @@ function prepareAioncore(options) {
 module.exports = {
   getActionsArtifactMissingMessage,
   getActionsArtifactName,
+  getReusableExistingBundle,
   prepareAioncore,
 };

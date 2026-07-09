@@ -6,9 +6,13 @@
 
 import { ipcBridge } from '@/common';
 import type { IResponseMessage } from '@/common/adapter/ipcBridge';
+import type { IProvider } from '@/common/config/storage';
 import type { AcpConfigOptionDto, AcpModelInfo } from '@/common/types/platform/acpTypes';
 import { type AcpConfigSetStatus, type AcpDerivedOption, useAcpConfigOptions } from './useAcpConfigOptions';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { CLOUD_PROVIDER_ID } from '@/renderer/api/config';
+import { decodeCloudRoutingModelId } from '@/renderer/api/cloud';
+import { useModelProviderList } from './useModelProviderList';
 
 type UseAcpModelInfoArgs = {
   conversation_id: string;
@@ -31,6 +35,60 @@ export type UseAcpModelInfoResult = {
 };
 
 const getModelOptionKey = (model: AcpModelInfo['available_models'][number]): string => model.optionKey || model.id;
+export const LINGCODEX_BACKEND = 'lingcodex';
+
+const isImageModel = (modelId: string): boolean => modelId.toLowerCase().includes('image');
+
+const cloudModelMatches = (modelId: string, candidate?: string | null): boolean => {
+  if (!candidate) return false;
+  const rawModelId = decodeCloudRoutingModelId(modelId) || modelId;
+  const rawCandidate = decodeCloudRoutingModelId(candidate) || candidate;
+  return modelId === candidate || rawModelId === candidate || rawCandidate === modelId || rawModelId === rawCandidate;
+};
+
+export type LingCodexCloudModelInfoInput = {
+  providers: IProvider[];
+  getAvailableModels: (provider: IProvider) => string[];
+  formatModelLabel: (provider: Pick<IProvider, 'model_labels'> | undefined, modelName?: string) => string;
+  initialModelId?: string | null;
+  selectedModelOptionKey?: string | null;
+};
+
+export function buildLingcodexCloudModelInfo({
+  providers,
+  getAvailableModels,
+  formatModelLabel,
+  initialModelId,
+  selectedModelOptionKey,
+}: LingCodexCloudModelInfoInput): AcpModelInfo | null {
+  const cloudProviders = providers.filter((provider) => provider.id === CLOUD_PROVIDER_ID);
+  const availableModels: AcpModelInfo['available_models'] = cloudProviders.flatMap((provider, providerIndex) =>
+    getAvailableModels(provider)
+      .filter((modelId) => !isImageModel(modelId))
+      .map((modelId, modelIndex) => ({
+        id: modelId,
+        optionKey: `cloud:${providerIndex}:${modelIndex}:${modelId}`,
+        label: formatModelLabel(provider, modelId),
+        source: 'cloud' as const,
+        providerId: provider.id,
+        providerName: provider.name,
+      }))
+  );
+  if (availableModels.length === 0) return null;
+  const currentModelId = selectedModelOptionKey
+    ? availableModels.find((item) => getModelOptionKey(item) === selectedModelOptionKey)?.id
+    : undefined;
+  const selectedModel =
+    (currentModelId && availableModels.find((item) => item.id === currentModelId)) ||
+    (initialModelId && availableModels.find((item) => cloudModelMatches(item.id, initialModelId))) ||
+    availableModels[0];
+  return {
+    current_model_id: selectedModel.id,
+    current_model_option_key: getModelOptionKey(selectedModel),
+    current_model_label: selectedModel.label,
+    available_models: availableModels,
+  };
+}
 
 function sameModelInfo(a: AcpModelInfo | null, b: AcpModelInfo | null): boolean {
   if (a === b) return true;
@@ -47,6 +105,7 @@ function sameModelInfo(a: AcpModelInfo | null, b: AcpModelInfo | null): boolean 
         other.optionKey === item.optionKey &&
         other.source === item.source &&
         other.providerId === item.providerId &&
+        other.providerName === item.providerName &&
         other.label === item.label &&
         other.description === item.description
       );
@@ -67,20 +126,33 @@ function normalizeInitialModel(info: AcpModelInfo, initialModelId?: string): Acp
 
 export const useAcpModelInfo = ({
   conversation_id,
-  backend: _backend,
+  backend,
   initialModelId,
   prepareRuntime,
   enabled = true,
   onSelectModelSuccess,
   onSelectModelFailed,
 }: UseAcpModelInfoArgs): UseAcpModelInfoResult => {
+  const runtimeConfigEnabled = enabled && backend !== LINGCODEX_BACKEND;
   const { model, thoughtLevel, setStatus, setConfigOption } = useAcpConfigOptions({
     conversation_id,
     prepareRuntime,
-    enabled,
+    enabled: runtimeConfigEnabled,
   });
+  const { providers, getAvailableModels, formatModelLabel } = useModelProviderList();
   const [legacyModelInfo, setLegacyModelInfo] = useState<AcpModelInfo | null>(null);
   const [selectedModelOptionKey, setSelectedModelOptionKey] = useState<string | null>(null);
+
+  const lingcodexModelInfo = useMemo<AcpModelInfo | null>(() => {
+    if (backend !== LINGCODEX_BACKEND) return null;
+    return buildLingcodexCloudModelInfo({
+      providers,
+      getAvailableModels,
+      formatModelLabel,
+      initialModelId,
+      selectedModelOptionKey,
+    });
+  }, [backend, formatModelLabel, getAvailableModels, initialModelId, providers, selectedModelOptionKey]);
 
   const configModelInfo = useMemo<AcpModelInfo | null>(() => {
     if (!model) return null;
@@ -137,16 +209,35 @@ export const useAcpModelInfo = ({
     return ipcBridge.acpConversation.responseStream.on(handler);
   }, [conversation_id, enabled, initialModelId]);
 
-  const model_info = configModelInfo ?? legacyModelInfo;
+  const model_info = lingcodexModelInfo ?? configModelInfo ?? legacyModelInfo;
 
   const selectModel = useCallback(
     (model_id: string) => {
-      if (!enabled || !model) return;
-      const selectedModel = configModelInfo?.available_models.find(
+      if (!enabled) return;
+      const sourceModelInfo = lingcodexModelInfo ?? configModelInfo;
+      const selectedModel = sourceModelInfo?.available_models.find(
         (item) => getModelOptionKey(item) === model_id || item.id === model_id
       );
       const nextModelId = selectedModel?.id || model_id;
       const nextModelOptionKey = selectedModel ? getModelOptionKey(selectedModel) : model_id;
+      if (backend === LINGCODEX_BACKEND && selectedModel?.source === 'cloud') {
+        void ipcBridge.acpConversation.setConfigOption
+          .invoke({
+            conversation_id,
+            option_id: 'model',
+            value: nextModelId,
+          })
+          .then((response) => {
+            if (response.confirmation !== 'observed') throw new Error(response.confirmation);
+            setSelectedModelOptionKey(nextModelOptionKey);
+            onSelectModelSuccess?.(nextModelId);
+          })
+          .catch((error) => {
+            onSelectModelFailed?.(nextModelId, error);
+          });
+        return;
+      }
+      if (!model) return;
       void setConfigOption(model.id, nextModelId)
         .then(async () => {
           setSelectedModelOptionKey(nextModelOptionKey);
@@ -156,12 +247,25 @@ export const useAcpModelInfo = ({
           onSelectModelFailed?.(nextModelId, error);
         });
     },
-    [configModelInfo, enabled, model, onSelectModelFailed, onSelectModelSuccess, setConfigOption]
+    [
+      backend,
+      configModelInfo,
+      conversation_id,
+      enabled,
+      lingcodexModelInfo,
+      model,
+      onSelectModelFailed,
+      onSelectModelSuccess,
+      setConfigOption,
+    ]
   );
 
   return {
     model_info,
-    canSwitch: Boolean(configModelInfo && configModelInfo.available_models.length > 0),
+    canSwitch: Boolean(
+      (lingcodexModelInfo && lingcodexModelInfo.available_models.length > 0) ||
+      (configModelInfo && configModelInfo.available_models.length > 0)
+    ),
     isSetting: setStatus.state === 'setting' && setStatus.optionId === model?.id,
     selectModel,
     thoughtLevel,

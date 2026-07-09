@@ -16,6 +16,7 @@ import { createTwoFilesPatch } from 'diff';
 import React, { useMemo, useState } from 'react';
 import type { BadgeProps } from '@arco-design/web-react';
 import './MessageToolGroupSummary.css';
+import { ToolFeedbackPanel } from './MessageToolGroupSummary';
 
 const statusToBadge = (status: NormalizedToolStatus): BadgeProps['status'] => {
   switch (status) {
@@ -67,7 +68,7 @@ const MessageToolCall: React.FC<{ message: IMessageToolCall }> = ({ message }) =
     return <div className='text-t-primary'>{name}</div>;
   }
 
-  const hasDetail = normalized.input || normalized.output;
+  const hasDetail = normalized.input || normalized.output || normalized.feedback;
 
   return (
     <div className='flex flex-col'>
@@ -98,6 +99,7 @@ const MessageToolCall: React.FC<{ message: IMessageToolCall }> = ({ message }) =
       </div>
       {expanded && hasDetail && (
         <div className='tool-detail-panel m-l-20px m-t-4px'>
+          {normalized.feedback && <ToolFeedbackPanel feedback={normalized.feedback} />}
           {normalized.input && (
             <div className='tool-detail-section'>
               <div className='tool-detail-label'>Input</div>

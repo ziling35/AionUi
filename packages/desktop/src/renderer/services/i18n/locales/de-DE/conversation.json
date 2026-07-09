@@ -568,6 +568,9 @@
       },
       "ACP_EMPTY_TURN_REFUSAL": {
         "body": "Das Modell hat diese Anfrage abgelehnt, bevor eine sichtbare Antwort erzeugt wurde."
+      },
+      "AIONRS_RUNTIME_ENV_QUEUE": {
+        "body": "AI CLI is finishing another task. This reply is queued and will start automatically."
       }
     }
   },

@@ -16,6 +16,8 @@ declare global {
   }
 }
 
+let dynamicBackendPort: number | undefined;
+
 /**
  * Resolve the backend port, honoring both renderer and main-process contexts.
  *
@@ -33,6 +35,9 @@ declare global {
  *   will still fail cleanly with ECONNREFUSED rather than masking the bug.
  */
 function getBackendPort(): number {
+  if (dynamicBackendPort) {
+    return dynamicBackendPort;
+  }
   if (typeof window !== 'undefined' && (window as Window).__backendPort) {
     return (window as Window).__backendPort as number;
   }
@@ -343,6 +348,28 @@ let ws: WebSocket | null = null;
 let wsReconnectTimer: ReturnType<typeof setTimeout> | null = null;
 let wsReconnectAttempt = 0;
 let wsHasOpened = false;
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('backend:port-changed', (event: Event) => {
+    const port = (event as CustomEvent<{ port?: unknown }>).detail?.port;
+    if (typeof port !== 'number' || !Number.isInteger(port) || port <= 0) {
+      return;
+    }
+    const currentPort = dynamicBackendPort ?? (window as Window).__backendPort;
+    dynamicBackendPort = port;
+    try {
+      (window as Window).__backendPort = port;
+    } catch {
+      /* contextBridge-exposed globals can be read-only */
+    }
+    (globalThis as typeof globalThis & { __backendPort?: number }).__backendPort = port;
+    if (currentPort !== port && ws) {
+      ws.close();
+      ws = null;
+      ensureWs();
+    }
+  });
+}
 
 function dispatchWsEvent(eventName: string, payload: unknown): void {
   const handlers = wsListeners.get(eventName);

@@ -58,6 +58,8 @@ export type UpdateNotificationState = {
   releasePageUrl: string;
   errorMsg: string;
   downloadPath: string;
+  autoUpdateFilePath: string;
+  downloadRestored: boolean;
   activeTask: UpdateNotificationActiveTask | null;
   progress: UpdateNotificationProgress;
   presentation: UpdateNotificationPresentation;
@@ -147,6 +149,7 @@ export type UpdateNotificationEvent =
     }
   | {
       type: 'autoDownloaded';
+      filePath?: string;
     }
   | {
       type: 'autoDownloadedRestored';
@@ -154,6 +157,7 @@ export type UpdateNotificationEvent =
       currentVersion?: string;
       releaseNotes?: string;
       size?: number;
+      filePath?: string;
     }
   | {
       type: 'autoPreparingInstall';
@@ -203,6 +207,8 @@ export const initialUpdateNotificationState: UpdateNotificationState = {
   releasePageUrl: '',
   errorMsg: '',
   downloadPath: '',
+  autoUpdateFilePath: '',
+  downloadRestored: false,
   activeTask: null,
   progress: {
     percent: 0,
@@ -239,6 +245,9 @@ export const updateNotificationReducer = (
           visible: true,
           status: 'checking',
           errorMsg: '',
+          downloadPath: '',
+          autoUpdateFilePath: '',
+          downloadRestored: false,
           presentation: 'card',
           releaseNotesStatus: 'idle',
         },
@@ -256,6 +265,9 @@ export const updateNotificationReducer = (
             version: event.version,
             releaseNotes: event.releaseNotes,
           },
+          downloadPath: '',
+          autoUpdateFilePath: '',
+          downloadRestored: false,
           presentation: 'card',
           releaseNotesStatus: event.releaseNotes ? 'loaded' : 'loading',
         },
@@ -274,6 +286,9 @@ export const updateNotificationReducer = (
           autoUpdateAvailable: event.autoUpdateAvailable,
           autoUpdateInfo: event.autoUpdateInfo,
           errorMsg: '',
+          downloadPath: '',
+          autoUpdateFilePath: '',
+          downloadRestored: false,
           presentation: 'card',
           releaseNotesStatus: event.updateInfo?.body || event.autoUpdateInfo?.releaseNotes ? 'loaded' : 'failed',
         },
@@ -290,6 +305,9 @@ export const updateNotificationReducer = (
           forceUpdate: false,
           releasePageUrl: event.releasePageUrl,
           errorMsg: '',
+          downloadPath: '',
+          autoUpdateFilePath: '',
+          downloadRestored: false,
           presentation: 'card',
           releaseNotesStatus: 'idle',
         },
@@ -302,6 +320,9 @@ export const updateNotificationReducer = (
           visible: true,
           status: 'error',
           errorMsg: event.message,
+          downloadPath: '',
+          autoUpdateFilePath: '',
+          downloadRestored: false,
           presentation: 'card',
         },
         effects: [],
@@ -371,6 +392,9 @@ export const updateNotificationReducer = (
           progress: emptyProgress(),
           presentation: 'card',
           errorMsg: '',
+          downloadPath: '',
+          autoUpdateFilePath: '',
+          downloadRestored: false,
         },
         effects: [{ type: 'cancelDownload', task: state.activeTask }],
       };
@@ -401,6 +425,9 @@ export const updateNotificationReducer = (
           status: 'downloading',
           activeTask: { kind: 'auto', id: 'auto' },
           progress: emptyProgress(),
+          downloadPath: '',
+          autoUpdateFilePath: '',
+          downloadRestored: false,
           presentation: 'card',
         },
         effects: [],
@@ -412,6 +439,9 @@ export const updateNotificationReducer = (
           status: 'downloading',
           activeTask: { kind: 'manual', id: event.downloadId },
           progress: emptyProgress(),
+          downloadPath: '',
+          autoUpdateFilePath: '',
+          downloadRestored: false,
           presentation: 'card',
         },
         effects: [],
@@ -457,6 +487,8 @@ export const updateNotificationReducer = (
           status: 'downloaded',
           activeTask: null,
           progress: completeProgress(state.progress),
+          autoUpdateFilePath: event.filePath ?? state.autoUpdateFilePath,
+          downloadRestored: false,
         },
         effects: [],
       };
@@ -478,6 +510,8 @@ export const updateNotificationReducer = (
             transferred: event.size ?? state.progress.transferred,
             total: event.size ?? state.progress.total,
           }),
+          autoUpdateFilePath: event.filePath ?? state.autoUpdateFilePath,
+          downloadRestored: true,
           presentation: 'card',
           releaseNotesStatus: event.releaseNotes ? 'loaded' : state.releaseNotesStatus,
         },
@@ -529,6 +563,7 @@ export const updateNotificationReducer = (
               percent: Math.max(state.progress.percent, event.progress.percent),
             }),
             downloadPath: event.filePath ?? state.downloadPath,
+            downloadRestored: false,
           },
           effects: [],
         };

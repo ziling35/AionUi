@@ -5,13 +5,13 @@ import { useCallback, useEffect, useMemo, useRef } from 'react';
 import useSWR, { type SWRConfiguration } from 'swr';
 import { useGoogleAuthModels } from './useGoogleAuthModels';
 import { hasSpecificModelCapability } from '@/renderer/utils/model/modelCapabilities';
-import { buildCloudProviderFromModels, listCloudModels } from '@/renderer/api/cloud';
+import { buildCloudProviderGroupsFromModels, getCloudModelDisplayLabel, listCloudModels } from '@/renderer/api/cloud';
 import { CLOUD_PROVIDER_ID } from '@/renderer/api/config';
 
 export interface ModelProviderListResult {
   providers: IProvider[];
   getAvailableModels: (provider: IProvider) => string[];
-  formatModelLabel: (provider: { platform?: string } | undefined, modelName?: string) => string;
+  formatModelLabel: (provider: Pick<IProvider, 'model_labels'> | undefined, modelName?: string) => string;
 }
 
 export const PROVIDERS_SWR_KEY = 'providers';
@@ -90,22 +90,13 @@ export const useModelProviderList = (): ModelProviderListResult => {
     list = list.filter((p) => p.enabled !== false);
 
     if (cloudModels?.length) {
-      const cloudProvider = buildCloudProviderFromModels(cloudModels);
       const cloudProviderIndex = list.findIndex((provider) => provider.id === CLOUD_PROVIDER_ID);
+      const existingCloudProvider = cloudProviderIndex >= 0 ? list[cloudProviderIndex] : undefined;
+      const cloudProviderGroups = buildCloudProviderGroupsFromModels(cloudModels, existingCloudProvider);
       if (cloudProviderIndex >= 0) {
-        list = list.map((provider, index) =>
-          index === cloudProviderIndex
-            ? {
-                ...provider,
-                name: cloudProvider.name,
-                base_url: cloudProvider.base_url,
-                models: cloudProvider.models,
-                enabled: true,
-              }
-            : provider
-        );
+        list = [...cloudProviderGroups, ...list.filter((_, index) => index !== cloudProviderIndex)];
       } else {
-        list = [cloudProvider, ...list];
+        list = [...cloudProviderGroups, ...list];
       }
     }
 
@@ -126,10 +117,16 @@ export const useModelProviderList = (): ModelProviderListResult => {
     return list.filter((p) => getAvailableModels(p).length > 0);
   }, [cloudModels, getAvailableModels, isGoogleAuth, modelConfig]);
 
-  const formatModelLabel = useCallback((_provider: { platform?: string } | undefined, modelName?: string) => {
-    if (!modelName) return '';
-    return modelName;
-  }, []);
+  const formatModelLabel = useCallback(
+    (provider: Pick<IProvider, 'model_labels'> | undefined, modelName?: string) => {
+      if (!modelName) return '';
+      const directLabel = getCloudModelDisplayLabel(provider, modelName);
+      if (directLabel !== modelName) return directLabel;
+      const matchedProvider = providers.find((item) => item.model_labels?.[modelName]);
+      return getCloudModelDisplayLabel(matchedProvider, modelName);
+    },
+    [providers]
+  );
 
   return { providers, getAvailableModels, formatModelLabel };
 };

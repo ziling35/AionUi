@@ -16,6 +16,7 @@ export type AionrsModelSelection = {
   handleSelectModel: (provider: IProvider, modelName: string) => Promise<void>;
   refreshModels: () => Promise<void>;
   getDisplayModelName: (modelName?: string) => string;
+  formatModelLabel: (provider: Pick<IProvider, 'model_labels'> | undefined, modelName?: string) => string;
 };
 
 export type UseAionrsModelSelectionOptions = {
@@ -73,5 +74,6 @@ export const useAionrsModelSelection = ({
     handleSelectModel,
     refreshModels: refreshCloudModels,
     getDisplayModelName,
+    formatModelLabel,
   };
 };

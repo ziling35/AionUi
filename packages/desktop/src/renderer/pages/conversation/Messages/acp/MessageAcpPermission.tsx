@@ -9,6 +9,7 @@ import { conversation } from '@/common/adapter/ipcBridge';
 import { Button, Card, Radio, Typography } from '@arco-design/web-react';
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { resolvePermissionResponseState, type PermissionResponseState } from '../components/permissionResponseState';
 
 const { Text } = Typography;
 
@@ -76,12 +77,21 @@ const MessageAcpPermission: React.FC<MessageAcpPermissionProps> = React.memo(({ 
   const [selected, setSelected] = useState<string | null>(null);
   const [isResponding, setIsResponding] = useState(false);
   const [hasResponded, setHasResponded] = useState(false);
+  const [responseState, setResponseState] = useState<PermissionResponseState | undefined>();
 
   const handleConfirmOption = async (option_id: string) => {
     if (hasResponded) return;
 
     setIsResponding(true);
     setSelected(option_id);
+    const nextResponseState = resolvePermissionResponseState(
+      option_id,
+      options.map((option) => ({
+        label: option.name,
+        value: option.option_id,
+        kind: option.kind,
+      }))
+    );
     try {
       const invokeData = {
         confirm_key: option_id,
@@ -91,6 +101,7 @@ const MessageAcpPermission: React.FC<MessageAcpPermissionProps> = React.memo(({ 
       };
 
       await conversation.confirmMessage.invoke(invokeData);
+      setResponseState(nextResponseState);
       setHasResponded(true);
     } catch (error) {
       console.error('Error confirming permission:', error);
@@ -176,10 +187,21 @@ const MessageAcpPermission: React.FC<MessageAcpPermissionProps> = React.memo(({ 
         {hasResponded && (
           <div
             className='mt-10px p-2 rounded-md border'
-            style={{ backgroundColor: 'var(--color-success-light-1)', borderColor: 'rgb(var(--success-3))' }}
+            style={
+              responseState === 'rejected'
+                ? { backgroundColor: 'var(--color-danger-light-1)', borderColor: 'rgb(var(--danger-3))' }
+                : { backgroundColor: 'var(--color-success-light-1)', borderColor: 'rgb(var(--success-3))' }
+            }
           >
-            <Text className='text-sm' style={{ color: 'rgb(var(--success-6))' }}>
-              ✓ {t('messages.responseSentSuccessfully')}
+            <Text
+              className='text-sm'
+              style={{ color: responseState === 'rejected' ? 'rgb(var(--danger-6))' : 'rgb(var(--success-6))' }}
+            >
+              {responseState === 'rejected'
+                ? t('messages.permissionRejectedTurnStopped')
+                : responseState === 'allowed'
+                  ? t('messages.permissionAllowedAgentContinuing')
+                  : t('messages.responseSentSuccessfully')}
             </Text>
           </div>
         )}

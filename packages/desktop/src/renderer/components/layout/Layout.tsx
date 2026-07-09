@@ -19,6 +19,7 @@ import { NavigationHistoryProvider } from '@renderer/hooks/context/NavigationHis
 import { useDeepLink } from '@renderer/hooks/system/useDeepLink';
 import { useNotificationClick } from '@renderer/hooks/system/notification/useNotificationClick';
 import { useBrowserNotification } from '@renderer/hooks/system/notification/useBrowserNotification';
+import { useNotificationSound } from '@renderer/hooks/system/notification/useNotificationSound';
 import { useDirectorySelection } from '@renderer/hooks/file/useDirectorySelection';
 import { cleanupSiderTooltips } from '@renderer/utils/ui/siderTooltip';
 import { useConversationShortcuts } from '@renderer/hooks/ui/useConversationShortcuts';
@@ -114,6 +115,7 @@ const Layout: React.FC<{
   useDeepLink();
   useNotificationClick();
   useBrowserNotification();
+  useNotificationSound();
   const navigate = useNavigate();
   useConversationShortcuts({ navigate });
   // Expose navigate to code running outside the Router tree (e.g. the globally

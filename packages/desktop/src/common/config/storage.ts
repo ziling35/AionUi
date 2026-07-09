@@ -47,6 +47,8 @@ export interface IConfigStorageRefer {
   'system.closeToTray'?: boolean;
   // 任务完成时显示系统通知 / Show system notification when task completes
   'system.notificationEnabled'?: boolean;
+  // Play a sound when a conversation needs confirmation or an assistant turn completes
+  'system.notificationSoundEnabled'?: boolean;
   // 定时任务完成时显示系统通知 / Show system notification when scheduled task completes
   'system.cronNotificationEnabled'?: boolean;
   // 阻止系统休眠以保证定时任务执行 / Prevent system sleep to ensure scheduled tasks run
@@ -123,7 +125,16 @@ export interface IEnvStorageRefer {
 export type ConversationSource = 'lingai' | 'telegram' | 'lark' | 'dingtalk' | 'weixin' | 'wecom' | (string & {});
 
 export type TChatConversationStatus = 'pending' | 'running' | 'finished';
-export type TConversationRuntimeStateKind = 'idle' | 'starting' | 'running' | 'cancelling' | 'waiting_confirmation';
+export type TConversationRuntimeStateKind =
+  | 'idle'
+  | 'starting'
+  | 'running'
+  | 'waiting_tool'
+  | 'cancelling'
+  | 'waiting_confirmation'
+  | 'stalled'
+  | 'error'
+  | 'done';
 
 export type TConversationRuntimeSummary = {
   state: TConversationRuntimeStateKind;
@@ -460,6 +471,11 @@ export interface IProvider {
    * e.g. { "gemini-2.5-pro": "gemini", "claude-sonnet-4": "anthropic", "gpt-4o": "openai" }
    */
   model_protocols?: Record<string, string>;
+  /**
+   * Optional display labels keyed by the actual model id stored in `models`.
+   * Used when a routed/internal model id should be shown as a friendly name.
+   */
+  model_labels?: Record<string, string>;
   /**
    * AWS Bedrock specific configuration
    * Only used when platform is 'bedrock'

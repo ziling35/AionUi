@@ -8,10 +8,13 @@ services:
     env_file:
       - .env
     environment:
+      NODE_ENV: production
       PORT: 3000
       DATABASE_URL: ${DATABASE_URL:-file:/data/dev.db}
       PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:8080}
       RELEASES_DIR: ${RELEASES_DIR:-/data/releases}
+      LINGCODEX_TOKEN_SECRET: "${LINGCODEX_TOKEN_SECRET:?LINGCODEX_TOKEN_SECRET must be set in deploy/.env}"
+      LINGCODEX_TOKEN_TTL_SECONDS: ${LINGCODEX_TOKEN_TTL_SECONDS:-3600}
     volumes:
       - ./data/admin-api:/data
     expose:

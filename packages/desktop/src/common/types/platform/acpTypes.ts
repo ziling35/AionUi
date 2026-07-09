@@ -161,7 +161,7 @@ export interface PlanUpdate extends BaseSessionUpdate {
     sessionUpdate: 'plan';
     entries: Array<{
       content: string;
-      status: 'pending' | 'in_progress' | 'completed';
+      status: 'pending' | 'in_progress' | 'completed' | 'failed' | 'cancelled';
       priority?: 'low' | 'medium' | 'high';
     }>;
   };
@@ -260,6 +260,7 @@ export interface AcpModelInfo {
     optionKey?: string;
     source?: 'cloud' | 'runtime';
     providerId?: string;
+    providerName?: string;
   }>;
 }
 

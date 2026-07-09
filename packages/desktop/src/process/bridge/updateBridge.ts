@@ -41,6 +41,24 @@ interface AutoUpdateCheckParams {
 }
 
 const DEFAULT_USER_AGENT = 'LingAI';
+const parseConfiguredDownloadHosts = (): string[] => {
+  const configured = process.env.LINGAI_UPDATE_DOWNLOAD_HOSTS?.trim();
+  if (!configured) return [];
+
+  return configured
+    .split(/[,\s]+/)
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .map((item) => {
+      try {
+        return new URL(item).hostname;
+      } catch {
+        return item;
+      }
+    })
+    .filter(Boolean);
+};
+
 const ALLOWED_DOWNLOAD_HOSTS = new Set<string>([
   (() => {
     try {
@@ -49,8 +67,10 @@ const ALLOWED_DOWNLOAD_HOSTS = new Set<string>([
       return '';
     }
   })(),
+  ...parseConfiguredDownloadHosts(),
 ].filter(Boolean));
 const MAX_REDIRECTS = 8;
+const trustedReleaseDownloadUrls = new Set<string>();
 
 type RuntimePlatformInfo = {
   platform: NodeJS.Platform;
@@ -146,7 +166,39 @@ export const pickRecommendedAsset = (
   return scored[0]?.asset;
 };
 
-const assertAllowedUrl = async (rawUrl: string) => {
+const canonicalUrl = (rawUrl: string): string | null => {
+  try {
+    return new URL(rawUrl).toString();
+  } catch {
+    return null;
+  }
+};
+
+const rememberTrustedReleaseDownloadUrls = (release: UpdateReleaseInfo | null) => {
+  trustedReleaseDownloadUrls.clear();
+  if (!release) return;
+
+  const assets = Array.isArray(release.assets) ? [...release.assets] : [];
+  if (release.recommendedAsset) assets.push(release.recommendedAsset);
+
+  for (const asset of assets) {
+    for (const rawUrl of [asset.url, asset.fallbackUrl]) {
+      if (!rawUrl) continue;
+      const normalized = canonicalUrl(rawUrl);
+      if (normalized) trustedReleaseDownloadUrls.add(normalized);
+    }
+  }
+};
+
+const isTrustedReleaseDownloadUrl = (rawUrl: string): boolean => {
+  const normalized = canonicalUrl(rawUrl);
+  return normalized ? trustedReleaseDownloadUrls.has(normalized) : false;
+};
+
+const assertAllowedUrl = async (
+  rawUrl: string,
+  options: { allowTrustedReleaseUrl?: boolean; allowTrustedRedirect?: boolean } = {}
+) => {
   let parsed: URL;
   try {
     parsed = new URL(rawUrl);
@@ -157,16 +209,27 @@ const assertAllowedUrl = async (rawUrl: string) => {
   if (parsed.protocol !== 'https:') {
     throw new Error((await getI18n()).t('update.errors.httpsOnly'));
   }
-  if (!ALLOWED_DOWNLOAD_HOSTS.has(parsed.hostname)) {
-    throw new Error((await getI18n()).t('update.errors.hostNotAllowed', { host: parsed.hostname }));
+  if (ALLOWED_DOWNLOAD_HOSTS.has(parsed.hostname)) {
+    return;
   }
+  if (options.allowTrustedRedirect) {
+    return;
+  }
+  if (options.allowTrustedReleaseUrl && trustedReleaseDownloadUrls.has(parsed.toString())) {
+    return;
+  }
+  throw new Error((await getI18n()).t('update.errors.hostNotAllowed', { host: parsed.hostname }));
 };
 
 const fetchWithAllowlistedRedirects = async (rawUrl: string, signal: AbortSignal): Promise<Response> => {
   let current = rawUrl;
+  const allowTrustedRedirects = isTrustedReleaseDownloadUrl(rawUrl);
 
   for (let i = 0; i <= MAX_REDIRECTS; i++) {
-    await assertAllowedUrl(current);
+    await assertAllowedUrl(current, {
+      allowTrustedReleaseUrl: i === 0,
+      allowTrustedRedirect: allowTrustedRedirects && i > 0,
+    });
 
     const res = await fetch(current, {
       signal,
@@ -215,8 +278,13 @@ const fetchConfiguredLatestRelease = async (): Promise<UpdateReleaseInfo | null>
       throw new Error((await getI18n()).t('update.errors.githubApiFailed', { status: res.status }));
     }
     const json = (await res.json()) as { success?: boolean; latest?: UpdateReleaseInfo | null };
-    if (json.success === false) return null;
-    return json.latest ?? null;
+    if (json.success === false) {
+      rememberTrustedReleaseDownloadUrls(null);
+      return null;
+    }
+    const latest = json.latest ?? null;
+    rememberTrustedReleaseDownloadUrls(latest);
+    return latest;
   } catch (err: unknown) {
     if (err instanceof Error && err.name === 'AbortError') {
       throw new Error((await getI18n()).t('update.errors.githubApiTimeout'), { cause: err });
@@ -417,7 +485,7 @@ const startDownloadInBackground = async (
     if (!fallbackUrl || fallbackUrl === url) return primary;
 
     try {
-      await assertAllowedUrl(fallbackUrl);
+      await assertAllowedUrl(fallbackUrl, { allowTrustedReleaseUrl: true });
     } catch (err) {
       // Fallback URL itself is invalid — keep the primary failure result.
       log.warn('[update-download] Fallback URL rejected by allowlist:', err);
@@ -539,11 +607,11 @@ export function initUpdateBridge(): void {
         }
 
         // Defense-in-depth: do not allow arbitrary downloads from renderer.
-        // Only the commercial update host is permitted; each redirect hop is
-        // re-validated against the allowlist.
-        await assertAllowedUrl(params.url);
+        // Permit the configured update host and URLs returned by the trusted
+        // update feed; each redirect hop is re-validated.
+        await assertAllowedUrl(params.url, { allowTrustedReleaseUrl: true });
         if (params.fallbackUrl) {
-          await assertAllowedUrl(params.fallbackUrl);
+          await assertAllowedUrl(params.fallbackUrl, { allowTrustedReleaseUrl: true });
         }
 
         const downloadId = params.downloadId || uuid();

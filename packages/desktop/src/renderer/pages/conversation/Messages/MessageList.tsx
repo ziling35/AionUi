@@ -181,6 +181,7 @@ const MessageItem: React.FC<{
   highlighted?: boolean;
   rowWidthClass: string;
   showCopyRow?: boolean;
+  reserveCopyRowSpace?: boolean;
 }> = React.memo(
   HOC((props) => {
     const { message, highlighted, rowWidthClass } = props as {
@@ -212,16 +213,24 @@ const MessageItem: React.FC<{
     ({
       message,
       showCopyRow,
+      reserveCopyRowSpace,
     }: {
       message: TMessage;
       highlighted?: boolean;
       rowWidthClass: string;
       showCopyRow?: boolean;
+      reserveCopyRowSpace?: boolean;
     }) => {
       const { t } = useTranslation();
       switch (message.type) {
         case 'text':
-          return <MessageText message={message} showCopyRow={showCopyRow}></MessageText>;
+          return (
+            <MessageText
+              message={message}
+              showCopyRow={showCopyRow}
+              reserveCopyRowSpace={reserveCopyRowSpace}
+            ></MessageText>
+          );
         case 'tips':
           return <MessageTips message={message}></MessageTips>;
         case 'tool_call':
@@ -254,7 +263,8 @@ const MessageItem: React.FC<{
     prev.message.type === next.message.type &&
     prev.highlighted === next.highlighted &&
     prev.rowWidthClass === next.rowWidthClass &&
-    prev.showCopyRow === next.showCopyRow
+    prev.showCopyRow === next.showCopyRow &&
+    prev.reserveCopyRowSpace === next.reserveCopyRowSpace
 );
 
 const MessageList: React.FC<{ className?: string; emptySlot?: React.ReactNode }> = ({ emptySlot }) => {
@@ -392,8 +402,9 @@ const MessageList: React.FC<{ className?: string; emptySlot?: React.ReactNode }>
   // by tool blocks. While the conversation is still streaming, the final turn's
   // row is withheld (it would otherwise appear then shift down as more text
   // streams in); earlier, already-finished turns always keep their row.
-  const aiCopyRowTextIds = useMemo(() => {
+  const { aiCopyRowTextIds, reservedCopyRowTextIds } = useMemo(() => {
     const ids = new Set<string>();
+    const reservedIds = new Set<string>();
     let pendingTextId: string | undefined;
     let lastTurnTextId: string | undefined;
     const flush = () => {
@@ -419,8 +430,11 @@ const MessageList: React.FC<{ className?: string; emptySlot?: React.ReactNode }>
     lastTurnTextId = pendingTextId;
     flush();
     // The final turn is the one that may still be streaming; hide its row until done.
-    if (isProcessing && lastTurnTextId) ids.delete(lastTurnTextId);
-    return ids;
+    if (isProcessing && lastTurnTextId) {
+      ids.delete(lastTurnTextId);
+      reservedIds.add(lastTurnTextId);
+    }
+    return { aiCopyRowTextIds: ids, reservedCopyRowTextIds: reservedIds };
   }, [processedList, isProcessing]);
 
   // Use auto-scroll hook
@@ -623,6 +637,8 @@ const MessageList: React.FC<{ className?: string; emptySlot?: React.ReactNode }>
     const message = item as TMessage;
     // User messages keep their own copy row; AI text only shows it at the turn end.
     const showCopyRow = message.position !== 'left' || message.type !== 'text' || aiCopyRowTextIds.has(message.id);
+    const reserveCopyRowSpace =
+      message.position === 'left' && message.type === 'text' && reservedCopyRowTextIds.has(message.id);
     return (
       <MessageItem
         message={message}
@@ -630,6 +646,7 @@ const MessageList: React.FC<{ className?: string; emptySlot?: React.ReactNode }>
         highlighted={highlighted}
         rowWidthClass={rowWidthClass}
         showCopyRow={showCopyRow}
+        reserveCopyRowSpace={reserveCopyRowSpace}
       ></MessageItem>
     );
   };

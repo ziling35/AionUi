@@ -38,7 +38,8 @@ import { getConversationRuntimeWorkspaceErrorMessage } from '@/renderer/pages/co
 import { getChatSurfaceWidthClass } from '@/renderer/pages/conversation/utils/chatSurfaceWidth';
 import { ensureConversationRuntime } from '@/renderer/pages/conversation/utils/ensureConversationRuntime';
 import { useUser } from '@/renderer/hooks/context/UserContext';
-import { CLOUD_PROVIDER_ID } from '@/renderer/api/config';
+import { isCloudProviderId } from '@/renderer/api/config';
+import { getCloudModelSheetValue, getCloudProviderRenderKey, parseCloudModelSheetValue } from '@/renderer/api/cloud';
 import { usePreviewContext } from '@/renderer/pages/conversation/Preview';
 import { useTeamPermission } from '@/renderer/pages/team/hooks/TeamPermissionContext';
 import type { TeamSendBoxRuntime } from '@/renderer/pages/team/components/teamSendRuntime';
@@ -263,7 +264,7 @@ const AionrsSendBox: React.FC<{
       }
       // Block cloud models for unauthenticated users — the proxy gateway
       // would return 401 anyway; show a friendlier prompt instead.
-      if (current_model?.id === CLOUD_PROVIDER_ID && !isLoggedIn) {
+      if (isCloudProviderId(current_model?.id) && !isLoggedIn) {
         Message.warning(t('conversation.chat.loginRequired', { defaultValue: 'Please log in to use cloud models.' }));
         showLoginModal();
         throw new Error('Login required for cloud models');
@@ -430,11 +431,13 @@ const AionrsSendBox: React.FC<{
 
   const handleSheetModelSelect = useCallback(
     (value: string) => {
-      // value format: `${providerId}::${modelName}`
-      const [providerId, modelName] = value.split('::');
-      const provider = modelSelection.providers.find((p) => p.id === providerId);
-      if (!provider || !modelName) return;
-      void modelSelection.handleSelectModel(provider, modelName);
+      const parsed = parseCloudModelSheetValue(value);
+      if (!parsed) return;
+      const provider = modelSelection.providers.find(
+        (item, index) => getCloudProviderRenderKey(item, index) === parsed.providerKey || item.id === parsed.providerKey
+      );
+      if (!provider) return;
+      void modelSelection.handleSelectModel(provider, parsed.modelName);
     },
     [modelSelection]
   );
@@ -462,10 +465,10 @@ const AionrsSendBox: React.FC<{
       active: (runtimeMode?.currentValue ?? currentMode) === mode.value,
     }));
 
-    const modelOptions: MobileActionSheetOption[] = modelSelection.providers.flatMap((provider) =>
+    const modelOptions: MobileActionSheetOption[] = modelSelection.providers.flatMap((provider, providerIndex) =>
       modelSelection.getAvailableModels(provider).map((modelName) => ({
-        key: `${provider.id}::${modelName}`,
-        label: modelName,
+        key: getCloudModelSheetValue(provider, modelName, providerIndex),
+        label: modelSelection.formatModelLabel(provider, modelName),
         description: provider.name,
         active:
           modelSelection.current_model?.id === provider.id && modelSelection.current_model?.use_model === modelName,
@@ -474,7 +477,9 @@ const AionrsSendBox: React.FC<{
 
     const currentModeLabel =
       modeOptions.find((opt) => opt.active)?.label ?? t('agentMode.default', { defaultValue: 'Default' });
-    const currentModelLabel = modelSelection.current_model?.use_model || t('conversation.welcome.selectModel');
+    const currentModelLabel =
+      modelSelection.getDisplayModelName(modelSelection.current_model?.use_model) ||
+      t('conversation.welcome.selectModel');
 
     const entries: MobileActionSheetEntry[] = [
       {

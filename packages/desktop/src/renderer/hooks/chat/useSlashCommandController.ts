@@ -45,6 +45,47 @@ function getSelectionBehavior(command: SlashCommandItem): 'execute' | 'insert' {
   return command.kind === 'builtin' ? 'execute' : 'insert';
 }
 
+export function rankSlashCommandMatch(command: SlashCommandItem, query: string): number | null {
+  const keyword = query.trim().toLowerCase();
+  if (!keyword) {
+    return 0;
+  }
+
+  const name = command.name.toLowerCase();
+  const description = command.description.toLowerCase();
+
+  if (name === keyword) {
+    return 0;
+  }
+  if (name.startsWith(keyword)) {
+    return 1;
+  }
+  if (name.includes(keyword)) {
+    return 2;
+  }
+  if (description.includes(keyword)) {
+    return 3;
+  }
+  return null;
+}
+
+export function filterSlashCommands(commands: SlashCommandItem[], query: string): SlashCommandItem[] {
+  const rankedCommands = commands
+    .map((command, index) => ({
+      command,
+      index,
+      rank: rankSlashCommandMatch(command, query),
+    }))
+    .filter((entry): entry is { command: SlashCommandItem; index: number; rank: number } => entry.rank !== null);
+
+  rankedCommands.sort((left, right) => left.rank - right.rank || left.index - right.index);
+  return rankedCommands.map((entry) => entry.command);
+}
+
+export function shouldOpenSlashCommandMenu(query: string | null, dismissed: boolean, commandCount: number): boolean {
+  return query !== null && !dismissed && commandCount > 0;
+}
+
 interface UseSlashCommandControllerOptions {
   input: string;
   commands: SlashCommandItem[];
@@ -70,14 +111,10 @@ export function useSlashCommandController(options: UseSlashCommandControllerOpti
     if (query === null) {
       return [];
     }
-    const keyword = query.trim().toLowerCase();
-    if (!keyword) {
-      return commands;
-    }
-    return commands.filter((command) => command.name.toLowerCase().startsWith(keyword));
+    return filterSlashCommands(commands, query);
   }, [commands, query]);
 
-  const isOpen = query !== null && !dismissed && filteredCommands.length > 0;
+  const isOpen = shouldOpenSlashCommandMenu(query, dismissed, commands.length);
 
   const executeCommand = useCallback(
     (index: number) => {
@@ -108,6 +145,10 @@ export function useSlashCommandController(options: UseSlashCommandControllerOpti
         event.preventDefault();
         setDismissed(true);
         return true;
+      }
+
+      if (filteredCommands.length === 0) {
+        return false;
       }
 
       if (event.key === 'ArrowDown') {

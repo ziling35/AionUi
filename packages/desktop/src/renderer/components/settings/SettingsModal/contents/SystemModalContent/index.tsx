@@ -18,6 +18,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import useSWR from 'swr';
 import { useSettingsViewMode } from '../../settingsViewContext';
+import AionrsApprovalRulesSection from './AionrsApprovalRulesSection';
 import BrowserNotificationGrant from './BrowserNotificationGrant';
 import DevSettings from './DevSettings';
 import DirInputItem from './DirInputItem';
@@ -49,6 +50,7 @@ const SystemModalContent: React.FC = () => {
   const [closeToTray, setCloseToTray] = useState(false);
   const [gpuStatus, setGpuStatus] = useState<IGpuStatus | null>(null);
   const [notificationEnabled, setNotificationEnabled] = useState(true);
+  const [notificationSoundEnabled, setNotificationSoundEnabled] = useState(true);
   const [cronNotificationEnabled, setCronNotificationEnabled] = useState(false);
   const [promptTimeout, setPromptTimeout] = useState<number>(300);
   const [agentIdleTimeout, setAgentIdleTimeout] = useState<number>(5);
@@ -91,6 +93,7 @@ const SystemModalContent: React.FC = () => {
         .catch(() => {});
     }
     setNotificationEnabled(configService.get('system.notificationEnabled') ?? true);
+    setNotificationSoundEnabled(configService.get('system.notificationSoundEnabled') ?? true);
     setCronNotificationEnabled(configService.get('system.cronNotificationEnabled') ?? false);
     setSaveUploadToWorkspace(configService.get('upload.saveToWorkspace') ?? false);
     setAutoPreviewOfficeFiles(configService.get('system.autoPreviewOfficeFiles') ?? true);
@@ -228,6 +231,14 @@ const SystemModalContent: React.FC = () => {
     configService.set('system.cronNotificationEnabled', checked).catch(() => {
       setCronNotificationEnabled(!checked);
       configService.setLocal('system.cronNotificationEnabled', !checked);
+    });
+  }, []);
+
+  const handleNotificationSoundEnabledChange = useCallback((checked: boolean) => {
+    setNotificationSoundEnabled(checked);
+    configService.set('system.notificationSoundEnabled', checked).catch(() => {
+      setNotificationSoundEnabled(!checked);
+      configService.setLocal('system.notificationSoundEnabled', !checked);
     });
   }, []);
 
@@ -443,6 +454,16 @@ const SystemModalContent: React.FC = () => {
               >
                 {isDesktop ? (
                   <div className='pl-12px'>
+                    <PreferenceRow
+                      label={t('settings.notificationSoundEnabled')}
+                      description={t('settings.notificationSoundEnabledDesc')}
+                    >
+                      <Switch
+                        checked={notificationSoundEnabled}
+                        disabled={!notificationEnabled}
+                        onChange={handleNotificationSoundEnabledChange}
+                      />
+                    </PreferenceRow>
                     <PreferenceRow label={t('settings.cronNotificationEnabled')}>
                       <Switch
                         checked={cronNotificationEnabled}
@@ -476,6 +497,8 @@ const SystemModalContent: React.FC = () => {
 
           {/* Voice input (speech-to-text) settings */}
           <VoiceInputSection />
+
+          <AionrsApprovalRulesSection />
 
           {/* Developer settings: DevTools + CDP (only visible in dev mode) */}
           <DevSettings />

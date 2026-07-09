@@ -21,6 +21,7 @@ import { useUser } from '@/renderer/hooks/context/UserContext';
 import { useSettingsViewMode } from '../settingsViewContext';
 import { consumePendingDeepLink } from '@/renderer/hooks/system/useDeepLink';
 import { CLOUD_PROVIDER_ID } from '@/renderer/api/config';
+import { getCloudModelDisplayLabel } from '@/renderer/api/cloud';
 import '../model-provider.css';
 
 /**
@@ -531,6 +532,7 @@ const ModelModalContent: React.FC = () => {
                       const modelProtocol = platform.model_protocols?.[model] || 'openai';
                       const model_health = platform.model_health?.[model];
                       const healthStatus = model_health?.status || 'unknown';
+                      const modelLabel = getCloudModelDisplayLabel(platform, model);
 
                       return (
                         <div key={model}>
@@ -569,7 +571,7 @@ const ModelModalContent: React.FC = () => {
                                 </Tooltip>
                               )}
 
-                              <span className='text-14px text-t-primary'>{model}</span>
+                              <span className='text-14px text-t-primary'>{modelLabel}</span>
 
                               {/* New API 协议标签（点击循环切换）/ New API protocol badge (click to cycle) */}
                               {isNewApiProvider && (

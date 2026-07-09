@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, unlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 
@@ -80,6 +80,23 @@ describe('verifyBundledAioncoreResources', () => {
 
     createManagedAcpToolFixture({
       managedResourcesDir,
+      toolId: 'codex-cli',
+      version: '0.143.0',
+      runtimeKey: 'win32-x64',
+      entrypoint: 'node_modules/@openai/codex/bin/codex.js',
+      platformExecutableParts: [
+        'node_modules',
+        '@openai',
+        'codex-win32-x64',
+        'vendor',
+        'x86_64-pc-windows-msvc',
+        'bin',
+        'codex.exe',
+      ],
+    });
+
+    createManagedAcpToolFixture({
+      managedResourcesDir,
       toolId: 'claude-agent-acp',
       version: '0.13.0',
       runtimeKey: 'win32-x64',
@@ -104,7 +121,7 @@ describe('verifyBundledAioncoreResources', () => {
   });
 
   it('reports missing managed node runtime executable', () => {
-    rmSync(join(managedResourcesDir, 'node', 'node-v24.11.0-win-x64', 'node.exe'));
+    unlinkSync(join(managedResourcesDir, 'node', 'node-v24.11.0-win-x64', 'node.exe'));
 
     const result = verifyBundledAioncoreResources({
       resourcesDir,
@@ -156,6 +173,14 @@ describe('verifyBundledAioncoreResources', () => {
 
     createManagedAcpToolFixture({
       managedResourcesDir: darwinManagedResourcesDir,
+      toolId: 'codex-cli',
+      version: '0.143.0',
+      runtimeKey: 'darwin-arm64',
+      entrypoint: 'node_modules/@openai/codex/bin/codex.js',
+    });
+
+    createManagedAcpToolFixture({
+      managedResourcesDir: darwinManagedResourcesDir,
       toolId: 'claude-agent-acp',
       version: '0.13.0',
       runtimeKey: 'darwin-arm64',
@@ -198,7 +223,7 @@ describe('verifyBundledAioncoreResources', () => {
   });
 
   it('reports missing managed ACP manifest', () => {
-    rmSync(join(codexRoot, 'manifest.json'));
+    unlinkSync(join(codexRoot, 'manifest.json'));
 
     const result = verifyBundledAioncoreResources({
       resourcesDir,
@@ -212,7 +237,7 @@ describe('verifyBundledAioncoreResources', () => {
   });
 
   it('reports missing managed ACP entrypoint declared by manifest', () => {
-    rmSync(join(codexRoot, 'node_modules', '@zed-industries', 'codex-acp-win32-x64', 'bin', 'codex-acp.exe'));
+    unlinkSync(join(codexRoot, 'node_modules', '@zed-industries', 'codex-acp-win32-x64', 'bin', 'codex-acp.exe'));
 
     const result = verifyBundledAioncoreResources({
       resourcesDir,

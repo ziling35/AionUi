@@ -70,6 +70,43 @@ function createToolCallMessage(toolCallId: string): IMessageAcpToolCall {
 }
 
 describe('composeMessage', () => {
+  it('keeps commentary text separate from final answer text with the same msg_id', () => {
+    let list: TMessage[] = [];
+
+    list = composeMessage(
+      {
+        id: 'text-commentary',
+        type: 'text',
+        msg_id: 'msg-1',
+        conversation_id: CONVERSATION_ID,
+        position: 'left',
+        content: {
+          content: 'I will inspect the relevant files first.\n\n',
+          phase: 'commentary',
+        },
+      },
+      list
+    );
+    list = composeMessage(
+      {
+        id: 'text-final',
+        type: 'text',
+        msg_id: 'msg-1',
+        conversation_id: CONVERSATION_ID,
+        position: 'left',
+        content: {
+          content: 'The fix is complete.',
+          phase: 'final_answer',
+        },
+      },
+      list
+    );
+
+    expect(list).toHaveLength(2);
+    expect((list[0] as IMessageText).content.phase).toBe('commentary');
+    expect((list[1] as IMessageText).content.phase).toBe('final_answer');
+  });
+
   it('preserves thinking boundaries once a tool message has been inserted', () => {
     let list: TMessage[] = [];
 
@@ -287,6 +324,18 @@ describe('normalizeTextMessageContent', () => {
     });
   });
 
+  it('preserves text phase metadata from stream payloads', () => {
+    expect(
+      normalizeTextMessageContent({
+        content: 'I will inspect the relevant files first.',
+        phase: 'commentary',
+      })
+    ).toEqual({
+      content: 'I will inspect the relevant files first.',
+      phase: 'commentary',
+    });
+  });
+
   it('lets stream-level replace override a plain text payload', () => {
     expect(normalizeTextMessageContent('replacement text', { replace: true })).toEqual({
       content: 'replacement text',
@@ -306,6 +355,55 @@ describe('transformMessage', () => {
     };
 
     expect(transformMessage(message)).toBeUndefined();
+  });
+
+  it('preserves hidden state on agent status messages', () => {
+    const message: IResponseMessage = {
+      type: 'agent_status',
+      data: {
+        backend: 'aionrs',
+        status: 'connected',
+      },
+      msg_id: 'status-1',
+      conversation_id: CONVERSATION_ID,
+      hidden: true,
+    };
+
+    const transformed = transformMessage(message);
+
+    expect(transformed?.type).toBe('agent_status');
+    expect(transformed?.hidden).toBe(true);
+  });
+
+  it('preserves hidden state on tool and plan messages', () => {
+    const messages: IResponseMessage[] = [
+      {
+        type: 'tool_call',
+        data: { call_id: 'tool-1', name: 'Read', args: {}, status: 'running' },
+        msg_id: 'tool-1',
+        conversation_id: CONVERSATION_ID,
+        hidden: true,
+      },
+      {
+        type: 'acp_tool_call',
+        data: {
+          session_id: 'session-1',
+          update: { sessionUpdate: 'tool_call', tool_call_id: 'tool-2', status: 'pending' },
+        },
+        msg_id: 'tool-2',
+        conversation_id: CONVERSATION_ID,
+        hidden: true,
+      },
+      {
+        type: 'plan',
+        data: { session_id: 'session-1', entries: [] },
+        msg_id: 'plan-1',
+        conversation_id: CONVERSATION_ID,
+        hidden: true,
+      },
+    ];
+
+    expect(messages.map((message) => transformMessage(message)?.hidden)).toEqual([true, true, true]);
   });
 
   it('uses explicit stream position for team projected user text messages', () => {
@@ -377,6 +475,26 @@ describe('transformMessage', () => {
     expect(transformed.type).toBe('text');
     expect(transformed.position).toBe('left');
     expect(transformed.content.content).toBe('agent response');
+  });
+
+  it('preserves commentary phase on realtime text messages', () => {
+    const message: IResponseMessage = {
+      type: 'content',
+      data: {
+        content: 'I will inspect the relevant files first.',
+        phase: 'commentary',
+      },
+      msg_id: 'agent-message-2',
+      conversation_id: CONVERSATION_ID,
+    };
+
+    const transformed = transformMessage(message) as IMessageText;
+
+    expect(transformed.type).toBe('text');
+    expect(transformed.content).toEqual({
+      content: 'I will inspect the relevant files first.',
+      phase: 'commentary',
+    });
   });
 
   it('preserves structured agent stream error metadata', () => {

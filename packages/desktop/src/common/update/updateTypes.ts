@@ -98,6 +98,7 @@ export interface AutoUpdateStatus {
   currentVersion?: string;
   releaseDate?: string;
   releaseNotes?: string;
+  filePath?: string;
   progress?: AutoUpdateProgress;
   error?: string;
 }

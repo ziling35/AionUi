@@ -567,6 +567,9 @@
       },
       "ACP_EMPTY_TURN_REFUSAL": {
         "body": "Модель отклонила этот запрос до того, как появился видимый ответ."
+      },
+      "AIONRS_RUNTIME_ENV_QUEUE": {
+        "body": "AI CLI is finishing another task. This reply is queued and will start automatically."
       }
     }
   },

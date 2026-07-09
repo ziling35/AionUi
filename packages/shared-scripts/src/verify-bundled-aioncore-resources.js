@@ -127,7 +127,25 @@ function acpToolPlatformExecutableParts(platform, runtimeKey, toolId) {
     return ['node_modules', '@anthropic-ai', `claude-agent-sdk-${runtimeKey}`, 'claude.exe'];
   }
 
+  if (toolId === 'codex-cli') {
+    const vendorTarget = codexCliVendorTarget(runtimeKey);
+    if (!vendorTarget) return null;
+
+    return ['node_modules', '@openai', `codex-${runtimeKey}`, 'vendor', vendorTarget, 'bin', 'codex.exe'];
+  }
+
   return null;
+}
+
+function codexCliVendorTarget(runtimeKey) {
+  switch (runtimeKey) {
+    case 'win32-arm64':
+      return 'aarch64-pc-windows-msvc';
+    case 'win32-x64':
+      return 'x86_64-pc-windows-msvc';
+    default:
+      return null;
+  }
 }
 
 function readManifest(manifestPath) {
@@ -160,9 +178,9 @@ function requireManagedAcpTool(baseDir, runtimeKey, platform, toolId, checked, m
       runtimeKey,
       'manifest.json'
     );
-    checked.push(manifestRelativePath);
 
     const manifestPath = path.join(platformRoot, 'manifest.json');
+    checked.push(manifestRelativePath);
     if (!isFile(manifestPath)) {
       missing.push(manifestRelativePath);
       continue;
@@ -184,26 +202,17 @@ function requireManagedAcpTool(baseDir, runtimeKey, platform, toolId, checked, m
       runtimeKey,
       entrypoint
     );
-    checked.push(entrypointRelativePath);
 
+    checked.push(entrypointRelativePath);
     if (!isFile(path.join(platformRoot, entrypoint))) {
       missing.push(entrypointRelativePath);
     }
 
-    requireFile(
-      baseDir,
-      runtimeKey,
-      ['managed-resources', 'acp', toolId, version, runtimeKey, 'package.json'],
-      checked,
-      missing
-    );
-    requireFile(
-      baseDir,
-      runtimeKey,
-      ['managed-resources', 'acp', toolId, version, runtimeKey, 'package-lock.json'],
-      checked,
-      missing
-    );
+    // Managed ACP artifacts are runtime bundles. Some packages (notably
+    // claude-agent-acp) may be distributed with only manifest + node_modules,
+    // without the temporary npm project package.json/package-lock.json files.
+    // Those npm metadata files are not required at runtime, so only verify the
+    // executable entrypoint and node_modules payload.
     requireDirectory(
       baseDir,
       runtimeKey,
@@ -236,6 +245,7 @@ function verifyBundledAioncoreResources({ resourcesDir, electronPlatformName, ta
   requireRelativeDirectory(baseDir, runtimeKey, ['managed-resources'], checked, missing);
   requireManagedNode(baseDir, runtimeKey, electronPlatformName, checked, missing);
   requireManagedAcpTool(baseDir, runtimeKey, electronPlatformName, 'codex-acp', checked, missing);
+  requireManagedAcpTool(baseDir, runtimeKey, electronPlatformName, 'codex-cli', checked, missing);
   requireManagedAcpTool(baseDir, runtimeKey, electronPlatformName, 'claude-agent-acp', checked, missing);
 
   return { runtimeKey, checked, missing };

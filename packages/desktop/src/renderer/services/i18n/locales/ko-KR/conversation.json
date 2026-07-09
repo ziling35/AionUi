@@ -567,6 +567,9 @@
       },
       "ACP_EMPTY_TURN_REFUSAL": {
         "body": "모델이 표시 가능한 응답을 생성하기 전에 이번 요청을 거부했습니다."
+      },
+      "AIONRS_RUNTIME_ENV_QUEUE": {
+        "body": "AI CLI is finishing another task. This reply is queued and will start automatically."
       }
     }
   },

@@ -205,6 +205,45 @@
   height: 18px !important;
 }
 
+.app-titlebar__quota-popover {
+  min-width: 220px;
+  max-width: 280px;
+  padding: 4px;
+  line-height: 1.4;
+}
+
+.app-titlebar__quota-title {
+  margin-bottom: 8px;
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.app-titlebar__quota-muted {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.app-titlebar__quota-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 6px;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.app-titlebar__quota-row strong {
+  color: var(--text-primary);
+  font-weight: 600;
+  text-align: right;
+}
+
+.app-titlebar__quota-extra {
+  margin-top: 8px;
+}
+
 .app-window-controls {
   display: flex;
   align-items: stretch;

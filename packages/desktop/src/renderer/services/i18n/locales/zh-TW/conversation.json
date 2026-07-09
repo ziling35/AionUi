@@ -567,6 +567,9 @@
       },
       "ACP_EMPTY_TURN_REFUSAL": {
         "body": "模型在產生任何可見回覆前拒絕了這次請求。"
+      },
+      "AIONRS_RUNTIME_ENV_QUEUE": {
+        "body": "AI CLI 正在處理其他任務，本次回覆已進入佇列，會自動開始。"
       }
     }
   },

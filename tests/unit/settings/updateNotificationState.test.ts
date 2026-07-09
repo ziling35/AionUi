@@ -191,11 +191,14 @@ describe('updateNotificationReducer', () => {
 
     const result = updateNotificationReducer(downloadingState, {
       type: 'autoDownloaded',
+      filePath: '/cache/pending/LingAI-2.1.14.exe',
     });
 
     expect(result.state.status).toBe('downloaded');
     expect(result.state.activeTask).toBeNull();
     expect(result.state.progress.percent).toBe(100);
+    expect(result.state.autoUpdateFilePath).toBe('/cache/pending/LingAI-2.1.14.exe');
+    expect(result.state.downloadRestored).toBe(false);
   });
 
   it('restores a completed auto-update without requiring an active download owner', () => {
@@ -203,6 +206,7 @@ describe('updateNotificationReducer', () => {
       type: 'autoDownloadedRestored',
       version: '2.1.14',
       currentVersion: '2.1.13',
+      filePath: '/cache/pending/LingAI-2.1.14.exe',
     } as never);
 
     expect(result.state.visible).toBe(true);
@@ -213,6 +217,8 @@ describe('updateNotificationReducer', () => {
     expect(result.state.activeTask).toBeNull();
     expect(result.state.presentation).toBe('card');
     expect(result.state.progress.percent).toBe(100);
+    expect(result.state.autoUpdateFilePath).toBe('/cache/pending/LingAI-2.1.14.exe');
+    expect(result.state.downloadRestored).toBe(true);
     expect(result.effects).toEqual([]);
   });
 

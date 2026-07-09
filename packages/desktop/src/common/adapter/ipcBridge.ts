@@ -194,6 +194,40 @@ export const assistants = {
 // Conversation — REST + WS
 // ---------------------------------------------------------------------------
 
+export type ConversationTimeTravelChange = {
+  file_path: string;
+  relative_path?: string;
+  operation: 'create' | 'modify' | 'delete';
+  conflict?: boolean;
+};
+
+export type ConversationTimeTravelPreview = {
+  available: boolean;
+  conversation_id: string;
+  message_id: string;
+  workspace: string;
+  checkpoint_id?: string;
+  reason?: string;
+  changes: ConversationTimeTravelChange[];
+  change_count?: number;
+  conflict_count?: number;
+  message_delete_count?: number;
+};
+
+export type ConversationTimeTravelRestoreResult = {
+  success: boolean;
+  backup_path?: string;
+  restored_files?: ConversationTimeTravelChange[];
+  message_delete_count?: number;
+  warnings?: string[];
+};
+
+export type ConversationTimeTravelParams = {
+  conversation_id: string;
+  message_id: string;
+  workspace: string;
+};
+
 export const conversation = {
   create: withResponseMap(
     httpPost<TChatConversation, ICreateConversationParams>('/api/conversations', (p) => buildCreateConversationBody(p)),
@@ -276,6 +310,26 @@ export const conversation = {
   askSideQuestion: httpPost<ConversationSideQuestionResult, { conversation_id: string; question: string }>(
     (p) => `/api/conversations/${encodeURIComponent(p.conversation_id)}/side-question`,
     (p) => ({ question: p.question })
+  ),
+  previewTimeTravel: httpPost<ConversationTimeTravelPreview, ConversationTimeTravelParams>(
+    (p) => `/api/conversations/${encodeURIComponent(p.conversation_id)}/time-travel/preview`,
+    (p) => ({
+      message_id: p.message_id,
+      workspace: p.workspace,
+    }),
+    { silentStatuses: [404, 501] }
+  ),
+  restoreTimeTravel: httpPost<
+    ConversationTimeTravelRestoreResult,
+    ConversationTimeTravelParams & { create_backup?: boolean }
+  >(
+    (p) => `/api/conversations/${encodeURIComponent(p.conversation_id)}/time-travel/restore`,
+    (p) => ({
+      message_id: p.message_id,
+      workspace: p.workspace,
+      create_backup: p.create_backup ?? true,
+    }),
+    { silentStatuses: [404, 409, 501] }
   ),
   confirmMessage: httpPost<void, IConfirmMessageParams>(
     (p) =>
@@ -1343,6 +1397,7 @@ export type INotificationOptions = {
 
 export const notification = {
   show: bridge.buildProvider<void, INotificationOptions>('notification.show'),
+  beep: bridge.buildProvider<void, void>('notification.beep'),
   clicked: bridge.buildEmitter<{ conversation_id?: string }>('notification.clicked'),
 };
 
@@ -1618,6 +1673,7 @@ export interface ICreateConversationParams {
     exclude_auto_inject_skills?: string[];
     selected_mcp_server_ids?: string[];
     selected_session_mcp_servers?: ISessionMcpServer[];
+    current_model_id?: string;
     codex_model?: string;
     thought_level?: string;
     cached_config_options?: import('../types/platform/acpTypes').AcpSessionConfigOption[];
@@ -1679,6 +1735,8 @@ export interface IResponseMessage {
   status?: 'finish' | 'pending' | 'error' | 'work';
   /** Replace accumulated text for the same msg_id instead of appending. */
   replace?: boolean;
+  /** Assistant text phase, when the backend can distinguish progress narration from final answer. */
+  phase?: 'commentary' | 'final_answer';
 }
 
 export type IConversationArtifactKind = 'cron_trigger' | 'skill_suggest';
@@ -1735,7 +1793,16 @@ export interface IConversationTurnCompletedEvent {
   detail: string;
   can_send_message: boolean;
   runtime: {
-    state: 'idle' | 'starting' | 'running' | 'cancelling' | 'waiting_confirmation';
+    state:
+      | 'idle'
+      | 'starting'
+      | 'running'
+      | 'waiting_tool'
+      | 'cancelling'
+      | 'waiting_confirmation'
+      | 'stalled'
+      | 'error'
+      | 'done';
     can_send_message: boolean;
     has_task: boolean;
     task_status?: 'pending' | 'running' | 'finished';

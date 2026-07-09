@@ -9,6 +9,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { IMessageText } from '@/common/chat/chatLib';
 import { ipcBridge } from '@/common';
+import { Message } from '@arco-design/web-react';
 import { ConversationProvider } from '@/renderer/hooks/context/ConversationContext';
 import MessageText from '@/renderer/pages/conversation/Messages/components/MessageText';
 import {
@@ -37,6 +38,10 @@ const mockFilePreview = vi.fn(({ path }: { path: string }) => <div data-testid='
 
 vi.mock('@/common', () => ({
   ipcBridge: {
+    conversation: {
+      previewTimeTravel: { invoke: vi.fn() },
+      restoreTimeTravel: { invoke: vi.fn() },
+    },
     fs: {
       getFileMetadata: { invoke: vi.fn() },
       getImageBase64: { invoke: vi.fn() },
@@ -119,14 +124,34 @@ vi.mock('@/renderer/utils/ui/clipboard', () => ({
 
 vi.mock('@arco-design/web-react', () => ({
   Alert: () => null,
+  Button: ({
+    children,
+    onClick,
+    'aria-label': ariaLabel,
+  }: {
+    children?: React.ReactNode;
+    onClick?: () => void;
+    'aria-label'?: string;
+  }) => (
+    <button type='button' aria-label={ariaLabel} onClick={onClick}>
+      {children}
+    </button>
+  ),
   Message: {
     error: vi.fn(),
+    success: vi.fn(),
+    warning: vi.fn(),
+  },
+  Modal: {
+    confirm: vi.fn(),
   },
   Tooltip: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
 }));
 
 vi.mock('@icon-park/react', () => ({
   Copy: () => <span data-testid='copy-icon' />,
+  History: () => <span data-testid='history-icon' />,
+  ReplayMusic: () => <span data-testid='replay-icon' />,
 }));
 
 vi.mock('react-i18next', () => ({
@@ -153,6 +178,8 @@ describe('MessageText attachment paths', () => {
     vi.mocked(ipcBridge.fs.getFileMetadata.invoke).mockReset();
     vi.mocked(ipcBridge.fs.getImageBase64.invoke).mockReset();
     vi.mocked(ipcBridge.fs.readFile.invoke).mockReset();
+    vi.mocked(ipcBridge.conversation.previewTimeTravel.invoke).mockReset();
+    vi.mocked(ipcBridge.conversation.restoreTimeTravel.invoke).mockReset();
   });
 
   const renderMessageWithLocalLink = (content = '[report](/missing/report.xlsx)') => {
@@ -219,6 +246,86 @@ describe('MessageText attachment paths', () => {
     const content = screen.getByTestId('message-text-content');
     expect(content.parentElement?.className).toContain('min-w-0');
     expect(content.parentElement?.className).not.toContain('max-w-780px');
+  });
+
+  it('renders commentary as plain progress narration instead of markdown content', () => {
+    const message: IMessageText = {
+      id: 'msg-commentary',
+      msg_id: 'msg-commentary',
+      conversation_id: 'conv-1',
+      type: 'text',
+      position: 'left',
+      createdAt: Date.now(),
+      content: {
+        content: 'I will inspect [app.ts](/workspace/demo/src/app.ts) first.',
+        phase: 'commentary',
+      },
+    };
+
+    render(
+      <ConversationProvider value={{ conversationId: 'conv-1', workspace: '/workspace/demo', type: 'aionrs' }}>
+        <MessageText message={message} />
+      </ConversationProvider>
+    );
+
+    const content = screen.getByTestId('message-text-content');
+    expect(content).toHaveTextContent('I will inspect [app.ts](/workspace/demo/src/app.ts) first.');
+    expect(screen.queryByRole('button', { name: 'open local file' })).not.toBeInTheDocument();
+  });
+
+  it('does not offer rollback checkpoints for commentary messages', () => {
+    const message: IMessageText = {
+      id: 'msg-commentary-rollback',
+      msg_id: 'msg-commentary-rollback',
+      conversation_id: 'conv-1',
+      type: 'text',
+      position: 'left',
+      created_at: Date.now(),
+      content: {
+        content: 'I will inspect the relevant files first.',
+        phase: 'commentary',
+      },
+    };
+
+    render(
+      <ConversationProvider value={{ conversation_id: 'conv-1', workspace: '/workspace/demo', type: 'aionrs' }}>
+        <MessageText message={message} />
+      </ConversationProvider>
+    );
+
+    expect(screen.queryByLabelText('messages.timeTravel.tooltip')).not.toBeInTheDocument();
+  });
+
+  it('shows a clear warning when rollback checkpoints are not supported yet', async () => {
+    const message: IMessageText = {
+      id: 'msg-rollback',
+      msg_id: 'msg-rollback',
+      conversation_id: 'conv-1',
+      type: 'text',
+      position: 'left',
+      created_at: Date.now(),
+      content: {
+        content: 'restore point',
+      },
+    };
+    vi.mocked(ipcBridge.conversation.previewTimeTravel.invoke).mockRejectedValue({ status: 501 });
+
+    render(
+      <ConversationProvider value={{ conversation_id: 'conv-1', workspace: '/workspace/demo', type: 'acp' }}>
+        <MessageText message={message} />
+      </ConversationProvider>
+    );
+
+    fireEvent.click(screen.getByLabelText('messages.timeTravel.tooltip'));
+
+    await waitFor(() => {
+      expect(ipcBridge.conversation.previewTimeTravel.invoke).toHaveBeenCalledWith({
+        conversation_id: 'conv-1',
+        message_id: 'msg-rollback',
+        workspace: '/workspace/demo',
+      });
+      expect(Message.warning).toHaveBeenCalledWith('messages.timeTravel.backendUnsupported');
+    });
   });
 
   it('keeps absolute attachment paths unchanged before previewing', () => {

@@ -34,6 +34,9 @@ export default function CardSecrets() {
       const res = await axios.post('/api/cards/generate', {
         count: values.count,
         amount: values.amount,
+        planType: values.planType || 'balance',
+        windowHours: values.windowHours,
+        validDays: values.validDays,
       });
       if (res.data.success) {
         message.success(`成功生成 ${values.count} 张卡密！`);
@@ -117,6 +120,19 @@ export default function CardSecrets() {
               render: (val) => <span style={{ fontWeight: 600 }}>{val}</span>,
             },
             {
+              title: '套餐类型',
+              dataIndex: 'planType',
+              key: 'planType',
+              render: (val, record) =>
+                val === 'reset_window' ? (
+                  <Tag color='processing'>
+                    {record.windowHours || 4} 小时重置 / {record.validDays || 30} 天
+                  </Tag>
+                ) : (
+                  <Tag>余额充值</Tag>
+                ),
+            },
+            {
               title: '状态',
               dataIndex: 'status',
               key: 'status',
@@ -155,12 +171,29 @@ export default function CardSecrets() {
         cancelText='取消'
         confirmLoading={loading}
       >
-        <Form form={form} layout='vertical' onFinish={handleGenerate} initialValues={{ count: 10, amount: 100 }}>
+        <Form
+          form={form}
+          layout='vertical'
+          onFinish={handleGenerate}
+          initialValues={{ count: 10, amount: 100, planType: 'balance', windowHours: 4, validDays: 30 }}
+        >
           <Form.Item name='count' label='生成数量' rules={[{ required: true, message: '请输入生成数量' }]}>
             <InputNumber min={1} max={100} style={{ width: '100%' }} placeholder='请输入需要生成的卡密数量 (1-100)' />
           </Form.Item>
           <Form.Item name='amount' label='每张包含算力额度' rules={[{ required: true, message: '请输入额度' }]}>
             <InputNumber min={1} style={{ width: '100%' }} placeholder='请输入每张卡密可兑换的额度' />
+          </Form.Item>
+          <Form.Item name='planType' label='套餐类型'>
+            <Select>
+              <Select.Option value='balance'>余额充值</Select.Option>
+              <Select.Option value='reset_window'>几小时重置套餐</Select.Option>
+            </Select>
+          </Form.Item>
+          <Form.Item name='windowHours' label='每隔几小时重置'>
+            <InputNumber min={1} max={168} style={{ width: '100%' }} placeholder='例如：4 表示每 4 小时恢复额度' />
+          </Form.Item>
+          <Form.Item name='validDays' label='有效天数'>
+            <InputNumber min={1} max={3650} style={{ width: '100%' }} placeholder='例如：30 表示有效期 30 天' />
           </Form.Item>
         </Form>
       </Modal>

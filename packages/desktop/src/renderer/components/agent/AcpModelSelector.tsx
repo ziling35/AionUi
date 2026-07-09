@@ -7,6 +7,7 @@
 import { useAcpModelInfo } from '@/renderer/hooks/agent/useAcpModelInfo';
 import { classifyConfigSetError } from '@/renderer/hooks/agent/useAcpConfigOptions';
 import { useLayoutContext } from '@/renderer/hooks/context/LayoutContext';
+import { useConversationRuntimeView } from '@/renderer/pages/conversation/runtime/useConversationRuntimeView';
 import { getModelDisplayLabel } from '@/renderer/utils/model/agentLogo';
 import { iconColors } from '@/renderer/styles/colors';
 import { Dropdown, Menu, Message, Tooltip } from '@arco-design/web-react';
@@ -33,6 +34,30 @@ const configErrorMessageKey = (error: unknown) => {
 
 const getModelOptionKey = (model: AcpModelInfo['available_models'][number]): string => model.optionKey || model.id;
 
+const buildModelGroups = (
+  models: AcpModelInfo['available_models'],
+  defaultTitle: string
+): Array<{ key: string; title: string; models: AcpModelInfo['available_models'] }> => {
+  const hasProviderGroups = models.some((model) => model.providerName || model.providerId);
+  if (!hasProviderGroups) return [{ key: 'default', title: defaultTitle, models }];
+
+  const groups: Array<{ key: string; title: string; models: AcpModelInfo['available_models'] }> = [];
+  const groupIndex = new Map<string, number>();
+  for (const model of models) {
+    const title = model.providerName || model.providerId || defaultTitle;
+    const key = `${model.providerId || 'provider'}:${title}`;
+    const existingIndex = groupIndex.get(key);
+    const existingGroup = existingIndex !== undefined ? groups[existingIndex] : undefined;
+    if (existingGroup) {
+      existingGroup.models.push(model);
+      continue;
+    }
+    groupIndex.set(key, groups.length);
+    groups.push({ key, title, models: [model] });
+  }
+  return groups;
+};
+
 /**
  * Model selector for ACP-based agents. Renders three states:
  * - null model info: disabled "Use CLI model" button (backward compatible)
@@ -54,6 +79,7 @@ const AcpModelSelector: React.FC<{
   const { t } = useTranslation();
   const layout = useLayoutContext();
   const isMobileHeaderCompact = Boolean(layout?.isMobile);
+  const runtimeView = useConversationRuntimeView(conversation_id);
   const { model_info, canSwitch, isSetting, selectModel, thoughtLevel, setStatus, setConfigOption } = useAcpModelInfo({
     conversation_id,
     backend,
@@ -77,9 +103,15 @@ const AcpModelSelector: React.FC<{
   });
   const combinedLabel = composeRuntimeSelectorLabel({ modelLabel: display_label, thoughtLevel });
   const isRuntimeSetting = isConfigSetting(setStatus);
+  const isRuntimeBusy = runtimeView.isProcessing;
+  const isSelectorDisabled = isRuntimeSetting || isRuntimeBusy;
+  const modelGroups = React.useMemo(
+    () => buildModelGroups(model_info?.available_models ?? [], t('common.model')),
+    [model_info?.available_models, t]
+  );
   const handleThoughtLevelSelect = useCallback(
     async (value: string) => {
-      if (!thoughtLevel || value === thoughtLevel.currentValue || isRuntimeSetting) return;
+      if (!thoughtLevel || value === thoughtLevel.currentValue || isSelectorDisabled) return;
       try {
         await setConfigOption(thoughtLevel.id, value);
         Message.success(t('agent.thoughtLevel.switchSuccess'));
@@ -87,7 +119,7 @@ const AcpModelSelector: React.FC<{
         Message.error(t(configErrorMessageKey(error)));
       }
     },
-    [isRuntimeSetting, setConfigOption, thoughtLevel, t]
+    [isSelectorDisabled, setConfigOption, thoughtLevel, t]
   );
   const tooltipContent = combinedLabel;
 
@@ -108,7 +140,7 @@ const AcpModelSelector: React.FC<{
               key={optionKey}
               className={selected ? 'bg-2!' : ''}
               onClick={() => {
-                if (!isRuntimeSetting) selectModel(optionKey);
+                if (!isSelectorDisabled) selectModel(optionKey);
               }}
             >
               <RuntimeSelectorCheckedItem selected={selected} description={model.description}>
@@ -162,7 +194,11 @@ const AcpModelSelector: React.FC<{
             onSelect: (value) => void handleThoughtLevelSelect(value),
           })}
           {thoughtLevel && <RuntimeSelectorMenuDivider />}
-          {renderModelGroup(t('common.model'), model_info.available_models, model_info.current_model_option_key)}
+          {modelGroups.map((group) => (
+            <React.Fragment key={group.key}>
+              {renderModelGroup(group.title, group.models, model_info.current_model_option_key)}
+            </React.Fragment>
+          ))}
         </Menu>
       }
     >
@@ -173,7 +209,7 @@ const AcpModelSelector: React.FC<{
         leading={renderLogo()}
         trailing={<Down theme='outline' size={12} fill={iconColors.secondary} className='shrink-0' />}
         loading={isSetting || isRuntimeSetting}
-        disabled={isRuntimeSetting}
+        disabled={isSelectorDisabled}
       />
     </Dropdown>
   );

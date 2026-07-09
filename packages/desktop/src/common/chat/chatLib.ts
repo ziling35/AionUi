@@ -114,10 +114,13 @@ export type CronMessageMeta = {
   triggered_at: number;
 };
 
+export type TextMessagePhase = 'commentary' | 'final_answer';
+
 export type IMessageText = IMessage<
   'text',
   {
     content: string;
+    phase?: TextMessagePhase;
     /** Backend explicitly replaced the accumulated text for this msg_id. */
     replace?: boolean;
     cronMeta?: CronMessageMeta;
@@ -399,6 +402,7 @@ const isObject = (value: unknown): value is Record<string, unknown> =>
 
 type RawTextMessageContent = {
   content?: unknown;
+  phase?: unknown;
   replace?: unknown;
   cronMeta?: unknown;
   teammateMessage?: unknown;
@@ -416,6 +420,7 @@ type RawTextMessageContent = {
 
 type NormalizeTextMessageContentOptions = {
   replace?: boolean;
+  phase?: TextMessagePhase;
 };
 
 const isCronMessageMeta = (value: unknown): value is CronMessageMeta =>
@@ -424,6 +429,9 @@ const isCronMessageMeta = (value: unknown): value is CronMessageMeta =>
   typeof value.cron_job_id === 'string' &&
   typeof value.cron_job_name === 'string' &&
   typeof value.triggered_at === 'number';
+
+const normalizeTextMessagePhase = (value: unknown): TextMessagePhase | undefined =>
+  value === 'commentary' || value === 'final_answer' ? value : undefined;
 
 const firstStringField = (
   data: RawTextMessageContent,
@@ -452,10 +460,12 @@ const normalizeTextMessageContentObject = (
   ]);
   const cronMeta = isCronMessageMeta(data.cronMeta) ? data.cronMeta : undefined;
   const replace = options?.replace === true || data.replace === true;
+  const phase = normalizeTextMessagePhase(data.phase) ?? options?.phase;
   const teammateMessage = Boolean(data.teammateMessage) || Boolean(data.teammate_message);
 
   return {
     content,
+    ...(phase ? { phase } : {}),
     ...(replace ? { replace: true } : {}),
     ...(cronMeta ? { cronMeta } : {}),
     ...(teammateMessage ? { teammateMessage: true } : {}),
@@ -481,6 +491,7 @@ export const normalizeTextMessageContent = (
 
     return {
       content: raw,
+      ...(options?.phase ? { phase: options.phase } : {}),
       ...(options?.replace === true ? { replace: true } : {}),
     };
   }
@@ -491,6 +502,7 @@ export const normalizeTextMessageContent = (
 
   return {
     content: String(raw ?? ''),
+    ...(options?.phase ? { phase: options.phase } : {}),
     ...(options?.replace === true ? { replace: true } : {}),
   };
 };
@@ -628,6 +640,7 @@ const isChatMessageStatus = (value: unknown): value is NonNullable<TMessage['sta
 
 export const transformMessage = (message: IResponseMessage): TMessage | undefined => {
   const created_at = message.created_at ?? Date.now();
+  const hiddenProps = message.hidden ? ({ hidden: true } as const) : {};
   switch (message.type) {
     case 'error': {
       const errorData = message.data;
@@ -648,6 +661,7 @@ export const transformMessage = (message: IResponseMessage): TMessage | undefine
           type: 'error',
           ...(structuredError ? { error: structuredError } : {}),
         },
+        ...hiddenProps,
       };
     }
     case 'tips': {
@@ -679,6 +693,7 @@ export const transformMessage = (message: IResponseMessage): TMessage | undefine
           ...(tipParams ? { params: tipParams } : {}),
           ...(structuredError ? { error: structuredError } : {}),
         },
+        ...hiddenProps,
       };
     }
     case 'text':
@@ -701,8 +716,9 @@ export const transformMessage = (message: IResponseMessage): TMessage | undefine
         created_at,
         content: normalizeTextMessageContent(data, {
           replace: message.replace === true,
+          phase: normalizeTextMessagePhase(message.phase),
         }),
-        ...(message.hidden && { hidden: true }),
+        ...hiddenProps,
       };
     }
     case 'tool_call': {
@@ -714,6 +730,7 @@ export const transformMessage = (message: IResponseMessage): TMessage | undefine
         position: 'left',
         created_at,
         content: message.data as any,
+        ...hiddenProps,
       };
     }
     case 'tool_group': {
@@ -724,6 +741,7 @@ export const transformMessage = (message: IResponseMessage): TMessage | undefine
         conversation_id: message.conversation_id,
         created_at,
         content: message.data as any,
+        ...hiddenProps,
       };
     }
     case 'agent_status': {
@@ -735,6 +753,7 @@ export const transformMessage = (message: IResponseMessage): TMessage | undefine
         conversation_id: message.conversation_id,
         created_at,
         content: message.data as any,
+        ...hiddenProps,
       };
     }
     case 'permission': {
@@ -746,6 +765,7 @@ export const transformMessage = (message: IResponseMessage): TMessage | undefine
         conversation_id: message.conversation_id,
         created_at,
         content: message.data as any,
+        ...hiddenProps,
       };
     }
     case 'acp_permission': {
@@ -757,6 +777,7 @@ export const transformMessage = (message: IResponseMessage): TMessage | undefine
         conversation_id: message.conversation_id,
         created_at,
         content: message.data as any,
+        ...hiddenProps,
       };
     }
     case 'acp_tool_call': {
@@ -768,6 +789,7 @@ export const transformMessage = (message: IResponseMessage): TMessage | undefine
         conversation_id: message.conversation_id,
         created_at,
         content: message.data as any,
+        ...hiddenProps,
       };
     }
     case 'plan': {
@@ -779,6 +801,7 @@ export const transformMessage = (message: IResponseMessage): TMessage | undefine
         conversation_id: message.conversation_id,
         created_at,
         content: message.data as any,
+        ...hiddenProps,
       };
     }
     case 'thinking': {
@@ -802,6 +825,7 @@ export const transformMessage = (message: IResponseMessage): TMessage | undefine
           duration: data.duration ?? data.duration_ms,
           status: data.status,
         },
+        ...hiddenProps,
       };
     }
     // Disabled: available_commands messages are too noisy and distracting in the chat UI
@@ -813,6 +837,7 @@ export const transformMessage = (message: IResponseMessage): TMessage | undefine
     case 'skill_suggest':
     case 'cron_trigger':
     case 'info': // Stream retry notifications and similar transient agent updates
+    case 'runtime_state': // Runtime state updates are handled by conversationRuntimeView
     case 'system': // Cron system responses, ignored
     case 'acp_model_info': // Model info updates, handled by AcpModelSelector
     case 'codex_model_info': // Legacy Codex model info updates
@@ -976,6 +1001,9 @@ export const composeMessage = (
     return pushMessage(message);
   }
   if (message.type === 'text' && last.type === 'text') {
+    if (last.content.phase !== message.content.phase) {
+      return pushMessage(message);
+    }
     message.content = mergeTextMessageContent(last.content, message.content);
   }
   return updateMessage(list.length - 1, Object.assign({}, last, message));

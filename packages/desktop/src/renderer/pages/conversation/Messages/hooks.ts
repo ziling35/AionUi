@@ -16,6 +16,7 @@ import {
   sanitizeAcpToolCallContent,
 } from '@/common/chat/chatLib';
 import { useCallback, useEffect, useRef } from 'react';
+import { addEventListener } from '@/renderer/utils/emitter';
 import { createContext } from '@renderer/utils/ui/createContext';
 import {
   DEFAULT_MESSAGE_PAGE_LIMIT,
@@ -241,6 +242,11 @@ function composeMessageWithIndex(message: TMessage | undefined, list: TMessage[]
     }
 
     if (last.type === 'text' && last.msg_id === message.msg_id) {
+      if (last.content.phase !== message.content.phase) {
+        const newIdx = list.length;
+        index.msgIdIndex.set(message.msg_id, newIdx);
+        return list.concat(message);
+      }
       const newList = list.slice();
       newList[newList.length - 1] = {
         ...last,
@@ -849,6 +855,15 @@ export const useMessageLstCache = (key: string) => {
       cancelled = true;
     };
   }, [key, loadMessages, setLoading, setPagination]);
+
+  useEffect(() => {
+    if (!key) return;
+
+    return addEventListener('conversation.messages.refresh', (conversationId) => {
+      if (conversationId !== key) return;
+      void loadMessages();
+    });
+  }, [key, loadMessages]);
 
   useEffect(() => {
     if (!key) {

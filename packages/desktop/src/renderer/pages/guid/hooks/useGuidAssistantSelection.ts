@@ -13,7 +13,9 @@ import {
   buildAgentRuntimeModelInfo,
   type AgentRuntimeCatalog,
 } from '@/renderer/utils/model/agentRuntimeCatalog';
+import { buildLingcodexCloudModelInfo, LINGCODEX_BACKEND } from '@/renderer/hooks/agent/useAcpModelInfo';
 import { useManagedAgentRuntimeCatalog } from '@/renderer/hooks/agent/useManagedAgents';
+import { useModelProviderList } from '@/renderer/hooks/agent/useModelProviderList';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useCustomAgentsLoader } from './useCustomAgentsLoader';
 
@@ -198,6 +200,18 @@ export const useGuidAssistantSelection = ({
     () => buildAgentRuntimeModelInfo(selectedManagedAgentRuntimeCatalog),
     [selectedManagedAgentRuntimeCatalog]
   );
+  const { providers, getAvailableModels, formatModelLabel } = useModelProviderList();
+  const selectedLingcodexModelInfo = useMemo(() => {
+    if (selectedAssistantBackend !== LINGCODEX_BACKEND) return null;
+    return buildLingcodexCloudModelInfo({
+      providers,
+      getAvailableModels,
+      formatModelLabel,
+      initialModelId: selectedAcpModel,
+    });
+  }, [formatModelLabel, getAvailableModels, providers, selectedAcpModel, selectedAssistantBackend]);
+  const selectedAcpRuntimeModelInfo =
+    selectedAssistantBackend === LINGCODEX_BACKEND ? selectedLingcodexModelInfo : selectedAgentRuntimeModelInfo;
   const selectedAgentRuntimeModeState = useMemo(
     () => buildAgentRuntimeModeState(selectedManagedAgentRuntimeCatalog),
     [selectedManagedAgentRuntimeCatalog]
@@ -211,12 +225,12 @@ export const useGuidAssistantSelection = ({
   const modelSelectionScopeRef = useRef<string | null>(null);
   useEffect(() => {
     const runtimeModelId =
-      selectedAgentRuntimeModelInfo?.current_model_id || selectedAgentRuntimeModelInfo?.available_models[0]?.id;
+      selectedAcpRuntimeModelInfo?.current_model_id || selectedAcpRuntimeModelInfo?.available_models[0]?.id;
     const fallbackModelId =
       runtimeModelId ||
       (selectedAssistantModels.length > 0 ? resolveInitialAssistantModel(selectedAssistantModels) : null);
     const availableModelIds = new Set(
-      selectedAgentRuntimeModelInfo?.available_models.map((model) => model.id) ?? selectedAssistantModels
+      selectedAcpRuntimeModelInfo?.available_models.map((model) => model.id) ?? selectedAssistantModels
     );
     const selectionScope = selectedAssistantId ?? '';
 
@@ -234,7 +248,7 @@ export const useGuidAssistantSelection = ({
 
       return fallbackModelId;
     });
-  }, [selectedAssistantId, selectedAssistantModels, selectedAgentRuntimeModelInfo]);
+  }, [selectedAcpRuntimeModelInfo, selectedAssistantId, selectedAssistantModels]);
 
   useEffect(() => {
     const fallbackMode =
@@ -243,12 +257,12 @@ export const useGuidAssistantSelection = ({
   }, [selectedAgentRuntimeModeState]);
 
   const currentAcpCachedModelInfo = useMemo(() => {
-    if (selectedAgentRuntimeModelInfo) {
-      return selectedAgentRuntimeModelInfo;
+    if (selectedAcpRuntimeModelInfo) {
+      return selectedAcpRuntimeModelInfo;
     }
 
     return buildAssistantModelInfo(selectedAssistantModels);
-  }, [selectedAssistantModels, selectedAgentRuntimeModelInfo]);
+  }, [selectedAcpRuntimeModelInfo, selectedAssistantModels]);
 
   const defaultAssistantId = useMemo(() => pickDefaultAssistantSelectionKey(assistants), [assistants]);
 

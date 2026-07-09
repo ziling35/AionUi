@@ -6,7 +6,7 @@
 
 import type { IProvider, TProviderWithModel } from '@/common/config/storage';
 import { useGoogleAuthModels } from '@/renderer/hooks/agent/useGoogleAuthModels';
-import { useProvidersQuery } from '@/renderer/hooks/agent/useModelProviderList';
+import { useModelProviderList } from '@/renderer/hooks/agent/useModelProviderList';
 import { hasAvailableModels } from '../utils/modelUtils';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
@@ -35,7 +35,7 @@ type ProviderAgentKey = 'aionrs';
 export type GuidModelSelectionResult = {
   modelList: IProvider[];
   isGoogleAuth: boolean;
-  formatGeminiModelLabel: (provider: { platform?: string } | undefined, modelName?: string) => string;
+  formatGeminiModelLabel: (provider: Pick<IProvider, 'model_labels'> | undefined, modelName?: string) => string;
   current_model: TProviderWithModel | undefined;
   setCurrentModel: (model_info: TProviderWithModel, options?: { persistPreference?: boolean }) => Promise<void>;
   resetCurrentModel: (options?: { persistPreference?: boolean }) => Promise<void>;
@@ -49,17 +49,11 @@ export type GuidModelSelectionResult = {
  */
 export const useGuidModelSelection = (agentKey: ProviderAgentKey = 'aionrs'): GuidModelSelectionResult => {
   const { isGoogleAuth } = useGoogleAuthModels();
-  const { data: modelConfig } = useProvidersQuery();
+  const { providers, formatModelLabel } = useModelProviderList();
 
   const modelList = useMemo(() => {
-    const allProviders: IProvider[] = (modelConfig || []).filter((platform) => !!platform.models.length);
-    return allProviders.filter(hasAvailableModels);
-  }, [modelConfig]);
-
-  const formatGeminiModelLabel = useCallback((_provider: { platform?: string } | undefined, modelName?: string) => {
-    if (!modelName) return '';
-    return modelName;
-  }, []);
+    return providers.filter(hasAvailableModels);
+  }, [providers]);
 
   const [current_model, _setCurrentModel] = useState<TProviderWithModel>();
   const selectedModelKeyRef = useRef<string | null>(null);
@@ -119,7 +113,7 @@ export const useGuidModelSelection = (agentKey: ProviderAgentKey = 'aionrs'): Gu
   return {
     modelList,
     isGoogleAuth,
-    formatGeminiModelLabel,
+    formatGeminiModelLabel: formatModelLabel,
     current_model,
     setCurrentModel,
     resetCurrentModel,

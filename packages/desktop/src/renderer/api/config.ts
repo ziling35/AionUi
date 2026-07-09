@@ -16,6 +16,10 @@ export const CLOUD_PROVIDER_ID = 'aion-cloud-official';
 /** Reserved provider name used to identify the auto-synced cloud provider. */
 export const CLOUD_PROVIDER_NAME = 'LingAI 云端模型';
 
+export function isCloudProviderId(providerId?: string | null): boolean {
+  return providerId === CLOUD_PROVIDER_ID;
+}
+
 /**
  * Resolve the cloud API base URL. Trailing slashes are stripped so callers can
  * safely concatenate paths.

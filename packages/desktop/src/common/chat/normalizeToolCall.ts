@@ -8,12 +8,22 @@ export interface NormalizedToolCall {
   name: string;
   status: NormalizedToolStatus;
   description?: string;
+  startedAt?: number;
   input?: string;
   output?: string;
+  feedback?: NormalizedToolFeedback;
   truncated?: boolean;
   messageId?: string;
   conversationId?: string;
   imagePath?: string;
+}
+
+export interface NormalizedToolFeedback {
+  kind: string;
+  summary: string;
+  retryHint?: string;
+  stats?: Record<string, unknown>;
+  partialResults?: string[];
 }
 
 const formatValue = (value: unknown): string => {
@@ -22,6 +32,44 @@ const formatValue = (value: unknown): string => {
     return JSON.stringify(value, null, 2);
   } catch {
     return String(value);
+  }
+};
+
+const TOOL_FEEDBACK_PATTERN = /<tool_feedback>\s*([\s\S]*?)\s*<\/tool_feedback>/;
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
+
+const parseToolFeedback = (output: string | undefined): { output?: string; feedback?: NormalizedToolFeedback } => {
+  if (!output) return { output };
+
+  const match = output.match(TOOL_FEEDBACK_PATTERN);
+  if (!match?.[1]) return { output };
+
+  try {
+    const parsed = JSON.parse(match[1]) as unknown;
+    if (!isRecord(parsed) || typeof parsed.kind !== 'string' || typeof parsed.summary !== 'string') {
+      return { output: output.replace(TOOL_FEEDBACK_PATTERN, '').trim() || undefined };
+    }
+
+    const retryHint = typeof parsed.retry_hint === 'string' ? parsed.retry_hint : undefined;
+    const stats = isRecord(parsed.stats) ? parsed.stats : undefined;
+    const partialResults = Array.isArray(parsed.partial_results)
+      ? parsed.partial_results.filter((item): item is string => typeof item === 'string')
+      : undefined;
+
+    return {
+      output: output.replace(TOOL_FEEDBACK_PATTERN, '').trim() || undefined,
+      feedback: {
+        kind: parsed.kind,
+        summary: parsed.summary,
+        retryHint,
+        stats,
+        partialResults,
+      },
+    };
+  } catch {
+    return { output: output.replace(TOOL_FEEDBACK_PATTERN, '').trim() || undefined };
   }
 };
 
@@ -72,7 +120,7 @@ export function normalizeToolGroup(message: IMessageToolGroup): NormalizedToolCa
       input = description;
     }
 
-    const outputText = getResultDisplayText(result_display);
+    const { output: outputText, feedback } = parseToolFeedback(getResultDisplayText(result_display));
     let imagePath: string | undefined;
     if (typeof outputText === 'string') {
       const match = outputText.match(/saved to:\s*([^\r\n]+?\.(?:png|jpe?g|webp|gif|bmp|tiff|svg))/i);
@@ -86,8 +134,10 @@ export function normalizeToolGroup(message: IMessageToolGroup): NormalizedToolCa
       name,
       status: normalizeToolGroupStatus(status),
       description: desc,
+      startedAt: message.created_at,
       input,
       output: outputText,
+      feedback,
       imagePath,
     };
   });
@@ -174,6 +224,7 @@ export function normalizeAcpToolCall(message: IMessageAcpToolCall): NormalizedTo
       .filter(Boolean)
       .join('\n');
   }
+  const parsedOutput = parseToolFeedback(output);
 
   const keyParam = buildParamSummary(update.kind, rawInput);
 
@@ -183,8 +234,10 @@ export function normalizeAcpToolCall(message: IMessageAcpToolCall): NormalizedTo
     name: update.title,
     status: normalizeAcpStatus(update.status),
     description: keyParam || (rawInput?.command as string) || update.kind,
+    startedAt: message.created_at,
     input,
-    output,
+    output: parsedOutput.output,
+    feedback: parsedOutput.feedback,
     truncated: content?._compact?.truncated === true,
     messageId: message.id,
     conversationId: message.conversation_id,
@@ -217,9 +270,11 @@ export function normalizeToolCall(message: IMessageToolCall): NormalizedToolCall
       ? formatValue(args)
       : undefined;
 
+  const parsedOutput = parseToolFeedback(output);
+
   let imagePath: string | undefined;
-  if (typeof output === 'string') {
-    const match = output.match(/saved to:\s*([^\r\n]+?\.(?:png|jpe?g|webp|gif|bmp|tiff|svg))/i);
+  if (typeof parsedOutput.output === 'string') {
+    const match = parsedOutput.output.match(/saved to:\s*([^\r\n]+?\.(?:png|jpe?g|webp|gif|bmp|tiff|svg))/i);
     if (match && match[1]) {
       imagePath = match[1].trim();
     }
@@ -230,8 +285,10 @@ export function normalizeToolCall(message: IMessageToolCall): NormalizedToolCall
     name,
     status: normalizeToolCallStatus(status),
     description: description || undefined,
+    startedAt: message.created_at,
     input: displayInput,
-    output,
+    output: parsedOutput.output,
+    feedback: parsedOutput.feedback,
     imagePath,
   };
 }

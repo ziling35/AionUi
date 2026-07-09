@@ -20,6 +20,7 @@ export type CdnGenericProviderConfiguration = Omit<GenericProviderConfiguration,
 };
 
 const withTrailingSlash = (url: string): string => (url.endsWith('/') ? url : `${url}/`);
+const isHttpUrl = (value: string): boolean => /^https?:\/\//i.test(value.trim());
 
 export class CdnGenericProvider extends GenericProvider {
   private readonly _cdnBaseUrl: URL;
@@ -65,11 +66,9 @@ export class CdnGenericProvider extends GenericProvider {
   }
 
   override resolveFiles(updateInfo: UpdateInfo): ReturnType<GenericProvider['resolveFiles']> {
-    const resolved = resolveProviderFiles(
-      updateInfo,
-      this._cdnBaseUrl,
-      (filePath) => `${updateInfo.version}/${filePath}`
-    );
+    const resolveFilePath = (filePath: string): string =>
+      isHttpUrl(filePath) ? filePath : `${updateInfo.version}/${filePath}`;
+    const resolved = resolveProviderFiles(updateInfo, this._cdnBaseUrl, resolveFilePath);
     log.info('[auto-update] Update download URL(s) resolved:', {
       version: updateInfo.version,
       files: resolved.map((file) => file.url.href),

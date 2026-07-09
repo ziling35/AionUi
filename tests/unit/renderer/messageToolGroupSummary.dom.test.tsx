@@ -17,6 +17,46 @@ vi.mock('@/common', () => ({
 }));
 
 describe('MessageToolGroupSummary', () => {
+  it('renders structured tool feedback without exposing raw feedback json block', () => {
+    render(
+      <MessageToolGroupSummary
+        messages={[
+          {
+            id: 'message-1',
+            conversation_id: 'conversation-1',
+            type: 'tool_call',
+            content: {
+              call_id: 'call-1',
+              name: 'Grep',
+              status: 'error',
+              output: `<tool_feedback>
+{
+  "kind": "timeout",
+  "summary": "Grep timed out",
+  "retry_hint": "Use a narrower path",
+  "stats": { "tool": "Grep", "timeout_seconds": 20 },
+  "partial_results": ["src/App.tsx"]
+}
+</tool_feedback>
+
+Summary: Grep timed out
+Retry hint: Use a narrower path`,
+            },
+          } as unknown as ToolMessage,
+        ]}
+      />
+    );
+
+    fireEvent.click(screen.getByText(/messages\.toolSummary\.viewSteps|View steps|View Steps/));
+    fireEvent.click(screen.getByText('Grep'));
+
+    expect(screen.getByText('timeout')).toBeInTheDocument();
+    expect(screen.getByText('Grep timed out')).toBeInTheDocument();
+    expect(screen.getByText(/Use a narrower path/)).toBeInTheDocument();
+    expect(screen.getByText('src/App.tsx')).toBeInTheDocument();
+    expect(screen.queryByText('<tool_feedback>')).not.toBeInTheDocument();
+  });
+
   it('loads full tool content when expanding a compact history item', async () => {
     const invoke = vi.mocked(ipcBridge.database.getConversationMessage.invoke);
     invoke.mockResolvedValue({
@@ -64,7 +104,7 @@ describe('MessageToolGroupSummary', () => {
       />
     );
 
-    fireEvent.click(screen.getByText('View Steps · 1'));
+    fireEvent.click(screen.getByText(/messages\.toolSummary\.viewSteps|View steps|View Steps/));
     fireEvent.click(screen.getByText('rg'));
 
     await waitFor(() => {

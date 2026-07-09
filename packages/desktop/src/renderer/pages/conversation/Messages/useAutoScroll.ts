@@ -69,9 +69,12 @@ export function useAutoScroll({ messages, itemCount }: UseAutoScrollOptions): Us
     const pinnedToBottom = bottomGap <= FOLLOW_BOTTOM_THRESHOLD_PX;
     setShowScrollButton(!withinButtonThreshold);
 
-    if (pinnedToBottom) {
+    if (withinButtonThreshold) {
       userScrolledRef.current = false;
       userInputActiveRef.current = false;
+    }
+
+    if (pinnedToBottom) {
       lastProgrammaticScrollTimeRef.current = Date.now() - (PROGRAMMATIC_SCROLL_GUARD_MS - 50);
     }
 
@@ -143,12 +146,11 @@ export function useAutoScroll({ messages, itemCount }: UseAutoScrollOptions): Us
       const delta = currentScrollTop - lastScrollTopRef.current;
       const bottomGap = getBottomGap(target);
       const pinnedToBottom = bottomGap <= FOLLOW_BOTTOM_THRESHOLD_PX;
+      const scrollingAwayFromBottom = delta < -2;
+      const explicitUserScroll = userInputActiveRef.current;
+      const inferredUserScrollAway = scrollingAwayFromBottom && timeSinceGuard >= PROGRAMMATIC_SCROLL_GUARD_MS;
 
-      if (
-        !pinnedToBottom &&
-        Math.abs(delta) > 2 &&
-        (userInputActiveRef.current || timeSinceGuard >= PROGRAMMATIC_SCROLL_GUARD_MS)
-      ) {
+      if (!pinnedToBottom && Math.abs(delta) > 2 && (explicitUserScroll || inferredUserScrollAway)) {
         userScrolledRef.current = true;
       }
 

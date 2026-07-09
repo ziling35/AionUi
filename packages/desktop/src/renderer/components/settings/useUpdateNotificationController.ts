@@ -232,6 +232,7 @@ export const useUpdateNotificationController = () => {
         currentVersion: res.data.currentVersion || __APP_VERSION__,
         releaseNotes: res.data.releaseNotes,
         size: res.data.size,
+        filePath: res.data.filePath,
       });
     } catch (error) {
       console.warn('Restore downloaded auto-update error:', error);
@@ -312,7 +313,7 @@ export const useUpdateNotificationController = () => {
           break;
         }
         case 'downloaded':
-          dispatch({ type: 'autoDownloaded' });
+          dispatch({ type: 'autoDownloaded', filePath: evt.filePath });
           break;
         case 'preparing-install':
           dispatch({ type: 'autoPreparingInstall', version: evt.version });

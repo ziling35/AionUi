@@ -337,6 +337,15 @@ function exposeBackendPort(backendPort: number): void {
   (globalThis as typeof globalThis & { __backendPort?: number }).__backendPort = backendPort;
 }
 
+function notifyRendererBackendPortChanged(backendPort: number): void {
+  for (const window of [mainWindow, ...secondaryWindows]) {
+    if (!window || window.isDestroyed() || window.webContents.isDestroyed()) {
+      continue;
+    }
+    window.webContents.send('backend:port-changed', { port: backendPort });
+  }
+}
+
 function ensureAdminUserOnce(backendPort: number): Promise<void> {
   if (!ensureAdminUserPromise) {
     ensureAdminUserPromise = (async () => {
@@ -352,9 +361,19 @@ function ensureAdminUserOnce(backendPort: number): Promise<void> {
 }
 
 function markBackendReady(backendPort: number, source: string): void {
-  if (backendStartedOk) return;
+  const previousPort = (globalThis as typeof globalThis & { __backendPort?: number }).__backendPort;
+  if (backendStartedOk) {
+    if (previousPort !== backendPort) {
+      console.log(`[LingAI] ${source} port changed (${previousPort} -> ${backendPort})`);
+      exposeBackendPort(backendPort);
+      registerCronResumeBridge(backendPort);
+      notifyRendererBackendPortChanged(backendPort);
+    }
+    return;
+  }
   console.log(`[LingAI] ${source} ready (port=${backendPort})`);
   exposeBackendPort(backendPort);
+  notifyRendererBackendPortChanged(backendPort);
   registerCronResumeBridge(backendPort);
   backendStartedOk = true;
   backendStartupFailed = false;

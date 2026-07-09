@@ -8,7 +8,6 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import React from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import type { Assistant } from '@/common/types/agent/assistantTypes';
-import { CLOUD_CODEX_ASSISTANT_ID } from '@/renderer/api/cloudCodex';
 import AssistantSelectionArea from '@/renderer/pages/guid/components/AssistantSelectionArea';
 
 vi.mock('react-i18next', () => ({
@@ -26,14 +25,6 @@ vi.mock('@/renderer/hooks/context/UserContext', () => ({
     token: 'device-token',
   }),
 }));
-
-vi.mock('@/renderer/api/cloudCodex', async () => {
-  const actual = await vi.importActual<typeof import('@/renderer/api/cloudCodex')>('@/renderer/api/cloudCodex');
-  return {
-    ...actual,
-    syncCloudCodexAssistant: vi.fn(async () => ({ status: 'synced', agentId: 'cloud-agent', modelIds: [] })),
-  };
-});
 
 vi.mock('@arco-design/web-react', async () => {
   const actual = await vi.importActual<typeof import('@arco-design/web-react')>('@arco-design/web-react');
@@ -58,8 +49,8 @@ describe('AssistantSelectionArea', () => {
       />
     );
 
-    expect(screen.getByTestId(`preset-pill-${CLOUD_CODEX_ASSISTANT_ID}`)).toBeInTheDocument();
     expect(screen.getByTestId('preset-pill-bare-aionrs')).toBeInTheDocument();
+    expect(screen.getByTestId('preset-pill-builtin-writer')).toBeInTheDocument();
     expect(screen.queryByTestId('btn-add-preset')).not.toBeInTheDocument();
     expect(screen.queryByText('Select an assistant to start a task')).not.toBeInTheDocument();
     expect(screen.queryByText('Try these example prompts:')).not.toBeInTheDocument();
@@ -82,14 +73,15 @@ describe('AssistantSelectionArea', () => {
     expect(screen.getByTestId('preset-pill-bare-aionrs')).toBeInTheDocument();
     expect(screen.getByTestId('preset-pill-user-research')).toBeInTheDocument();
     expect(screen.getByTestId('preset-pill-user-review')).toBeInTheDocument();
-    expect(screen.queryByTestId('preset-pill-user-translate')).not.toBeInTheDocument();
+    expect(screen.getByTestId('preset-pill-user-translate')).toBeInTheDocument();
+    expect(screen.queryByTestId('preset-pill-user-finance')).not.toBeInTheDocument();
     expect(screen.queryByTestId('preset-pill-builtin-writer')).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByTestId('assistant-more-btn'));
 
     expect(await screen.findByTestId('assistant-overflow-user-finance')).toBeInTheDocument();
     expect(screen.getByTestId('assistant-overflow-builtin-writer')).toBeInTheDocument();
-    expect(screen.getByTestId('assistant-overflow-user-translate')).toBeInTheDocument();
+    expect(screen.queryByTestId('assistant-overflow-user-translate')).not.toBeInTheDocument();
     expect(screen.queryByTestId('assistant-overflow-bare-aionrs')).not.toBeInTheDocument();
     expect(screen.queryByTestId('assistant-overflow-user-research')).not.toBeInTheDocument();
   });
@@ -133,7 +125,7 @@ describe('AssistantSelectionArea', () => {
         .getAllByRole('button')
         .slice(0, 4)
         .map((node) => node.textContent?.trim())
-    ).toEqual(['☁️guid.cloudCodex.name', 'AI CLI', 'Early', 'Mid']);
+    ).toEqual(['AI CLI', 'Early', 'Mid', 'Late']);
   });
 
   it('keeps a selected overflow assistant visible in the top pill row', () => {
@@ -149,7 +141,7 @@ describe('AssistantSelectionArea', () => {
     // The selected overflow assistant (finance) is pulled into the top row;
     // translate (the last of the visible-4 before pull-in) drops to overflow.
     expect(screen.getByTestId('preset-pill-user-finance')).toBeInTheDocument();
-    expect(screen.queryByTestId('preset-pill-user-review')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('preset-pill-user-translate')).not.toBeInTheDocument();
   });
 
   it('can re-render from an empty assistant catalog without breaking hook order', () => {
@@ -173,8 +165,8 @@ describe('AssistantSelectionArea', () => {
       )
     ).not.toThrow();
 
-    expect(screen.getByTestId(`preset-pill-${CLOUD_CODEX_ASSISTANT_ID}`)).toBeInTheDocument();
     expect(screen.getByTestId('preset-pill-bare-aionrs')).toBeInTheDocument();
+    expect(screen.getByTestId('preset-pill-builtin-writer')).toBeInTheDocument();
   });
 });
 

@@ -2,6 +2,7 @@
   "fileChanges": "檔案變更",
   "fileChangesCount": "{{count}} 個檔案變更",
   "conversationInProgress": "目前正在進行對話...",
+  "executionPlan": "執行計畫",
   "confirm": "確認",
   "canceledExecution": "已取消執行",
   "openLinkFailed": "無法開啟連結",
@@ -57,6 +58,24 @@
   "noOptionsAvailable": "沒有可用選項",
   "processing": "處理中...",
   "responseSentSuccessfully": "回覆已成功送出",
+  "permissionAllowedAgentContinuing": "已允許權限，智慧體將繼續執行。",
+  "permissionRejectedTurnStopped": "已拒絕權限，目前任務已停止。",
+  "timeTravel": {
+    "tooltip": "回到此處狀態",
+    "noWorkspace": "目前對話沒有綁定工作區，無法回滾檔案。",
+    "backendUnsupported": "此對話尚無可用的回滾快照。升級後端並從新對話開始後才能使用。",
+    "unavailable": "這則訊息沒有可用的回滾快照。",
+    "previewFailed": "載入回滾預覽失敗。",
+    "restoreFailed": "恢復工作區失敗。",
+    "previewTitle": "要把工作區恢復到這則訊息時嗎？",
+    "previewDescription": "這會撤銷此訊息之後的檔案修改。恢復前會自動建立備份。",
+    "fileChangeCount": "將變更 {{count}} 個檔案",
+    "moreFiles": "+ 還有 {{count}} 個",
+    "messageDeleteHint": "此位置之後的 {{count}} 則訊息可能會從可見歷史中移除。",
+    "confirm": "恢復",
+    "restoreSuccess": "工作區已恢復到這則訊息時的狀態。",
+    "restoreSuccessWithBackup": "工作區已恢復。備份：{{path}}"
+  },
   "confirmation": {
     "applyChange": "應用此更改？",
     "allowExecution": "允許執行？",
@@ -73,5 +92,20 @@
     "yesDoNotAskAgain": "同意，並且不再詢問",
     "yesDoNotAskAgainForCommandsStarting": "同意，並且以後不再詢問以 `{{command}}` 開頭的命令",
     "no": "拒絕"
+  },
+  "toolSummary": {
+    "viewSteps": "查看步驟",
+    "suggestion": "建議：{{hint}}",
+    "partialResults": "部分結果",
+    "loading": "正在載入...",
+    "loadFailed": "載入完整輸出失敗",
+    "input": "輸入",
+    "output": "輸出",
+    "truncated": "已截斷",
+    "truncatedHint": "預覽已截斷，展開後會載入完整輸出。",
+    "running": "執行中",
+    "runningWithElapsed": "執行中 · {{elapsed}}",
+    "elapsedSeconds": "{{count}} 秒",
+    "elapsedMinutes": "{{count}} 分鐘"
   }
 }

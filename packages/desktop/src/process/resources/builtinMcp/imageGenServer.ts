@@ -18,6 +18,7 @@ import * as os from 'os';
 import * as path from 'path';
 import { BUILTIN_IMAGE_GEN_ID, BUILTIN_IMAGE_GEN_NAME } from './constants';
 import { executeImageGeneration } from '@/common/chat/imageGenCore';
+import { validateImageGenerationToolRequest } from '@/common/chat/imageGenToolPolicy';
 import type { TProviderWithModel } from '@/common/config/storage';
 
 // Read provider config from environment variables
@@ -55,12 +56,13 @@ async function main() {
 
   server.tool(
     'lingai_image_generation',
-    `REQUIRED tool for generating or editing images. You MUST use this tool for ANY image generation request.
+    `REQUIRED tool for generating or editing images. Use this tool only when the user explicitly asks to create, generate, draw, paint, edit, modify, or transform an image.
 
 CRITICAL: You (the AI assistant) CANNOT generate images directly. You MUST call this tool for:
 - Creating/generating any new images from text descriptions
 - Drawing, painting, or making any visual content
 - Editing or modifying existing images
+- Image-to-image transformations when the user explicitly asks to create a new image based on a reference image
 
 Primary Functions:
 - Generate new images from English text descriptions
@@ -72,16 +74,22 @@ When to Use (MANDATORY):
 - User asks to "generate", "create", "draw", "make", "paint" an image
 - User asks for any visual content creation
 - User asks to edit or modify an image
-- User mentions @filename with image extensions (.jpg, .jpeg, .png, .gif, .webp, .bmp, .tiff, .svg)
+- User explicitly asks for image-to-image generation, restyling, redrawing, or image editing
 
 Input Support:
 - Multiple local file paths in array format: ["img1.jpg", "img2.png"]
 - Multiple HTTP/HTTPS image URLs in array format
-- Text prompts for generation or analysis
+- Text prompts for generation, editing, or image-to-image transformation
+
+Do NOT Use For:
+- Inspecting, reading, describing, OCR, or analyzing screenshots
+- Diagnosing UI screenshots, error screenshots, configuration screenshots, or website screenshots
+- Any case where the user only attached an image/file and asked a question about its contents
+- Merely because a message mentions @filename or includes an image extension
 
 Output:
 - Saves generated/processed images to workspace with timestamp naming
-- Returns image path and AI description/analysis
+- Returns image path and a short result description
 
 IMPORTANT: When user provides multiple images, ALWAYS pass ALL images to the image_uris parameter as an array.
 CRITICAL: You MUST display the generated/edited image in your final chat response to the user using Markdown image syntax: ![Image Description](absolute_file_path). DO NOT just print the raw file path.
@@ -90,21 +98,35 @@ CRITICAL FOR IMAGE-TO-IMAGE: If the user uploads an image and asks for "image-to
       prompt: z
         .string()
         .describe(
-          'The text prompt in English that must clearly specify the operation type: "Generate image: [description]" for creating new images, "Analyze image: [what to analyze]" for image recognition/analysis, "Edit image: [modifications]" for image editing, or "Image-to-Image: [description]" for generating based on a reference image.'
+          'The text prompt in English that must clearly specify the operation type: "Generate image: [description]" for creating new images, "Edit image: [modifications]" for image editing, or "Image-to-Image: [description]" for generating based on a reference image. Do not use this tool for image recognition, screenshot reading, or image analysis.'
         ),
       image_uris: z
         .array(z.string())
         .optional()
         .describe(
-          'Optional: Array of absolute paths to local image files or URLs. Use this for image-to-image, editing, or analysis. ALWAYS pass the raw file path directly; do not try to parse it. Examples: ["C:\\path\\to\\img.jpg", "https://example.com/img.png"].'
+          'Optional: Array of absolute paths to local image files or URLs. Use this only for image-to-image generation or image editing. ALWAYS pass the raw file path directly; do not try to parse it. Examples: ["C:\\path\\to\\img.jpg", "https://example.com/img.png"].'
         ),
       workspace_dir: z
         .string()
         .describe(
-          'REQUIRED: You MUST pass the user\'s active workspace directory here (found in your system prompt environment variables, e.g. the active document\'s root or the conversation App Data Directory). This ensures the generated image is saved inside the workspace and can be displayed in the UI.'
+          "REQUIRED: You MUST pass the user's active workspace directory here (found in your system prompt environment variables, e.g. the active document's root or the conversation App Data Directory). This ensures the generated image is saved inside the workspace and can be displayed in the UI."
         ),
     },
     async ({ prompt, image_uris, workspace_dir }) => {
+      const policy = validateImageGenerationToolRequest(prompt);
+      if (policy.allowed === false) {
+        console.error(`[ImageGenMCP] Rejected non-generation request: ${policy.reason}`);
+        return {
+          content: [
+            {
+              type: 'text' as const,
+              text: policy.message,
+            },
+          ],
+          isError: true,
+        };
+      }
+
       const provider = getProviderFromEnv();
       if (!provider) {
         return {
@@ -120,8 +142,8 @@ CRITICAL FOR IMAGE-TO-IMAGE: If the user uploads an image and asks for "image-to
 
       const proxy = process.env.LINGAI_IMG_PROXY || undefined;
       const workspaceDir = workspace_dir;
-      
-      // Save generated images to a dedicated folder within the workspace 
+
+      // Save generated images to a dedicated folder within the workspace
       // so that they are accessible by AionCore's secure filesystem APIs.
       const outputDir = path.join(workspaceDir, 'lingai_images');
       try {

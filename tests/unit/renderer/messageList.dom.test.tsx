@@ -74,8 +74,20 @@ vi.mock('@/renderer/pages/conversation/Messages/useAutoScroll', () => ({
 }));
 
 vi.mock('@/renderer/pages/conversation/Messages/components/MessageText', () => ({
-  default: ({ message, showCopyRow }: { message: IMessageText; showCopyRow?: boolean }) => (
-    <div data-testid={`msgtext-${message.id}`} data-copy-row={String(showCopyRow ?? true)}>
+  default: ({
+    message,
+    showCopyRow,
+    reserveCopyRowSpace,
+  }: {
+    message: IMessageText;
+    showCopyRow?: boolean;
+    reserveCopyRowSpace?: boolean;
+  }) => (
+    <div
+      data-testid={`msgtext-${message.id}`}
+      data-copy-row={String(showCopyRow ?? true)}
+      data-reserve-copy-row={String(reserveCopyRowSpace ?? false)}
+    >
       {message.content.content}
     </div>
   ),
@@ -268,6 +280,8 @@ describe('MessageList', () => {
     expect(screen.getByTestId('msgtext-text-a').getAttribute('data-copy-row')).toBe('true');
     // The in-progress final turn withholds its row until streaming ends.
     expect(screen.getByTestId('msgtext-text-b').getAttribute('data-copy-row')).toBe('false');
+    // Keep the final row height stable so finishing the turn doesn't add 36px and shake the scroll viewport.
+    expect(screen.getByTestId('msgtext-text-b').getAttribute('data-reserve-copy-row')).toBe('true');
   });
 
   it('renders the empty slot when there are no messages', () => {

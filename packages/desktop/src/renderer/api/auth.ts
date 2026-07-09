@@ -6,6 +6,19 @@ export interface UserInfo {
   username: string;
   quota: number;
   usedQuota?: number;
+  quotaPlan?: {
+    mode: 'balance' | 'reset_window';
+    label?: string;
+    total: number;
+    remaining: number;
+    used: number;
+    progress: number;
+    windowHours: number | null;
+    resetAt: string | null;
+    expiresAt: string | null;
+    secondsUntilReset: number | null;
+    isExpired: boolean;
+  };
   cloudHistoryEnabled?: boolean;
 }
 

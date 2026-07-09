@@ -15,6 +15,7 @@ import {
 import { usePreviewContext } from '@/renderer/pages/conversation/Preview';
 import { useLayoutContext } from '@/renderer/hooks/context/LayoutContext';
 import { getModelDisplayLabel } from '@/renderer/utils/model/agentLogo';
+import { getCloudProviderRenderKey } from '@/renderer/api/cloud';
 import { iconColors } from '@/renderer/styles/colors';
 import { Button, Dropdown, Menu, Tooltip } from '@arco-design/web-react';
 import { Brain, Down } from '@icon-park/react';
@@ -62,7 +63,7 @@ const AionrsModelSelector: React.FC<{
     );
   }
 
-  const { providers, getAvailableModels, handleSelectModel } = selection;
+  const { providers, getAvailableModels, handleSelectModel, formatModelLabel } = selection;
   const handleDropdownVisibleChange = (visible: boolean) => {
     if (!visible) return;
     void selection.refreshModels().catch((error) => {
@@ -70,9 +71,10 @@ const AionrsModelSelector: React.FC<{
     });
   };
 
+  const rawLabel = current_model ? formatModelLabel(current_model, current_model.use_model) : '';
   const label = getModelDisplayLabel({
     selected_value: current_model?.use_model,
-    selectedLabel: current_model?.use_model || '',
+    selectedLabel: rawLabel,
     defaultModelLabel,
     fallbackLabel: t('conversation.welcome.selectModel'),
   });
@@ -98,26 +100,32 @@ const AionrsModelSelector: React.FC<{
             onSelect: handleThoughtLevelSelect,
           })}
           {thoughtLevel && <RuntimeSelectorMenuDivider />}
-          {providers.map((provider) => {
+          {providers.map((provider, providerIndex) => {
             const models = getAvailableModels(provider);
             if (!models.length) return null;
+            const providerKey = getCloudProviderRenderKey(provider, providerIndex);
 
             return (
-              <Menu.ItemGroup title={provider.name} key={provider.id}>
-                {models.map((modelName) => (
-                  <Menu.Item
-                    key={`${provider.id}-${modelName}`}
-                    data-testid={`aionrs-model-option-${modelName}`}
-                    className={current_model?.id + current_model?.use_model === provider.id + modelName ? '!bg-2' : ''}
-                    onClick={() => void handleSelectModel(provider, modelName)}
-                  >
-                    <RuntimeSelectorCheckedItem
-                      selected={current_model?.id + current_model?.use_model === provider.id + modelName}
+              <Menu.ItemGroup title={provider.name} key={providerKey}>
+                {models.map((modelName) => {
+                  const modelLabel = formatModelLabel(provider, modelName);
+                  return (
+                    <Menu.Item
+                      key={`${providerKey}-${modelName}`}
+                      data-testid={`aionrs-model-option-${modelName}`}
+                      className={
+                        current_model?.id + current_model?.use_model === provider.id + modelName ? '!bg-2' : ''
+                      }
+                      onClick={() => void handleSelectModel(provider, modelName)}
                     >
-                      {modelName}
-                    </RuntimeSelectorCheckedItem>
-                  </Menu.Item>
-                ))}
+                      <RuntimeSelectorCheckedItem
+                        selected={current_model?.id + current_model?.use_model === provider.id + modelName}
+                      >
+                        {modelLabel}
+                      </RuntimeSelectorCheckedItem>
+                    </Menu.Item>
+                  );
+                })}
               </Menu.ItemGroup>
             );
           })}

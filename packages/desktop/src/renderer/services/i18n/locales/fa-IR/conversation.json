@@ -567,6 +567,9 @@
       },
       "ACP_EMPTY_TURN_REFUSAL": {
         "body": "مدل قبل از تولید پاسخ قابل مشاهده، این درخواست را رد کرد."
+      },
+      "AIONRS_RUNTIME_ENV_QUEUE": {
+        "body": "AI CLI is finishing another task. This reply is queued and will start automatically."
       }
     }
   },

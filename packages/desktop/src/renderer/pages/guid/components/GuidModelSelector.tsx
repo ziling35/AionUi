@@ -16,6 +16,33 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { useProvidersQuery } from '@/renderer/hooks/agent/useModelProviderList';
 import { useUser } from '@/renderer/hooks/context/UserContext';
+import { getCloudProviderRenderKey } from '@/renderer/api/cloud';
+
+const getAcpModelOptionKey = (model: AcpModelInfo['available_models'][number]): string => model.optionKey || model.id;
+
+const buildAcpModelGroups = (
+  models: AcpModelInfo['available_models'],
+  defaultTitle: string
+): Array<{ key: string; title: string; models: AcpModelInfo['available_models'] }> => {
+  const hasProviderGroups = models.some((model) => model.providerName || model.providerId);
+  if (!hasProviderGroups) return [{ key: 'default', title: defaultTitle, models }];
+
+  const groups: Array<{ key: string; title: string; models: AcpModelInfo['available_models'] }> = [];
+  const groupIndex = new Map<string, number>();
+  for (const model of models) {
+    const title = model.providerName || model.providerId || defaultTitle;
+    const key = `${model.providerId || 'provider'}:${title}`;
+    const existingIndex = groupIndex.get(key);
+    const existingGroup = existingIndex !== undefined ? groups[existingIndex] : undefined;
+    if (existingGroup) {
+      existingGroup.models.push(model);
+      continue;
+    }
+    groupIndex.set(key, groups.length);
+    groups.push({ key, title, models: [model] });
+  }
+  return groups;
+};
 
 type GuidModelSelectorProps = {
   // Gemini model state
@@ -23,6 +50,7 @@ type GuidModelSelectorProps = {
   modelList: IProvider[];
   current_model: TProviderWithModel | undefined;
   setCurrentModel: (model: TProviderWithModel) => Promise<void>;
+  formatModelLabel: (provider: Pick<IProvider, 'model_labels'> | undefined, modelName?: string) => string;
 
   // ACP model state
   currentAcpCachedModelInfo: AcpModelInfo | null;
@@ -35,6 +63,7 @@ const GuidModelSelector: React.FC<GuidModelSelectorProps> = ({
   modelList,
   current_model,
   setCurrentModel,
+  formatModelLabel,
   currentAcpCachedModelInfo,
   selectedAcpModel,
   setSelectedAcpModel,
@@ -54,8 +83,8 @@ const GuidModelSelector: React.FC<GuidModelSelectorProps> = ({
 
   const geminiSelectedLabel = React.useMemo(() => {
     if (!current_model?.use_model) return '';
-    return current_model.use_model;
-  }, [current_model?.use_model]);
+    return formatModelLabel(current_model, current_model.use_model);
+  }, [current_model, formatModelLabel]);
 
   const geminiButtonLabel = React.useMemo(() => {
     return getModelDisplayLabel({
@@ -88,6 +117,15 @@ const GuidModelSelector: React.FC<GuidModelSelectorProps> = ({
       fallbackLabel: defaultModelLabel,
     });
   }, [acpSelectedLabel, currentAcpCachedModelInfo?.current_model_id, defaultModelLabel, selectedAcpModel]);
+  const acpModelGroups = React.useMemo(
+    () => buildAcpModelGroups(currentAcpCachedModelInfo?.available_models ?? [], t('common.model')),
+    [currentAcpCachedModelInfo?.available_models, t]
+  );
+  const selectedAcpModelOptionKey = React.useMemo(() => {
+    const selectedModelId = selectedAcpModel || currentAcpCachedModelInfo?.current_model_id;
+    const selectedModel = currentAcpCachedModelInfo?.available_models?.find((model) => model.id === selectedModelId);
+    return selectedModel ? getAcpModelOptionKey(selectedModel) : selectedModelId;
+  }, [currentAcpCachedModelInfo?.available_models, currentAcpCachedModelInfo?.current_model_id, selectedAcpModel]);
 
   const handleModelDropdownVisibleChange = React.useCallback(
     (visible: boolean) => {
@@ -128,11 +166,12 @@ const GuidModelSelector: React.FC<GuidModelSelectorProps> = ({
                   </Menu.Item>,
                 ]
               : [
-                  ...(enabledModelList || []).map((provider) => {
+                  ...(enabledModelList || []).map((provider, providerIndex) => {
                     const available_models = getAvailableModels(provider);
                     if (available_models.length === 0) return null;
+                    const providerKey = getCloudProviderRenderKey(provider, providerIndex);
                     return (
-                      <Menu.ItemGroup title={provider.name} key={provider.id}>
+                      <Menu.ItemGroup title={provider.name} key={providerKey}>
                         {available_models.map((modelName) => {
                           // 获取模型健康状态
                           const matchedProvider = modelConfig?.find((p) => p.id === provider.id);
@@ -146,7 +185,7 @@ const GuidModelSelector: React.FC<GuidModelSelectorProps> = ({
 
                           return (
                             <Menu.Item
-                              key={provider.id + modelName}
+                              key={providerKey + modelName}
                               className={
                                 current_model?.id + current_model?.use_model === provider.id + modelName ? '!bg-2' : ''
                               }
@@ -160,7 +199,7 @@ const GuidModelSelector: React.FC<GuidModelSelectorProps> = ({
                                 {healthStatus !== 'unknown' && (
                                   <div className={`w-6px h-6px rounded-full shrink-0 ${healthColor}`} />
                                 )}
-                                <span>{modelName}</span>
+                                <span>{formatModelLabel(provider, modelName)}</span>
                               </div>
                             </Menu.Item>
                           );
@@ -203,39 +242,45 @@ const GuidModelSelector: React.FC<GuidModelSelectorProps> = ({
         <Dropdown
           trigger='click'
           droplist={
-            <Menu selectedKeys={selectedAcpModel ? [selectedAcpModel] : []}>
-              {currentAcpCachedModelInfo.available_models.map((model) => {
-                // 获取模型健康状态
-                const providerConfig = modelConfig?.find((p) => p.platform?.includes(''));
-                const healthStatus = providerConfig?.model_health?.[model.id]?.status || 'unknown';
-                const healthColor =
-                  healthStatus === 'healthy'
-                    ? 'bg-green-500'
-                    : healthStatus === 'unhealthy'
-                      ? 'bg-red-500'
-                      : 'bg-gray-400';
+            <Menu selectedKeys={selectedAcpModelOptionKey ? [selectedAcpModelOptionKey] : []}>
+              {acpModelGroups.map((group) => (
+                <Menu.ItemGroup title={group.title} key={group.key}>
+                  {group.models.map((model) => {
+                    const optionKey = getAcpModelOptionKey(model);
+                    const providerConfig = model.providerId
+                      ? modelConfig?.find((p) => p.id === model.providerId)
+                      : undefined;
+                    const healthStatus = providerConfig?.model_health?.[model.id]?.status || 'unknown';
+                    const healthColor =
+                      healthStatus === 'healthy'
+                        ? 'bg-green-500'
+                        : healthStatus === 'unhealthy'
+                          ? 'bg-red-500'
+                          : 'bg-gray-400';
 
-                return (
-                  <Menu.Item
-                    key={model.id}
-                    className={model.id === selectedAcpModel ? '!bg-2' : ''}
-                    onClick={() => setSelectedAcpModel(model.id)}
-                  >
-                    <div className='flex items-center gap-8px w-full'>
-                      {healthStatus !== 'unknown' && (
-                        <div className={`w-6px h-6px rounded-full shrink-0 ${healthColor}`} />
-                      )}
-                      {model.description ? (
-                        <Tooltip content={model.description} position='right'>
-                          <span className='min-w-0 truncate'>{model.label}</span>
-                        </Tooltip>
-                      ) : (
-                        <span className='min-w-0 truncate'>{model.label}</span>
-                      )}
-                    </div>
-                  </Menu.Item>
-                );
-              })}
+                    return (
+                      <Menu.Item
+                        key={optionKey}
+                        className={optionKey === selectedAcpModelOptionKey ? '!bg-2' : ''}
+                        onClick={() => setSelectedAcpModel(model.id)}
+                      >
+                        <div className='flex items-center gap-8px w-full'>
+                          {healthStatus !== 'unknown' && (
+                            <div className={`w-6px h-6px rounded-full shrink-0 ${healthColor}`} />
+                          )}
+                          {model.description ? (
+                            <Tooltip content={model.description} position='right'>
+                              <span className='min-w-0 truncate'>{model.label}</span>
+                            </Tooltip>
+                          ) : (
+                            <span className='min-w-0 truncate'>{model.label}</span>
+                          )}
+                        </div>
+                      </Menu.Item>
+                    );
+                  })}
+                </Menu.ItemGroup>
+              ))}
             </Menu>
           }
         >

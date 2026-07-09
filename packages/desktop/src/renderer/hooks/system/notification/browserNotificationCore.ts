@@ -50,12 +50,78 @@ export type StreamMessage = {
   type?: string;
   conversation_id?: string;
   turn_id?: string;
+  content?: {
+    id?: string;
+    call_id?: string;
+  };
 };
 
 // Stream `type` values that represent an agent asking the user to confirm a
 // permission. ACP emits `acp_permission`; aionrs emits both `acp_permission`
 // and `permission`.
-const PERMISSION_TYPES = new Set(['acp_permission', 'permission']);
+export const PERMISSION_TYPES = new Set(['acp_permission', 'permission']);
+
+export type NotificationSoundGate = {
+  notificationEnabled: boolean;
+  soundEnabled: boolean;
+};
+
+export const shouldPlayNotificationSound = (gate: NotificationSoundGate): boolean =>
+  gate.notificationEnabled && gate.soundEnabled;
+
+export type NotificationReminderKind = 'confirmation' | 'turnCompleted';
+
+export type NotificationReminderPayload = {
+  kind: NotificationReminderKind;
+  conversationId?: string;
+};
+
+export type NotificationSoundDeps = {
+  readGate: () => NotificationSoundGate;
+  play: (kind: NotificationReminderKind) => void;
+  notify?: (payload: NotificationReminderPayload) => void;
+};
+
+export const createNotificationSoundController = (deps: NotificationSoundDeps) => {
+  let lastPlayedTurnId: string | null = null;
+  let lastPlayedConfirmationId: string | null = null;
+
+  const remind = (payload: NotificationReminderPayload): void => {
+    const gate = deps.readGate();
+    if (!gate.notificationEnabled) return;
+    deps.notify?.(payload);
+    if (gate.soundEnabled) {
+      deps.play(payload.kind);
+    }
+  };
+
+  const onConfirmationRequested = (confirmationId?: string, conversationId?: string): void => {
+    if (confirmationId && confirmationId === lastPlayedConfirmationId) return;
+    lastPlayedConfirmationId = confirmationId ?? null;
+    remind({ kind: 'confirmation', conversationId });
+  };
+
+  const onTurnCompleted = (turnId?: string, conversationId?: string): void => {
+    if (turnId && turnId === lastPlayedTurnId) return;
+    lastPlayedTurnId = turnId ?? null;
+    remind({ kind: 'turnCompleted', conversationId });
+  };
+
+  const onStreamMessage = (message: StreamMessage): void => {
+    if (!message?.type) return;
+
+    if (PERMISSION_TYPES.has(message.type)) {
+      onConfirmationRequested(message.content?.id ?? message.content?.call_id, message.conversation_id);
+      return;
+    }
+
+    if (message.type === 'finish') {
+      onTurnCompleted(message.turn_id, message.conversation_id);
+    }
+  };
+
+  return { onConfirmationRequested, onStreamMessage, onTurnCompleted };
+};
 
 export const createBrowserNotificationController = (deps: BrowserNotificationDeps) => {
   // Track the last turn we actually notified for, so repeated finish events

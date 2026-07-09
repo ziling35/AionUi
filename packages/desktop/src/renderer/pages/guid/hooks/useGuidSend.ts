@@ -218,6 +218,7 @@ export const useGuidSend = (deps: GuidSendDeps): GuidSendResult => {
           workspace: finalWorkspace,
           custom_workspace: isCustomWorkspace,
           default_files: files,
+          current_model_id: assistantOverrideModel,
           selected_mcp_server_ids: selectedUserMcpServerIdsToSend,
           selected_session_mcp_servers:
             selectedMcpServerIds !== undefined ? selectedSessionMcpServers : selectedSessionMcpServersToSend,

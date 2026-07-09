@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import classNames from 'classnames';
+import { Popover, Progress } from '@arco-design/web-react';
 import { ArrowCircleLeft, ArrowLeft, ArrowRight, ExpandLeft, ExpandRight, Peoples, Search, User } from '@icon-park/react';
 import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -104,6 +105,20 @@ const SidebarIcon: React.FC<{ size?: number; strokeWidth?: number }> = ({ size =
   </svg>
 );
 
+const formatQuotaDuration = (seconds: number | null | undefined) => {
+  if (seconds === null || seconds === undefined) return '-';
+  const safeSeconds = Math.max(0, seconds);
+  const hours = Math.floor(safeSeconds / 3600);
+  const minutes = Math.floor((safeSeconds % 3600) / 60);
+  if (hours > 0) return `${hours}h ${minutes}m`;
+  return `${minutes}m`;
+};
+
+const formatQuotaDateTime = (value: string | null | undefined) => {
+  if (!value) return '-';
+  return new Date(value).toLocaleString();
+};
+
 const Titlebar: React.FC<TitlebarProps> = ({ workspaceAvailable }) => {
   const { t } = useTranslation();
   const appTitle = useMemo(() => 'LingAI', []);
@@ -113,12 +128,13 @@ const Titlebar: React.FC<TitlebarProps> = ({ workspaceAvailable }) => {
   const layout = useLayoutContext();
   const navigationHistory = useNavigationHistory();
   const { openFeedback } = useFeedback();
-  const { user, isLoggedIn, showLoginModal } = useUser();
+  const { user, isLoggedIn, showLoginModal, refreshUser } = useUser();
   const location = useLocation();
   const navigate = useNavigate();
   const containerRef = useRef<HTMLDivElement | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
   const toolbarRef = useRef<HTMLDivElement | null>(null);
+  const lastQuotaRefreshAtRef = useRef(0);
   const lastNonSettingsPathRef = useRef('/guid');
 
   // 监听工作空间折叠状态，保持按钮图标一致 / Sync workspace collapsed state for toggle button
@@ -155,6 +171,60 @@ const Titlebar: React.FC<TitlebarProps> = ({ workspaceAvailable }) => {
   // Desktop uses slimmer strokes to match macOS-native chrome aesthetics;
   // mobile keeps the default weight so icons stay legible at larger sizes.
   const desktopIconStroke = layout?.isMobile ? undefined : 2.5;
+  const accountButtonLabel = isLoggedIn
+    ? (user?.username ?? 'Account')
+    : t('login.cloud.tabLogin', { defaultValue: 'Sign In' });
+  const quotaPlan = user?.quotaPlan;
+  const quotaPopoverContent = useMemo(() => {
+    if (!isLoggedIn || !user) {
+      return (
+        <div className='app-titlebar__quota-popover'>
+          <div className='app-titlebar__quota-title'>{t('settings.accountPanel.notLoggedIn')}</div>
+          <div className='app-titlebar__quota-muted'>{t('settings.accountPanel.notLoggedInDesc')}</div>
+        </div>
+      );
+    }
+
+    const isResetWindowPlan = quotaPlan?.mode === 'reset_window';
+    const total = quotaPlan?.total ?? (user.quota ?? 0) + (user.usedQuota ?? 0);
+    const used = isResetWindowPlan ? (quotaPlan?.used ?? 0) : (user.usedQuota ?? 0);
+    const remaining = quotaPlan?.remaining ?? user.quota ?? 0;
+    const percent = total > 0 ? Math.min(100, Math.round((used / total) * 100)) : 0;
+
+    return (
+      <div className='app-titlebar__quota-popover'>
+        <div className='app-titlebar__quota-title'>{user.username ?? 'Account'}</div>
+        <div className='app-titlebar__quota-row'>
+          <span>{t('settings.accountPanel.quota')}</span>
+          <strong>{remaining}</strong>
+        </div>
+        <div className='app-titlebar__quota-row'>
+          <span>{t('settings.accountPanel.usedQuota')}</span>
+          <strong>{used}</strong>
+        </div>
+        <Progress percent={percent} showText={false} color={isResetWindowPlan ? 'var(--color-primary)' : undefined} />
+        {isResetWindowPlan && quotaPlan && (
+          <div className='app-titlebar__quota-extra'>
+            <div className='app-titlebar__quota-row'>
+              <span>{t('settings.accountPanel.resetAfter')}</span>
+              <strong>{formatQuotaDuration(quotaPlan.secondsUntilReset)}</strong>
+            </div>
+            <div className='app-titlebar__quota-row'>
+              <span>{t('settings.accountPanel.validUntil')}</span>
+              <strong>{formatQuotaDateTime(quotaPlan.expiresAt)}</strong>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }, [isLoggedIn, quotaPlan, t, user]);
+  const handleAccountHover = () => {
+    if (!isLoggedIn) return;
+    const now = Date.now();
+    if (now - lastQuotaRefreshAtRef.current < 10_000) return;
+    lastQuotaRefreshAtRef.current = now;
+    void refreshUser();
+  };
   // 统一在标题栏左侧展示主侧栏开关 / Always expose sidebar toggle on titlebar left side
   const showSiderToggle = Boolean(layout?.setSiderCollapsed) && !(layout?.isMobile && isSettingsRoute);
   const showBackToChatButton = Boolean(layout?.isMobile && isSettingsRoute);
@@ -418,17 +488,18 @@ const Titlebar: React.FC<TitlebarProps> = ({ workspaceAvailable }) => {
       </div>
       <div ref={toolbarRef} className='app-titlebar__toolbar'>
         {layout?.isMobile && <div id='app-titlebar-actions-slot' className='app-titlebar__actions-slot' />}
-        <button
-          type='button'
-          className={classNames('app-titlebar__button', layout?.isMobile && 'app-titlebar__button--mobile')}
-          onClick={isLoggedIn ? () => void navigate('/settings/account') : showLoginModal}
-          aria-label={
-            isLoggedIn ? (user?.username ?? 'Account') : t('login.cloud.tabLogin', { defaultValue: 'Sign In' })
-          }
-          title={isLoggedIn ? (user?.username ?? 'Account') : t('login.cloud.tabLogin', { defaultValue: 'Sign In' })}
-        >
-          <User theme='outline' size={iconSize} fill='currentColor' strokeWidth={desktopIconStroke} />
-        </button>
+        <Popover content={quotaPopoverContent} position='bottom' trigger='hover'>
+          <button
+            type='button'
+            className={classNames('app-titlebar__button', layout?.isMobile && 'app-titlebar__button--mobile')}
+            onClick={isLoggedIn ? () => void navigate('/settings/account') : showLoginModal}
+            onMouseEnter={handleAccountHover}
+            aria-label={accountButtonLabel}
+            title={accountButtonLabel}
+          >
+            <User theme='outline' size={iconSize} fill='currentColor' strokeWidth={desktopIconStroke} />
+          </button>
+        </Popover>
         <button
           type='button'
           className={classNames('app-titlebar__button', layout?.isMobile && 'app-titlebar__button--mobile')}

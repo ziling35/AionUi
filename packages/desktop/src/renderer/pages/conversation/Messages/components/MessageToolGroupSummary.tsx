@@ -6,7 +6,12 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ipcBridge } from '@/common';
 import { getAcpImageFileName } from '@/common/chat/acpToolCallOutput';
-import type { NormalizedToolCall, NormalizedToolStatus, ToolMessage } from '@/common/chat/normalizeToolCall';
+import type {
+  NormalizedToolCall,
+  NormalizedToolFeedback,
+  NormalizedToolStatus,
+  ToolMessage,
+} from '@/common/chat/normalizeToolCall';
 import { normalizeToolMessages, hasRunningToolMessages } from '@/common/chat/normalizeToolCall';
 import LocalImageView from '@/renderer/components/media/LocalImageView';
 import { downloadFileFromPath } from '@/renderer/utils/file/download';
@@ -28,14 +33,65 @@ const statusToBadge = (status: NormalizedToolStatus): BadgeProps['status'] => {
   }
 };
 
+export const ToolFeedbackPanel: React.FC<{ feedback: NormalizedToolFeedback }> = ({ feedback }) => {
+  const { t } = useTranslation();
+  const statsEntries = Object.entries(feedback.stats ?? {}).filter(
+    ([, value]) => value !== undefined && value !== null
+  );
+  const partialResults = feedback.partialResults?.filter(Boolean) ?? [];
+
+  return (
+    <div className='tool-feedback-panel'>
+      <div className='tool-feedback-header'>
+        <span className='tool-feedback-kind'>{feedback.kind}</span>
+        <span className='tool-feedback-summary'>{feedback.summary}</span>
+      </div>
+      {feedback.retryHint && (
+        <div className='tool-feedback-retry'>{t('messages.toolSummary.suggestion', { hint: feedback.retryHint })}</div>
+      )}
+      {statsEntries.length > 0 && (
+        <div className='tool-feedback-stats'>
+          {statsEntries.map(([key, value]) => (
+            <span key={key} className='tool-feedback-stat'>
+              {key}:{' '}
+              {typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean'
+                ? String(value)
+                : JSON.stringify(value)}
+            </span>
+          ))}
+        </div>
+      )}
+      {partialResults.length > 0 && (
+        <div className='tool-feedback-partial'>
+          <div className='tool-detail-label'>{t('messages.toolSummary.partialResults')}</div>
+          <pre className='tool-detail-content'>{partialResults.join('\n')}</pre>
+        </div>
+      )}
+    </div>
+  );
+};
+
+type Translate = ReturnType<typeof useTranslation>['t'];
+
+const formatElapsed = (startedAt: number | undefined, now: number, t: Translate): string | undefined => {
+  if (!startedAt) return undefined;
+  const elapsedSeconds = Math.max(0, Math.floor((now - startedAt) / 1000));
+  if (elapsedSeconds < 60) {
+    return t('messages.toolSummary.elapsedSeconds', { count: elapsedSeconds });
+  }
+  return t('messages.toolSummary.elapsedMinutes', { count: Math.floor(elapsedSeconds / 60) });
+};
+
 const ToolItemDetail: React.FC<{ item: NormalizedToolCall }> = ({ item }) => {
   const { t } = useTranslation();
   const [expanded, setExpanded] = useState(false);
   const [fullItem, setFullItem] = useState<NormalizedToolCall | null>(null);
   const [loadingFull, setLoadingFull] = useState(false);
   const [loadError, setLoadError] = useState(false);
+  const [now, setNow] = useState(Date.now());
   const displayItem = fullItem ?? item;
-  const hasDetail = displayItem.input || displayItem.output || item.truncated || item.imagePath;
+  const hasDetail = displayItem.input || displayItem.output || displayItem.feedback || item.truncated || item.imagePath;
+  const elapsedLabel = formatElapsed(item.startedAt, now, t);
   const [messageApi, messageContext] = Message.useMessage();
   const handleDownloadImage = useCallback(
     async (path: string) => {
@@ -49,6 +105,12 @@ const ToolItemDetail: React.FC<{ item: NormalizedToolCall }> = ({ item }) => {
     },
     [messageApi, t]
   );
+
+  useEffect(() => {
+    if (item.status !== 'running' || !item.startedAt) return;
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, [item.startedAt, item.status]);
 
   const loadFullItem = async () => {
     if (!item.truncated || fullItem || loadingFull || !item.conversationId || !item.messageId) return;
@@ -92,6 +154,14 @@ const ToolItemDetail: React.FC<{ item: NormalizedToolCall }> = ({ item }) => {
             <span className='m-l-4px opacity-80 text-13px'>{displayItem.description}</span>
           )}
         </span>
+        {item.status === 'running' && (
+          <span className='tool-runtime-chip'>
+            {elapsedLabel
+              ? t('messages.toolSummary.runningWithElapsed', { elapsed: elapsedLabel })
+              : t('messages.toolSummary.running')}
+          </span>
+        )}
+        {item.truncated && <span className='tool-runtime-chip'>{t('messages.toolSummary.truncated')}</span>}
         {hasDetail && (
           <span className='flex-shrink-0 cursor-pointer hover:color-#4E5969 transition-colors' onClick={toggleExpanded}>
             {expanded ? <IconDown style={{ fontSize: 12 }} /> : <IconRight style={{ fontSize: 12 }} />}
@@ -100,17 +170,21 @@ const ToolItemDetail: React.FC<{ item: NormalizedToolCall }> = ({ item }) => {
       </div>
       {expanded && hasDetail && (
         <div className='tool-detail-panel m-l-20px m-t-4px'>
-          {loadingFull && <div className='tool-detail-label'>Loading...</div>}
-          {loadError && <div className='tool-detail-label'>Failed to load full output</div>}
+          {item.truncated && !fullItem && (
+            <div className='tool-detail-label'>{t('messages.toolSummary.truncatedHint')}</div>
+          )}
+          {loadingFull && <div className='tool-detail-label'>{t('messages.toolSummary.loading')}</div>}
+          {loadError && <div className='tool-detail-label'>{t('messages.toolSummary.loadFailed')}</div>}
+          {displayItem.feedback && <ToolFeedbackPanel feedback={displayItem.feedback} />}
           {displayItem.input && (
             <div className='tool-detail-section'>
-              <div className='tool-detail-label'>Input</div>
+              <div className='tool-detail-label'>{t('messages.toolSummary.input')}</div>
               <pre className='tool-detail-content'>{displayItem.input}</pre>
             </div>
           )}
           {displayItem.output && (
             <div className='tool-detail-section'>
-              <div className='tool-detail-label'>Output</div>
+              <div className='tool-detail-label'>{t('messages.toolSummary.output')}</div>
               <pre className='tool-detail-content'>{displayItem.output}</pre>
             </div>
           )}
@@ -141,6 +215,7 @@ const ToolItemDetail: React.FC<{ item: NormalizedToolCall }> = ({ item }) => {
 };
 
 const MessageToolGroupSummary: React.FC<{ messages: ToolMessage[] }> = ({ messages }) => {
+  const { t } = useTranslation();
   const hasRunning = hasRunningToolMessages(messages);
   const [showMore, setShowMore] = useState(hasRunning);
 
@@ -156,7 +231,10 @@ const MessageToolGroupSummary: React.FC<{ messages: ToolMessage[] }> = ({ messag
         <span className='tool-group-summary__icon'>
           {hasRunning ? <Spin size={12} /> : <Checklist theme='outline' size='14' />}
         </span>
-        <span className='tool-group-summary__label'>View Steps {tools.length > 0 ? `· ${tools.length}` : ''}</span>
+        <span className='tool-group-summary__label'>
+          {t('messages.toolSummary.viewSteps')}
+          {tools.length > 0 ? ` \u00b7 ${tools.length}` : ''}
+        </span>
         <span className={`tool-group-summary__arrow${showMore ? ' tool-group-summary__arrow--open' : ''}`}>
           <Right theme='outline' size='12' />
         </span>

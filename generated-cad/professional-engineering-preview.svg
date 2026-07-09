@@ -1,0 +1,139 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1131" viewBox="0 0 420 297">
+  <defs>
+    <style>
+      .sheet { fill: #fbfbf8; }
+      .border { fill: none; stroke: #111; stroke-width: 0.55; }
+      .thin { fill: none; stroke: #222; stroke-width: 0.35; }
+      .part { fill: none; stroke: #101010; stroke-width: 0.7; }
+      .heavy { fill: none; stroke: #101010; stroke-width: 1.0; }
+      .center { fill: none; stroke: #1b63b7; stroke-width: 0.28; stroke-dasharray: 7 2 1.5 2; }
+      .hidden { fill: none; stroke: #666; stroke-width: 0.28; stroke-dasharray: 3 2; }
+      .dim { fill: none; stroke: #008a3d; stroke-width: 0.28; }
+      .callout { fill: none; stroke: #b36b00; stroke-width: 0.32; }
+      .hatch { stroke: #777; stroke-width: 0.22; }
+      .txt { font-family: Arial, Helvetica, sans-serif; fill: #111; font-size: 3px; }
+      .title { font-family: Arial, Helvetica, sans-serif; font-weight: 700; fill: #111; font-size: 4.2px; }
+      .small { font-family: Arial, Helvetica, sans-serif; fill: #111; font-size: 2.5px; }
+      .dimtxt { font-family: Arial, Helvetica, sans-serif; fill: #008a3d; font-size: 3px; }
+      .blueprint { fill: #eef5ff; opacity: 0.25; }
+    </style>
+    <marker id="arrow" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L6,3 L0,6 Z" fill="#008a3d" />
+    </marker>
+    <marker id="arrowCallout" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L6,3 L0,6 Z" fill="#b36b00" />
+    </marker>
+  </defs>
+
+  <rect class="sheet" x="0" y="0" width="420" height="297" />
+  <rect class="blueprint" x="15" y="15" width="390" height="267" />
+  <rect class="border" x="10" y="10" width="400" height="277" />
+  <rect class="border" x="15" y="15" width="390" height="267" />
+
+  <!-- Title block -->
+  <rect class="border" x="250" y="232" width="155" height="50" />
+  <line class="thin" x1="250" y1="247" x2="405" y2="247" />
+  <line class="thin" x1="250" y1="262" x2="405" y2="262" />
+  <line class="thin" x1="310" y1="232" x2="310" y2="282" />
+  <line class="thin" x1="360" y1="232" x2="360" y2="262" />
+  <text class="small" x="255" y="242">PROJECT</text>
+  <text class="txt" x="315" y="242">LINGAI / AIONUI</text>
+  <text class="small" x="255" y="257">DRAWING</text>
+  <text class="txt" x="315" y="257">AI SERVO MOUNTING BRACKET</text>
+  <text class="small" x="255" y="274">SCALE</text>
+  <text class="txt" x="315" y="274">1:1</text>
+  <text class="txt" x="365" y="274">REV A</text>
+  <text class="txt" x="365" y="257">DWG-AX-042</text>
+  <text class="small" x="255" y="280">UNITS: mm | TOL: ISO 2768-mK | MATERIAL: 6061-T6 AL</text>
+
+  <!-- Top view -->
+  <text class="title" x="83" y="58">TOP VIEW - PRECISION LIGHTWEIGHT AI SERVO BRACKET</text>
+  <rect class="part" x="80" y="80" width="180" height="90" rx="0" />
+  <rect class="part" x="100" y="95" width="140" height="60" />
+  <circle class="part" cx="110" cy="110" r="6" />
+  <circle class="part" cx="230" cy="110" r="6" />
+  <circle class="part" cx="110" cy="140" r="6" />
+  <circle class="part" cx="230" cy="140" r="6" />
+  <circle class="heavy" cx="170" cy="125" r="18" />
+  <circle class="part" cx="170" cy="125" r="32" />
+  <circle class="hidden" cx="170" cy="125" r="42" />
+  <line class="center" x1="170" y1="72" x2="170" y2="178" />
+  <line class="center" x1="72" y1="125" x2="268" y2="125" />
+  <line class="center" x1="102" y1="110" x2="118" y2="110" />
+  <line class="center" x1="110" y1="102" x2="110" y2="118" />
+  <line class="center" x1="222" y1="110" x2="238" y2="110" />
+  <line class="center" x1="230" y1="102" x2="230" y2="118" />
+  <line class="center" x1="102" y1="140" x2="118" y2="140" />
+  <line class="center" x1="110" y1="132" x2="110" y2="148" />
+  <line class="center" x1="222" y1="140" x2="238" y2="140" />
+  <line class="center" x1="230" y1="132" x2="230" y2="148" />
+
+  <!-- Top view dimensions -->
+  <line class="dim" x1="80" y1="185" x2="260" y2="185" marker-start="url(#arrow)" marker-end="url(#arrow)" />
+  <line class="dim" x1="80" y1="170" x2="80" y2="190" />
+  <line class="dim" x1="260" y1="170" x2="260" y2="190" />
+  <text class="dimtxt" x="158" y="194">180.00</text>
+  <line class="dim" x1="65" y1="80" x2="65" y2="170" marker-start="url(#arrow)" marker-end="url(#arrow)" />
+  <line class="dim" x1="75" y1="80" x2="60" y2="80" />
+  <line class="dim" x1="75" y1="170" x2="60" y2="170" />
+  <text class="dimtxt" x="48" y="128" transform="rotate(-90 48 128)">90.00</text>
+  <line class="dim" x1="110" y1="65" x2="230" y2="65" marker-start="url(#arrow)" marker-end="url(#arrow)" />
+  <line class="dim" x1="110" y1="80" x2="110" y2="60" />
+  <line class="dim" x1="230" y1="80" x2="230" y2="60" />
+  <text class="dimtxt" x="158" y="62">120 PCD-X</text>
+  <line class="dim" x1="275" y1="110" x2="275" y2="140" marker-start="url(#arrow)" marker-end="url(#arrow)" />
+  <line class="dim" x1="260" y1="110" x2="280" y2="110" />
+  <line class="dim" x1="260" y1="140" x2="280" y2="140" />
+  <text class="dimtxt" x="282" y="130" transform="rotate(-90 282 130)">30 PITCH</text>
+
+  <!-- Callouts -->
+  <text class="txt" x="185" y="88" fill="#b36b00">4x Ø12 THRU, C'BORE Ø18 x 6 DP</text>
+  <line class="callout" x1="184" y1="90" x2="230" y2="110" marker-end="url(#arrowCallout)" />
+  <text class="txt" x="187" y="105" fill="#b36b00">Ø36 H7 LOCATING BORE</text>
+  <line class="callout" x1="186" y1="107" x2="170" y2="125" marker-end="url(#arrowCallout)" />
+
+  <!-- Section marks -->
+  <line class="callout" x1="80" y1="70" x2="260" y2="70" marker-start="url(#arrowCallout)" marker-end="url(#arrowCallout)" />
+  <text class="title" x="72" y="72">A</text>
+  <text class="title" x="263" y="72">A</text>
+  <text class="txt" x="82" y="178">DATUM B</text>
+  <text class="txt" x="262" y="168">DATUM C</text>
+
+  <!-- Right side view -->
+  <text class="title" x="300" y="58">RIGHT SIDE VIEW</text>
+  <rect class="part" x="300" y="92" width="80" height="18" />
+  <path class="part" d="M325 92 L325 62 L355 62 L355 92" />
+  <line class="center" x1="340" y1="55" x2="340" y2="116" />
+  <line class="hidden" x1="320" y1="101" x2="360" y2="101" />
+  <text class="dimtxt" x="384" y="105" transform="rotate(-90 384 105)">18</text>
+  <text class="dimtxt" x="358" y="78">30 BOSS HT</text>
+  <text class="txt" x="295" y="130" fill="#b36b00">ALL SHARP EDGES: C0.5 | SURFACE: Ra 1.6 MACHINED DATUMS</text>
+
+  <!-- Section view -->
+  <text class="title" x="80" y="215">SECTION A-A | RIBBED POCKET + BOSSED CENTER</text>
+  <rect class="part" x="80" y="225" width="180" height="27" />
+  <path class="part" d="M130 225 L130 209 L210 209 L210 225" />
+  <line class="hidden" x1="152" y1="225" x2="152" y2="209" />
+  <line class="hidden" x1="188" y1="225" x2="188" y2="209" />
+  <line class="center" x1="170" y1="205" x2="170" y2="256" />
+  <g class="hatch">
+    <line x1="84" y1="250" x2="100" y2="234" />
+    <line x1="100" y1="250" x2="116" y2="234" />
+    <line x1="116" y1="250" x2="132" y2="234" />
+    <line x1="132" y1="250" x2="148" y2="234" />
+    <line x1="192" y1="250" x2="208" y2="234" />
+    <line x1="208" y1="250" x2="224" y2="234" />
+    <line x1="224" y1="250" x2="240" y2="234" />
+    <line x1="240" y1="250" x2="256" y2="234" />
+  </g>
+  <text class="dimtxt" x="265" y="242" transform="rotate(-90 265 242)">BASE 12</text>
+  <text class="dimtxt" x="215" y="216">BOSS +16</text>
+  <text class="txt" x="86" y="262" fill="#b36b00">POCKETED UNDERSIDE: 3.5 WALL, 45° RIB HATCH</text>
+
+  <!-- Notes -->
+  <text class="title" x="20" y="238">GENERAL NOTES:</text>
+  <text class="small" x="20" y="247">1. BREAK ALL EDGES C0.5 UNLESS OTHERWISE SPECIFIED.</text>
+  <text class="small" x="20" y="254">2. CRITICAL HOLE POSITION TRUE POS 0.05 TO DATUMS A|B|C.</text>
+  <text class="small" x="20" y="261">3. BLACK HARD ANODIZE, MASK LOCATING BORE Ø36 H7.</text>
+  <text class="small" x="20" y="268">4. DEBURR AFTER CNC FINISHING; NO VISIBLE TOOL CHATTER.</text>
+</svg>

@@ -82,6 +82,7 @@ const ALL_LEGACY_KEYS: LegacyConfigKey[] = [
   'pet.confirmEnabled',
   'system.closeToTray',
   'system.notificationEnabled',
+  'system.notificationSoundEnabled',
   'system.cronNotificationEnabled',
   'system.keepAwake',
   'system.autoPreviewOfficeFiles',

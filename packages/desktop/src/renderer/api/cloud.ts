@@ -15,10 +15,14 @@ import type { IProvider } from '@/common/config/storage';
 import { createApiClient } from './client';
 import { CLOUD_PROVIDER_ID, CLOUD_PROVIDER_NAME, getCloudApiBase, getCloudProxyBase } from './config';
 
+const MODEL_ROUTING_PREFIX = 'aion-route:';
+
 export interface CloudModel {
   id: string;
+  routingModelId?: string;
   modelId: string;
   name: string;
+  providerId?: string | null;
   provider: string;
   multiplier: number;
   isActive: boolean;
@@ -40,16 +44,122 @@ export async function listCloudModels(): Promise<CloudModel[]> {
   return (res?.models ?? []).filter((m) => m.isActive);
 }
 
+function getCloudModelRoutingId(model: CloudModel): string {
+  return model.routingModelId || model.id || model.modelId;
+}
+
+function getCloudModelLabel(model: CloudModel): string {
+  return model.name || model.modelId;
+}
+
+function getCloudProviderGroupKey(model: CloudModel): string {
+  return model.providerId || model.provider || 'custom';
+}
+
+function getUsableCloudModels(models: CloudModel[]): CloudModel[] {
+  return models.filter((model) => model.isActive && model.type !== 'embedding');
+}
+
+export function decodeCloudRoutingModelId(modelName: string): string | null {
+  if (!modelName.startsWith(MODEL_ROUTING_PREFIX)) return null;
+  const payload = modelName.slice(MODEL_ROUTING_PREFIX.length);
+  const separatorIndex = payload.indexOf(':');
+  if (separatorIndex <= 0) return null;
+  try {
+    const decodedModelId = decodeURIComponent(payload.slice(separatorIndex + 1));
+    return decodedModelId || null;
+  } catch {
+    return null;
+  }
+}
+
 export function buildCloudProviderFromModels(models: CloudModel[], token?: string | null): IProvider {
+  const usableModels = getUsableCloudModels(models);
   return {
     id: CLOUD_PROVIDER_ID,
     platform: 'custom',
     name: CLOUD_PROVIDER_NAME,
     base_url: getCloudProxyBase(),
     api_key: token || 'guest-not-authenticated',
-    models: models.filter((model) => model.isActive && model.type !== 'embedding').map((model) => model.modelId),
+    models: usableModels.map(getCloudModelRoutingId),
+    model_labels: Object.fromEntries(
+      usableModels.map((model) => [
+        getCloudModelRoutingId(model),
+        `${model.provider || CLOUD_PROVIDER_NAME} / ${getCloudModelLabel(model)}`,
+      ])
+    ),
     enabled: true,
   };
+}
+
+export function buildCloudProviderGroupsFromModels(
+  models: CloudModel[],
+  baseProvider?: Pick<IProvider, 'api_key' | 'base_url'>
+): IProvider[] {
+  const groups = new Map<string, { name: string; models: CloudModel[] }>();
+  for (const model of getUsableCloudModels(models)) {
+    const groupKey = getCloudProviderGroupKey(model);
+    const existing = groups.get(groupKey);
+    if (existing) {
+      existing.models.push(model);
+    } else {
+      groups.set(groupKey, {
+        name: model.provider || CLOUD_PROVIDER_NAME,
+        models: [model],
+      });
+    }
+  }
+
+  return Array.from(groups.values()).map((group) => ({
+    id: CLOUD_PROVIDER_ID,
+    platform: 'custom',
+    name: group.name,
+    base_url: baseProvider?.base_url || getCloudProxyBase(),
+    api_key: baseProvider?.api_key || 'guest-not-authenticated',
+    models: group.models.map(getCloudModelRoutingId),
+    model_labels: Object.fromEntries(
+      group.models.map((model) => [getCloudModelRoutingId(model), getCloudModelLabel(model)])
+    ),
+    enabled: true,
+  }));
+}
+
+export function getCloudModelDisplayLabel(
+  provider: Pick<IProvider, 'model_labels'> | undefined,
+  modelName: string
+): string {
+  return provider?.model_labels?.[modelName] || decodeCloudRoutingModelId(modelName) || modelName;
+}
+
+export function getCloudProviderRenderKey(provider: Pick<IProvider, 'id' | 'name'>, index: number): string {
+  return provider.id === CLOUD_PROVIDER_ID ? `${provider.id}-${provider.name}-${index}` : provider.id;
+}
+
+export function getCloudModelSheetValue(
+  provider: Pick<IProvider, 'id' | 'name'>,
+  modelName: string,
+  index: number
+): string {
+  return JSON.stringify([getCloudProviderRenderKey(provider, index), modelName]);
+}
+
+export function parseCloudModelSheetValue(value: string): { providerKey: string; modelName: string } | null {
+  try {
+    const parsed = JSON.parse(value);
+    if (
+      Array.isArray(parsed) &&
+      parsed.length === 2 &&
+      typeof parsed[0] === 'string' &&
+      typeof parsed[1] === 'string'
+    ) {
+      return { providerKey: parsed[0], modelName: parsed[1] };
+    }
+  } catch {
+    // Backward compatible fallback for legacy `${providerId}::${modelName}` values.
+  }
+  const separatorIndex = value.indexOf('::');
+  if (separatorIndex <= 0) return null;
+  return { providerKey: value.slice(0, separatorIndex), modelName: value.slice(separatorIndex + 2) };
 }
 
 type ProviderLike = Awaited<ReturnType<typeof ipcBridge.mode.listProviders.invoke>>[number];

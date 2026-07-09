@@ -30,3 +30,13 @@ If you are developing a production application, we recommend enabling type-aware
 ```
 
 See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+
+## Deployment Paths
+
+The production build serves the LingAI official site and admin web from one domain.
+
+- Official site is available at `/`.
+- Admin web is available at `/admin/`.
+- The build copies the official static site from `../../../brand-assets/lingai-official-site` into `dist/`.
+- Admin assets are emitted under `dist/admin/` with `/admin/` as the Vite base path.
+- Static hosting should rewrite `/admin/*` to `/admin/index.html` for React Router deep links.

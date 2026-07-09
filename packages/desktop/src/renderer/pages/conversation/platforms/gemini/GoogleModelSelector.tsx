@@ -2,6 +2,7 @@ import type { GoogleModelSelection } from '@/renderer/pages/conversation/platfor
 import { usePreviewContext } from '@/renderer/pages/conversation/Preview';
 import { useLayoutContext } from '@/renderer/hooks/context/LayoutContext';
 import { getModelDisplayLabel } from '@/renderer/utils/model/agentLogo';
+import { getCloudProviderRenderKey } from '@/renderer/api/cloud';
 import { iconColors } from '@/renderer/styles/colors';
 import { Button, Dropdown, Menu, Tooltip } from '@arco-design/web-react';
 import { Brain, Down } from '@icon-park/react';
@@ -103,22 +104,26 @@ const GoogleModelSelector: React.FC<{
       position={variant === 'settings' ? 'br' : undefined}
       droplist={
         <Menu>
-          {providers.map((provider) => {
+          {providers.map((provider, providerIndex) => {
             const models = getAvailableModels(provider);
             if (!models.length) return null;
+            const providerKey = getCloudProviderRenderKey(provider, providerIndex);
 
             return (
-              <Menu.ItemGroup title={provider.name} key={provider.id}>
-                {models.map((modelName) => (
-                  <Menu.Item
-                    key={`${provider.id}-${modelName}`}
-                    onClick={() => void handleSelectModel(provider, modelName)}
-                  >
-                    <div className='flex items-center gap-8px w-full'>
-                      <span>{modelName}</span>
-                    </div>
-                  </Menu.Item>
-                ))}
+              <Menu.ItemGroup title={provider.name} key={providerKey}>
+                {models.map((modelName) => {
+                  const modelLabel = formatModelLabel(provider, modelName);
+                  return (
+                    <Menu.Item
+                      key={`${providerKey}-${modelName}`}
+                      onClick={() => void handleSelectModel(provider, modelName)}
+                    >
+                      <div className='flex items-center gap-8px w-full'>
+                        <span>{modelLabel}</span>
+                      </div>
+                    </Menu.Item>
+                  );
+                })}
               </Menu.ItemGroup>
             );
           })}

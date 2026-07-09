@@ -6,9 +6,10 @@
 
 import type { IMessagePermission } from '@/common/chat/chatLib';
 import { ipcBridge } from '@/common';
-import { Button, Card, Radio, Typography } from '@arco-design/web-react';
+import { Button, Card, Radio, Tag, Typography } from '@arco-design/web-react';
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { resolvePermissionResponseState, type PermissionResponseState } from './permissionResponseState';
 
 const { Text } = Typography;
 
@@ -27,6 +28,13 @@ const actionIcons: Record<string, string> = {
   mcp: '🔌',
 };
 
+const riskTagColor: Record<string, string> = {
+  low: 'green',
+  medium: 'arcoblue',
+  high: 'orange',
+  critical: 'red',
+};
+
 const MessagePermission: React.FC<MessagePermissionProps> = React.memo(({ message }) => {
   const { t } = useTranslation();
   const { options = [], description, title, action, call_id, command_type } = message.content || {};
@@ -34,8 +42,13 @@ const MessagePermission: React.FC<MessagePermissionProps> = React.memo(({ messag
   const [selected, setSelected] = useState<string | null>(null);
   const [isResponding, setIsResponding] = useState(false);
   const [hasResponded, setHasResponded] = useState(false);
+  const [responseState, setResponseState] = useState<PermissionResponseState | undefined>();
 
-  const icon = actionIcons[action || ''] || '🔐';
+  const riskParams = options.find((option) => option.params?.risk_level)?.params;
+  const category = riskParams?.category || action || '';
+  const riskLevel = riskParams?.risk_level;
+  const riskLabel = riskParams?.risk_label;
+  const icon = actionIcons[category] || actionIcons[action || ''] || '🔐';
   const displayTitle = title || description || t('messages.permissionRequest');
   const getOptionLabel = (label: string, value: unknown, params?: Record<string, string>): string => {
     const optionValue = String(value);
@@ -43,8 +56,16 @@ const MessagePermission: React.FC<MessagePermissionProps> = React.memo(({ messag
       return t('messages.permissionOptions.yesProceed');
     }
     if (optionValue === 'proceed_always') {
-      const command = params?.command ?? params?.command_type ?? command_type ?? extractBacktickValue(label);
-      if (command && label.includes('commands that start')) {
+      const command =
+        params?.command_prefix ??
+        params?.command ??
+        params?.command_type ??
+        command_type ??
+        extractBacktickValue(label);
+      if (
+        command &&
+        (params?.persistent_approval_scope === 'command_prefix' || label.includes('commands that start'))
+      ) {
         return t('messages.permissionOptions.yesDoNotAskAgainForCommandsStarting', { command });
       }
       return t('messages.permissionOptions.yesDoNotAskAgain');
@@ -59,6 +80,7 @@ const MessagePermission: React.FC<MessagePermissionProps> = React.memo(({ messag
     if (hasResponded || !selected) return;
 
     setIsResponding(true);
+    const nextResponseState = resolvePermissionResponseState(selected, options);
     try {
       const always_allow = selected === 'proceed_always';
       await ipcBridge.conversation.confirmation.confirm.invoke({
@@ -68,6 +90,7 @@ const MessagePermission: React.FC<MessagePermissionProps> = React.memo(({ messag
         data: { value: selected },
         always_allow,
       });
+      setResponseState(nextResponseState);
       setHasResponded(true);
     } catch (error) {
       console.error('Error confirming permission:', error);
@@ -82,6 +105,11 @@ const MessagePermission: React.FC<MessagePermissionProps> = React.memo(({ messag
         <div className='flex items-center space-x-2'>
           <span className='text-2xl'>{icon}</span>
           <Text className='block'>{displayTitle}</Text>
+          {riskLevel && riskLabel && (
+            <Tag size='small' color={riskTagColor[riskLevel] || 'gray'}>
+              {riskLabel}
+            </Tag>
+          )}
         </div>
         {command_type && (
           <div>
@@ -129,10 +157,21 @@ const MessagePermission: React.FC<MessagePermissionProps> = React.memo(({ messag
         {hasResponded && (
           <div
             className='mt-10px p-2 rounded-md border'
-            style={{ backgroundColor: 'var(--color-success-light-1)', borderColor: 'rgb(var(--success-3))' }}
+            style={
+              responseState === 'rejected'
+                ? { backgroundColor: 'var(--color-danger-light-1)', borderColor: 'rgb(var(--danger-3))' }
+                : { backgroundColor: 'var(--color-success-light-1)', borderColor: 'rgb(var(--success-3))' }
+            }
           >
-            <Text className='text-sm' style={{ color: 'rgb(var(--success-6))' }}>
-              ✓ {t('messages.responseSentSuccessfully')}
+            <Text
+              className='text-sm'
+              style={{ color: responseState === 'rejected' ? 'rgb(var(--danger-6))' : 'rgb(var(--success-6))' }}
+            >
+              {responseState === 'rejected'
+                ? t('messages.permissionRejectedTurnStopped')
+                : responseState === 'allowed'
+                  ? t('messages.permissionAllowedAgentContinuing')
+                  : t('messages.responseSentSuccessfully')}
             </Text>
           </div>
         )}

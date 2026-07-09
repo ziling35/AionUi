@@ -38,7 +38,10 @@
     "cloudHistorySyncNow": "Save to cloud now",
     "cloudHistorySyncSuccess": "Saved {{conversations}} conversation(s), {{messages}} message(s) to cloud",
     "cloudHistorySyncFailed": "Failed to save history to cloud",
-    "cloudHistorySyncDisabled": "Turn on cloud history before saving"
+    "cloudHistorySyncDisabled": "Turn on cloud history before saving",
+    "resetWindowPlan": "Resetting quota package",
+    "resetAfter": "Resets in",
+    "validUntil": "Valid until"
   },
   "title": "Einstellungen",
   "skillsHub": {
@@ -330,6 +333,8 @@
   "hardwareAccelerationRestartConfirm": "LingAI neu starten, um die neue Einstellung für Hardware-Beschleunigung anzuwenden?",
   "hardwareAccelerationUpdateFailed": "Hardware-Beschleunigung konnte nicht aktualisiert werden",
   "notification": "Benachrichtigungen",
+  "notificationSoundEnabled": "Tonerinnerungen",
+  "notificationSoundEnabledDesc": "Ton abspielen, wenn eine Unterhaltung Bestätigung erfordert oder eine Assistentenantwort abgeschlossen ist",
   "cronNotificationEnabled": "Geplante Aufgabe abgeschlossen",
   "promptTimeout": "LLM-Prompt-Zeitüberschreitung (s)",
   "groupAiCore": "KI-Kern",
@@ -1211,6 +1216,22 @@
     "pendingTimeout": "Genehmigungsanfrage abgelaufen (5 Minuten). Bitte erneut versuchen.",
     "pendingCancel": "Abbrechen",
     "pendingTimeRemaining": "Verbleibende Zeit: {{time}}"
+  },
+  "aionrsApprovalRules": {
+    "title": "AI CLI approval rules",
+    "description": "Manage command and category approvals saved from \"always allow\". Removing a rule also revokes it from running AI CLI tasks.",
+    "refresh": "Refresh",
+    "empty": "No saved approval rules",
+    "loadFailed": "Failed to load AI CLI approval rules",
+    "delete": "Delete",
+    "deleteConfirm": "Delete this approval rule?",
+    "deleteSuccess": "Approval rule deleted. Revoked {{count}} active task(s).",
+    "deleteFailed": "Failed to delete approval rule",
+    "scopeCommandPrefix": "Command prefix",
+    "scopeCategory": "Category",
+    "scopeUnknown": "Unknown",
+    "category": "Category",
+    "updatedAt": "Updated"
   },
   "retry": "Erneut versuchen",
   "runtimeStatus": {

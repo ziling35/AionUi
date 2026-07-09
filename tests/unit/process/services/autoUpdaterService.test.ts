@@ -135,7 +135,7 @@ describe('AutoUpdaterService', () => {
 
     expect(autoUpdaterMock.setFeedURL).toHaveBeenCalledWith({
       provider: 'custom',
-      url: 'https://static.lingai.com/releases',
+      url: 'https://lingai.ziling.site/api/updates/feed',
       updateProvider: CdnGenericProvider,
     });
   });
@@ -392,7 +392,7 @@ describe('AutoUpdaterService', () => {
     await installPromise;
 
     expect(cleanup).toHaveBeenCalledTimes(1);
-    expect(autoUpdaterMock.quitAndInstall).toHaveBeenCalledWith(true, true);
+    expect(autoUpdaterMock.quitAndInstall).toHaveBeenCalledWith(false, true);
   });
 
   it('does not quit on macOS when native updater reports readiness error first', async () => {
@@ -461,7 +461,7 @@ describe('AutoUpdaterService', () => {
     await installPromise;
 
     expect(cleanup).toHaveBeenCalledTimes(1);
-    expect(autoUpdaterMock.quitAndInstall).toHaveBeenCalledWith(true, true);
+    expect(autoUpdaterMock.quitAndInstall).toHaveBeenCalledWith(false, true);
   });
 
   it('rejects a pending macOS install wait when a new update check starts', async () => {
@@ -539,7 +539,8 @@ describe('AutoUpdaterService', () => {
     await autoUpdaterService.quitAndInstall();
 
     expect(cleanup).toHaveBeenCalledTimes(1);
-    expect(autoUpdaterMock.quitAndInstall).toHaveBeenCalledWith(true, true);
+    expect(autoUpdaterMock.quitAndInstall).toHaveBeenCalledWith(false, true);
     expect(nativeAutoUpdaterMock.on).not.toHaveBeenCalled();
+    expect(appMock.exit).not.toHaveBeenCalled();
   });
 });

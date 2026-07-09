@@ -182,6 +182,39 @@ describe('useAutoScroll', () => {
     expect(result.current.showScrollButton).toBe(true);
   });
 
+  it('resumes auto-follow when the user scrolls back near the bottom', () => {
+    const scroller = createScroller({ scrollTop: 600 });
+    const content = createContent();
+    const { result } = renderHook(() =>
+      useAutoScroll({
+        messages: [createLeftMessage('hello')],
+        itemCount: 1,
+      })
+    );
+
+    attachElements(result, scroller, content);
+    act(() => {
+      vi.runAllTimers();
+    });
+    vi.mocked(scroller.scrollTo).mockClear();
+
+    vi.setSystemTime(new Date('2026-05-26T12:00:00.250Z'));
+    fireScroll(result.current.handleScroll, scroller, 480);
+    fireScroll(result.current.handleScroll, scroller, 540);
+
+    scroller.scrollHeight = 1080;
+    act(() => {
+      resizeObserverCallback?.([], {} as ResizeObserver);
+      vi.runAllTimers();
+    });
+
+    expect(scroller.scrollTo).toHaveBeenCalledWith({
+      top: 680,
+      behavior: 'auto',
+    });
+    expect(result.current.showScrollButton).toBe(false);
+  });
+
   it('does not auto-follow after the user manually scrolls while remaining away from the bottom', () => {
     const scroller = createScroller({ scrollTop: 600 });
     const content = createContent();
@@ -198,6 +231,9 @@ describe('useAutoScroll', () => {
     });
     vi.mocked(scroller.scrollTo).mockClear();
 
+    act(() => {
+      result.current.handlePointerDown();
+    });
     fireScroll(result.current.handleScroll, scroller, 240);
     vi.setSystemTime(new Date('2026-05-26T12:00:00.250Z'));
     fireScroll(result.current.handleScroll, scroller, 260);
@@ -212,6 +248,38 @@ describe('useAutoScroll', () => {
       behavior: 'auto',
     });
     expect(result.current.showScrollButton).toBe(true);
+  });
+
+  it('keeps auto-follow active when layout growth causes a non-user scroll away from the bottom', () => {
+    const scroller = createScroller({ scrollTop: 600 });
+    const content = createContent();
+    const { result } = renderHook(() =>
+      useAutoScroll({
+        messages: [createLeftMessage('hello')],
+        itemCount: 1,
+      })
+    );
+
+    attachElements(result, scroller, content);
+    act(() => {
+      vi.runAllTimers();
+    });
+    vi.mocked(scroller.scrollTo).mockClear();
+
+    vi.setSystemTime(new Date('2026-05-26T12:00:00.250Z'));
+    scroller.scrollHeight = 1300;
+    fireScroll(result.current.handleScroll, scroller, 620);
+
+    act(() => {
+      resizeObserverCallback?.([], {} as ResizeObserver);
+      vi.runAllTimers();
+    });
+
+    expect(scroller.scrollTo).toHaveBeenCalledWith({
+      top: 900,
+      behavior: 'auto',
+    });
+    expect(result.current.showScrollButton).toBe(false);
   });
 
   it('treats wheel-driven user scroll as manual intervention even inside the programmatic guard window', () => {

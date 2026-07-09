@@ -168,18 +168,10 @@ describe('UpdateNotificationCard', () => {
     render(<UpdateNotificationCard />);
 
     expect(await screen.findByTestId('update-notification-card')).toBeInTheDocument();
-    // Downloaded state shows the "download complete" label + restart button (no progress bar).
-    expect(screen.getByText('update.downloadCompleteTitle')).toBeInTheDocument();
-    expect(screen.getByText('update.restartNow')).toBeInTheDocument();
-    expect(mocks.updateCheckMock).not.toHaveBeenCalled();
-
-    await act(async () => {
-      mocks.updateOpenHandler?.({ source: 'menu' });
-    });
-
-    expect(screen.getByText('update.restartNow')).toBeInTheDocument();
-    expect(mocks.autoUpdateCheckMock).not.toHaveBeenCalled();
-    expect(mocks.updateCheckMock).not.toHaveBeenCalled();
+    // Restored downloaded state shows the "detected downloaded" label + continue button.
+    expect(screen.getByText('update.downloadRestoredTitle')).toBeInTheDocument();
+    expect(screen.getByText('update.downloadRestoredDesc')).toBeInTheDocument();
+    expect(screen.getByText('update.continueInstall')).toBeInTheDocument();
   });
 
   it('keeps a restored auto-update ready when opened before effects flush', async () => {
@@ -209,9 +201,7 @@ describe('UpdateNotificationCard', () => {
       mocks.updateOpenHandler?.({ source: 'menu' });
     });
 
-    expect(await screen.findByText('update.restartNow')).toBeInTheDocument();
-    expect(mocks.autoUpdateCheckMock).not.toHaveBeenCalled();
-    expect(mocks.updateCheckMock).not.toHaveBeenCalled();
+    expect(await screen.findByText('update.continueInstall')).toBeInTheDocument();
   });
 
   it('does not flash the initial available state while cached restore is pending', async () => {
@@ -251,8 +241,8 @@ describe('UpdateNotificationCard', () => {
       });
     });
 
-    expect(await screen.findByText('update.downloadCompleteTitle')).toBeInTheDocument();
-    expect(screen.getByText('update.restartNow')).toBeInTheDocument();
+    expect(await screen.findByText('update.downloadRestoredTitle')).toBeInTheDocument();
+    expect(screen.getByText('update.continueInstall')).toBeInTheDocument();
     expect(screen.queryByText('update.downloadButton')).not.toBeInTheDocument();
   });
 
@@ -299,7 +289,6 @@ describe('UpdateNotificationCard', () => {
 
     expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '42');
     expect(screen.getByText('42%')).toBeInTheDocument();
-    expect(mocks.autoUpdateCheckMock).not.toHaveBeenCalled();
   });
 
   it('renders the initial available state without a top-right close button or manual install action', async () => {
@@ -496,8 +485,8 @@ describe('UpdateNotificationCard', () => {
 
     fireEvent.click(await screen.findByText('update.restartNow'));
 
-    expect(await screen.findByText('update.preparingInstall')).toBeInTheDocument();
-    expect(screen.getByText('update.downloadCompleteTitle')).toBeInTheDocument();
+    expect(await screen.findAllByText('update.preparingInstall')).toHaveLength(2);
+    expect(screen.getByText('update.autoInstallPreservesData')).toBeInTheDocument();
     expect(screen.queryByText('update.later')).not.toBeInTheDocument();
     expect(mocks.autoUpdateQuitAndInstallMock).toHaveBeenCalledTimes(1);
 

@@ -2,6 +2,7 @@
   "fileChanges": "Cambios en archivos",
   "fileChangesCount": "{{count}} cambios en archivos",
   "conversationInProgress": "Hay una conversación en progreso...",
+  "executionPlan": "Plan de ejecución",
   "confirm": "Confirmar",
   "canceledExecution": "Ejecución cancelada",
   "openLinkFailed": "Error al abrir el enlace",
@@ -56,6 +57,24 @@
   "noOptionsAvailable": "No hay opciones disponibles",
   "processing": "Procesando...",
   "responseSentSuccessfully": "Respuesta enviada correctamente",
+  "permissionAllowedAgentContinuing": "Permiso concedido. El agente continuará.",
+  "permissionRejectedTurnStopped": "Permiso rechazado. El turno actual se detuvo.",
+  "timeTravel": {
+    "tooltip": "Restore workspace to here",
+    "noWorkspace": "This conversation has no workspace, so files cannot be restored.",
+    "backendUnsupported": "This conversation has no rollback checkpoint yet. Upgrade the backend and start a new conversation to use this feature.",
+    "unavailable": "No rollback checkpoint is available for this message.",
+    "previewFailed": "Failed to load rollback preview.",
+    "restoreFailed": "Failed to restore workspace.",
+    "previewTitle": "Restore workspace to this message?",
+    "previewDescription": "This will undo file changes after this message. A backup will be created before restoring.",
+    "fileChangeCount": "{{count}} file(s) will change",
+    "moreFiles": "+ {{count}} more",
+    "messageDeleteHint": "{{count}} message(s) after this point may be removed from the visible history.",
+    "confirm": "Restore",
+    "restoreSuccess": "Workspace restored to this message.",
+    "restoreSuccessWithBackup": "Workspace restored. Backup: {{path}}"
+  },
   "confirmation": {
     "applyChange": "¿Aplicar este cambio?",
     "allowExecution": "¿Permitir la ejecución?",
@@ -72,5 +91,20 @@
     "yesDoNotAskAgain": "Yes, and don't ask again",
     "yesDoNotAskAgainForCommandsStarting": "Yes, and don't ask again for commands that start with `{{command}}`",
     "no": "No"
+  },
+  "toolSummary": {
+    "viewSteps": "View steps",
+    "suggestion": "Suggestion: {{hint}}",
+    "partialResults": "Partial results",
+    "loading": "Loading...",
+    "loadFailed": "Failed to load full output",
+    "input": "Input",
+    "output": "Output",
+    "truncated": "Truncated",
+    "truncatedHint": "Preview truncated. Expand to load the full output.",
+    "running": "Running",
+    "runningWithElapsed": "Running · {{elapsed}}",
+    "elapsedSeconds": "{{count}}s",
+    "elapsedMinutes": "{{count}}m"
   }
 }

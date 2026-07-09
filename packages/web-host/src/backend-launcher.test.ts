@@ -1029,6 +1029,47 @@ describe('BackendLifecycleManager crash restart', () => {
     fetchSpy.mockRestore();
   }, 5_000);
 
+  it('retries crash restart on a fresh port when the previous port is still bound', async () => {
+    const child1 = makeFakeChild();
+    const child2 = makeFakeChild();
+    const child3 = makeFakeChild();
+    vi.mocked(spawn)
+      .mockReturnValueOnce(child1 as unknown as ChildProcess)
+      .mockReturnValueOnce(child2 as unknown as ChildProcess)
+      .mockReturnValueOnce(child3 as unknown as ChildProcess);
+    const onReady = vi.fn();
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    const fetchSpy = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(new Response('ok', { status: 200 }) as unknown as Response);
+
+    const mgr = new BackendLifecycleManager(APP_META, () => '/x');
+    const startPromise = mgr.start('/db', undefined, undefined, { onReady });
+    await Promise.resolve();
+    emitListening(child1, 65303);
+    await startPromise;
+
+    (child1 as unknown as EventEmitter).emit('exit', 1, 'SIGABRT');
+    await new Promise((r) => setTimeout(r, 1_200));
+
+    child2.stderr?.emit('data', Buffer.from('BOOTSTRAP_BIND_FAILED stage=bind.listener: failed to bind\n'));
+    (child2 as unknown as EventEmitter).emit('exit', 1, null);
+    (child2 as unknown as EventEmitter).emit('close', 1, null);
+    await new Promise((r) => setTimeout(r, 20));
+    emitListening(child3, 65444);
+    await new Promise((r) => setTimeout(r, 1));
+
+    expect(vi.mocked(spawn)).toHaveBeenCalledTimes(3);
+    expect(vi.mocked(spawn).mock.calls[1][1]).toContain('65303');
+    expect(vi.mocked(spawn).mock.calls[2][1]).toContain('0');
+    expect(mgr.port).toBe(65444);
+    expect(onReady).toHaveBeenCalledWith(65444);
+
+    warnSpy.mockRestore();
+    fetchSpy.mockRestore();
+  }, 5_000);
+
   it('logs crash restart scheduling details', async () => {
     vi.mocked(createServer).mockImplementation(
       () => makeFakeServer(65303) as unknown as ReturnType<typeof createServer>
@@ -1050,17 +1091,27 @@ describe('BackendLifecycleManager crash restart', () => {
     emitListening(child1, 65303);
     await startPromise;
 
+    child1.stderr?.emit('data', Buffer.from('fatal marker before exit\n'));
     (child1 as unknown as EventEmitter).emit('exit', 1, 'SIGABRT');
     await new Promise((r) => setTimeout(r, 1_200));
 
-    expect(warnSpy).toHaveBeenCalledWith('[aioncore] child exited unexpectedly; scheduling restart', {
-      exitCode: 1,
-      signal: 'SIGABRT',
-      port: 65303,
-      restartCount: 1,
-      maxRestarts: 3,
-      delayMs: 1000,
-    });
+    expect(warnSpy).toHaveBeenCalledWith(
+      '[aioncore] child exited unexpectedly; scheduling restart',
+      expect.objectContaining({
+        exitCode: 1,
+        signal: 'SIGABRT',
+        port: 65303,
+        backendPid: 99999,
+        uptimeMs: expect.any(Number),
+        binaryPath: '/x',
+        dataDir: '/db',
+        stdoutTail: expect.stringContaining('AIONCORE_LISTENING'),
+        stderrTail: expect.stringContaining('fatal marker before exit'),
+        restartCount: 1,
+        maxRestarts: 3,
+        delayMs: 1000,
+      })
+    );
 
     warnSpy.mockRestore();
     fetchSpy.mockRestore();

@@ -30,6 +30,7 @@ export type ConversationRuntimeViewLogEvent =
   | 'local_send_failed'
   | 'local_stop_requested'
   | 'local_stop_acknowledged'
+  | 'runtime_stream_state'
   | 'runtime_view_cleaned';
 
 export type ConversationRuntimeViewLogLevel = 'info' | 'warn';
@@ -341,13 +342,40 @@ export const resetLocalGateConversationRuntimeView = (
   reason: string
 ): ConversationRuntimeSnapshot => {
   const base = previous ?? createDefaultConversationRuntimeView(conversation_id);
+  const forceRelease = reason === 'stop_failed';
   const view: ConversationRuntimeView = {
     ...base,
+    activeTurnId: forceRelease ? null : base.activeTurnId,
+    state: forceRelease ? 'idle' : base.state,
+    isProcessing: forceRelease ? false : base.isProcessing,
+    canSendMessage: forceRelease ? true : base.canSendMessage,
     localSubmitting: false,
     localStopping: false,
     hydrated: true,
   };
   return withLogs(view, [createLog('info', 'runtime_view_cleaned', view, { reason })]);
+};
+
+export const streamStateConversationRuntimeView = (
+  previous: ConversationRuntimeView | undefined,
+  conversation_id: string,
+  turn_id: string | null,
+  state: TConversationRuntimeStateKind,
+  reason: string
+): ConversationRuntimeSnapshot => {
+  const base = previous ?? createDefaultConversationRuntimeView(conversation_id);
+  const terminal = state === 'done' || state === 'error';
+  const view: ConversationRuntimeView = {
+    ...base,
+    activeTurnId: turn_id ?? base.activeTurnId,
+    state,
+    isProcessing: !terminal,
+    canSendMessage: false,
+    localSubmitting: false,
+    hydrated: true,
+    localStopping: base.localStopping && !terminal,
+  };
+  return withLogs(view, [createLog('info', 'runtime_stream_state', view, { turn_id, reason })]);
 };
 
 const setConversationRuntimeSnapshot = (conversation_id: string, snapshot: ConversationRuntimeSnapshot) => {
@@ -546,6 +574,34 @@ export const resetLocalGate = (conversation_id: string, reason: string): Convers
     conversation_id,
     resetLocalGateConversationRuntimeView(runtimeViews.get(conversation_id), conversation_id, reason)
   );
+
+export const streamRuntimeStateObserved = (
+  conversation_id: string,
+  turn_id: string | null,
+  state: TConversationRuntimeStateKind,
+  reason: string
+): ConversationRuntimeViewLogEntry[] => {
+  const metadata = getRuntimeMetadata(conversation_id);
+  const previous = runtimeViews.get(conversation_id);
+  if (turn_id && metadata.lastCompletedTurnId === turn_id) {
+    return [
+      createLog('info', 'runtime_stream_state', previous ?? createDefaultConversationRuntimeView(conversation_id), {
+        turn_id,
+        reason,
+        stale_after_completed: true,
+      }),
+    ];
+  }
+
+  if (previous?.state === state && previous.activeTurnId === (turn_id ?? previous.activeTurnId)) {
+    return [];
+  }
+
+  return setConversationRuntimeSnapshot(
+    conversation_id,
+    streamStateConversationRuntimeView(previous, conversation_id, turn_id, state, reason)
+  );
+};
 
 export const resetConversationRuntimeViewStoreForTest = () => {
   runtimeViews.clear();

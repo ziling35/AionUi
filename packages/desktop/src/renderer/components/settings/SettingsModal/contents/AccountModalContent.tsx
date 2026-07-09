@@ -1,10 +1,24 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Button, Input, Message, Spin, Switch } from '@arco-design/web-react';
+import { Button, Input, Message, Progress, Spin, Switch } from '@arco-design/web-react';
 import { Wallet, Key, Logout, User } from '@icon-park/react';
 import { useUser } from '@renderer/hooks/context/UserContext';
 import { syncLocalCloudHistoryNow } from '@renderer/utils/chat/cloudHistorySync';
 import CloudHistoryRestoreModal from './CloudHistoryRestoreModal';
+
+const formatDuration = (seconds: number | null | undefined) => {
+  if (seconds === null || seconds === undefined) return '-';
+  const safeSeconds = Math.max(0, seconds);
+  const hours = Math.floor(safeSeconds / 3600);
+  const minutes = Math.floor((safeSeconds % 3600) / 60);
+  if (hours > 0) return `${hours}h ${minutes}m`;
+  return `${minutes}m`;
+};
+
+const formatDateTime = (value: string | null | undefined) => {
+  if (!value) return '-';
+  return new Date(value).toLocaleString();
+};
 
 const AccountModalContent: React.FC = () => {
   const { t } = useTranslation();
@@ -27,6 +41,8 @@ const AccountModalContent: React.FC = () => {
   const [savingCloudHistory, setSavingCloudHistory] = useState(false);
   const [syncingCloudHistory, setSyncingCloudHistory] = useState(false);
   const [restoreModalVisible, setRestoreModalVisible] = useState(false);
+  const quotaPlan = user?.quotaPlan;
+  const isResetWindowPlan = quotaPlan?.mode === 'reset_window';
 
   // Refresh user data (quota etc.) every time the panel is opened
   useEffect(() => {
@@ -158,6 +174,31 @@ const AccountModalContent: React.FC = () => {
           {user?.quota ?? 0}{' '}
           <span className='text-14px font-500 text-t-tertiary'>{t('settings.accountPanel.quotaUnit')}</span>
         </div>
+        {isResetWindowPlan && quotaPlan && (
+          <div className='mt-16px rounded-8px bg-fill-1 p-12px border border-[var(--border-base)]'>
+            <div className='flex items-center justify-between gap-12px mb-8px'>
+              <span className='text-12px font-500 text-t-secondary'>
+                {t('settings.accountPanel.resetWindowPlan')}
+              </span>
+              <span className='text-12px text-t-tertiary'>
+                {quotaPlan.used}/{quotaPlan.total}
+              </span>
+            </div>
+            <Progress
+              percent={quotaPlan.progress}
+              showText={false}
+              color={quotaPlan.isExpired ? 'var(--color-danger)' : 'var(--color-primary)'}
+            />
+            <div className='mt-10px grid grid-cols-2 gap-8px text-12px text-t-secondary'>
+              <div>
+                {t('settings.accountPanel.resetAfter')}: {formatDuration(quotaPlan.secondsUntilReset)}
+              </div>
+              <div>
+                {t('settings.accountPanel.validUntil')}: {formatDateTime(quotaPlan.expiresAt)}
+              </div>
+            </div>
+          </div>
+        )}
         <div className='mt-16px grid grid-cols-2 gap-12px'>
           <div className='rounded-8px bg-fill-1 p-12px border border-[var(--border-base)]'>
             <div className='text-12px text-t-tertiary mb-4px'>{t('settings.accountPanel.usedQuota')}</div>

@@ -1,5 +1,4 @@
-import { resolveExtensionAssetUrl } from '@/renderer/utils/platform';
-import { isBackendRelativeAssetPath, isLikelyLocalFilePath } from '@/renderer/utils/model/assistantAvatar';
+import { resolveAssistantAvatar } from '@/renderer/utils/model/assistantAvatar';
 import type { AssistantListItem, AvailableBackend } from './types';
 import type { ManagedAgent } from '@/renderer/utils/model/agentTypes';
 
@@ -34,15 +33,8 @@ export const isEmoji = (str: string): boolean => {
  * Resolve an avatar string to an image src URL, or undefined if it is not an image.
  */
 export const resolveAvatarImageSrc = (avatar: string | undefined): string | undefined => {
-  const value = avatar?.trim();
-  if (!value) return undefined;
-
-  if (isLikelyLocalFilePath(value)) return undefined;
-  if (value.startsWith('/') && !isBackendRelativeAssetPath(value)) return undefined;
-
-  const resolved = resolveExtensionAssetUrl(value) || value;
-  const isImage = /\.(svg|png|jpe?g|webp|gif)$/i.test(resolved) || /^(https?:|file:\/\/|data:|\/)/i.test(resolved);
-  return isImage ? resolved : undefined;
+  const resolved = resolveAssistantAvatar(avatar);
+  return resolved.kind === 'image' ? resolved.value : undefined;
 };
 
 /**

@@ -14,6 +14,7 @@
 import { getPlatformServices } from '@/common/platform';
 import { ipcBridge } from '@/common';
 import { ProcessConfig } from '@process/utils/initStorage';
+import { Notification, shell } from 'electron';
 import path from 'path';
 import fs from 'fs';
 
@@ -43,6 +44,7 @@ const getNotificationIcon = (): string | undefined => {
 export async function showNotification({
   title,
   body,
+  conversation_id,
 }: {
   title: string;
   body: string;
@@ -57,7 +59,15 @@ export async function showNotification({
   const iconPath = getNotificationIcon();
 
   try {
-    getPlatformServices().notification.send({ title, body, icon: iconPath });
+    const notification = new Notification({
+      title,
+      body,
+      ...(iconPath ? { icon: iconPath } : {}),
+    });
+    notification.on('click', () => {
+      ipcBridge.notification.clicked.emit({ conversation_id });
+    });
+    notification.show();
   } catch (error) {
     console.error('[Notification] Error creating notification:', error);
   }
@@ -69,5 +79,8 @@ export async function showNotification({
 export function initNotificationBridge(): void {
   ipcBridge.notification.show.provider(async (options) => {
     await showNotification(options);
+  });
+  ipcBridge.notification.beep.provider(async () => {
+    shell.beep();
   });
 }
