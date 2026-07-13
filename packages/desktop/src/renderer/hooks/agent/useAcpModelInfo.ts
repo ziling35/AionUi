@@ -61,15 +61,15 @@ export function buildLingcodexCloudModelInfo({
   initialModelId,
   selectedModelOptionKey,
 }: LingCodexCloudModelInfoInput): AcpModelInfo | null {
-  const cloudProviders = providers.filter((provider) => provider.id === CLOUD_PROVIDER_ID);
-  const availableModels: AcpModelInfo['available_models'] = cloudProviders.flatMap((provider, providerIndex) =>
+  const availableProviders = providers.filter((provider) => provider.enabled !== false);
+  const availableModels: AcpModelInfo['available_models'] = availableProviders.flatMap((provider, providerIndex) =>
     getAvailableModels(provider)
       .filter((modelId) => !isImageModel(modelId))
       .map((modelId, modelIndex) => ({
         id: modelId,
-        optionKey: `cloud:${providerIndex}:${modelIndex}:${modelId}`,
+        optionKey: `${provider.id === CLOUD_PROVIDER_ID ? 'cloud' : 'provider'}:${providerIndex}:${modelIndex}:${modelId}`,
         label: formatModelLabel(provider, modelId),
-        source: 'cloud' as const,
+        source: provider.id === CLOUD_PROVIDER_ID ? ('cloud' as const) : ('runtime' as const),
         providerId: provider.id,
         providerName: provider.name,
       }))

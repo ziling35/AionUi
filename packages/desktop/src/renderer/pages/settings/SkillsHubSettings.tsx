@@ -7,6 +7,7 @@ import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import SettingsPageWrapper from './components/SettingsPageWrapper';
 import TalkToButlerButton from '@/renderer/components/base/TalkToButlerButton';
 import { buildSkillImportNotice, getSkillImportErrorMessage } from './skillImportMessages';
+import CloudSkillsSection from './components/CloudSkillsSection';
 
 // Skill 信息类型 / Skill info type
 interface SkillInfo {
@@ -524,6 +525,7 @@ const SkillsHubSettings: React.FC<SkillsHubSettingsProps> = ({ withWrapper = tru
   ) : (
     <div className='flex flex-col h-full w-full'>
       <div className='space-y-16px pb-24px'>
+        <CloudSkillsSection onInstalled={fetchData} />
         {/* ======== 我的技能 / My Skills ======== */}
         <div
           data-testid='my-skills-section'

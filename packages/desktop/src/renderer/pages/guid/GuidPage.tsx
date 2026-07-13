@@ -165,6 +165,7 @@ const GuidPage: React.FC = () => {
     selectedAssistantBackend: agentSelection.selectedAssistantBackend,
     selectedMode: agentSelection.selectedMode,
     selectedAcpModel: agentSelection.selectedAcpModel,
+    selectedAcpProviderId: agentSelection.selectedAcpProviderId,
     currentAcpCachedModelInfo: agentSelection.currentAcpCachedModelInfo,
     current_model: modelSelection.current_model,
 
@@ -358,9 +359,12 @@ const GuidPage: React.FC = () => {
     [agentSelection, hasSelectedAssistant]
   );
   const setGuidSelectedAcpModel = useCallback(
-    (model: React.SetStateAction<string | null>) => {
+    (model: string, providerId?: string) => {
       manualModelSelectionAssistantRef.current = selectedAssistantId;
-      agentSelection.setSelectedAcpModel(model, { persistPreference: !hasSelectedAssistant });
+      agentSelection.setSelectedAcpModel(model, {
+        persistPreference: !hasSelectedAssistant,
+        providerId,
+      });
     },
     [agentSelection, hasSelectedAssistant, selectedAssistantId]
   );
@@ -441,6 +445,7 @@ const GuidPage: React.FC = () => {
       formatModelLabel={modelSelection.formatGeminiModelLabel}
       currentAcpCachedModelInfo={agentSelection.currentAcpCachedModelInfo}
       selectedAcpModel={agentSelection.selectedAcpModel}
+      selectedAcpProviderId={agentSelection.selectedAcpProviderId}
       setSelectedAcpModel={setGuidSelectedAcpModel}
     />
   );

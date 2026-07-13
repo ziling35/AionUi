@@ -8,6 +8,7 @@ import {
   SettingOutlined,
   MessageOutlined,
   DollarOutlined,
+  AppstoreOutlined,
 } from '@ant-design/icons';
 import Dashboard from './pages/Dashboard';
 import CardSecrets from './pages/CardSecrets';
@@ -16,6 +17,7 @@ import Models from './pages/Models';
 import Releases from './pages/Releases';
 import FeedbackReports from './pages/FeedbackReports';
 import Billing from './pages/Billing';
+import Skills from './pages/Skills';
 import './App.css';
 
 const { Header, Content, Sider } = Layout;
@@ -29,6 +31,8 @@ const NAV_ITEMS = [
   { key: '6', path: '/feedback', label: '问题反馈', icon: <MessageOutlined /> },
   { key: '7', path: '/billing', label: '充值配置', icon: <DollarOutlined /> },
 ];
+
+NAV_ITEMS.push({ key: '8', path: '/skills', label: '\u6280\u80fd\u7ba1\u7406', icon: <AppstoreOutlined /> });
 
 function Navigation() {
   const location = useLocation();
@@ -112,6 +116,7 @@ function App() {
                   <Route path='/releases' element={<Releases />} />
                   <Route path='/feedback' element={<FeedbackReports />} />
                   <Route path='/billing' element={<Billing />} />
+                  <Route path='/skills' element={<Skills />} />
                 </Routes>
               </div>
             </Content>

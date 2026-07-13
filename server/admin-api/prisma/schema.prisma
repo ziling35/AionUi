@@ -127,6 +127,21 @@ model FeedbackReport {
   @@index([module, createdAt])
 }
 
+model SkillPackage {
+  id          String   @id @default(uuid())
+  slug        String   @unique
+  name        String
+  description String
+  version     String   @default("1.0.0")
+  content     String
+  isActive    Boolean  @default(false)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([isActive, sortOrder])
+}
+
 model CloudConversation {
   id                  String         @id @default(uuid())
   userId              String

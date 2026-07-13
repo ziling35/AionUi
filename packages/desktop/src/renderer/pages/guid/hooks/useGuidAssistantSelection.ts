@@ -32,7 +32,11 @@ export type GuidAssistantSelectionResult = {
   selectedMode: string;
   setSelectedMode: (mode: React.SetStateAction<string>, options?: { persistPreference?: boolean }) => void;
   selectedAcpModel: string | null;
-  setSelectedAcpModel: (model: React.SetStateAction<string | null>, options?: { persistPreference?: boolean }) => void;
+  selectedAcpProviderId: string | null;
+  setSelectedAcpModel: (
+    model: React.SetStateAction<string | null>,
+    options?: { persistPreference?: boolean; providerId?: string | null }
+  ) => void;
   currentAcpCachedModelInfo: AcpModelInfo | null;
   currentAgentModeOptions: AgentModeOption[];
 };
@@ -90,6 +94,7 @@ function persistGuidAssistantSelectionKey(assistantId: string): void {
 export function pickDefaultAssistantSelectionKey(assistants: Assistant[]): string | null {
   const enabledAssistants = assistants.filter((assistant) => assistant.enabled !== false);
   const preferred =
+    enabledAssistants.find((assistant) => assistantRuntimeKey(assistant) === LINGCODEX_BACKEND) ??
     enabledAssistants.find((assistant) => assistant.source === 'generated' && isAionrsAssistant(assistant)) ??
     enabledAssistants.find((assistant) => isAionrsAssistant(assistant)) ??
     enabledAssistants[0];
@@ -110,6 +115,7 @@ export const useGuidAssistantSelection = ({
   const [selectedAssistantIdState, _setSelectedAssistantId] = useState<string | null>(null);
   const [selectedMode, _setSelectedMode] = useState<string>('default');
   const [selectedAcpModel, _setSelectedAcpModel] = useState<string | null>(null);
+  const [selectedAcpProviderId, _setSelectedAcpProviderId] = useState<string | null>(null);
   const { assistants } = useCustomAgentsLoader();
   const managedAgentRuntimeCatalog = useManagedAgentRuntimeCatalog();
 
@@ -124,11 +130,17 @@ export const useGuidAssistantSelection = ({
   );
 
   const setSelectedAcpModel = useCallback(
-    (modelId: React.SetStateAction<string | null>, _options?: { persistPreference?: boolean }) => {
+    (
+      modelId: React.SetStateAction<string | null>,
+      options?: { persistPreference?: boolean; providerId?: string | null }
+    ) => {
       _setSelectedAcpModel((prev) => {
         const nextModelId = typeof modelId === 'function' ? modelId(prev) : modelId;
         return nextModelId;
       });
+      if (options && 'providerId' in options) {
+        _setSelectedAcpProviderId(options.providerId ?? null);
+      }
     },
     []
   );
@@ -263,6 +275,19 @@ export const useGuidAssistantSelection = ({
 
     return buildAssistantModelInfo(selectedAssistantModels);
   }, [selectedAcpRuntimeModelInfo, selectedAssistantModels]);
+  useEffect(() => {
+    const selectedModelId = selectedAcpModel || currentAcpCachedModelInfo?.current_model_id;
+    if (!selectedModelId) {
+      _setSelectedAcpProviderId(null);
+      return;
+    }
+    const availableModels = currentAcpCachedModelInfo?.available_models ?? [];
+    const currentProviderStillMatches = availableModels.some(
+      (model) => model.id === selectedModelId && model.providerId === selectedAcpProviderId
+    );
+    if (currentProviderStillMatches) return;
+    _setSelectedAcpProviderId(availableModels.find((model) => model.id === selectedModelId)?.providerId ?? null);
+  }, [currentAcpCachedModelInfo, selectedAcpModel, selectedAcpProviderId]);
 
   const defaultAssistantId = useMemo(() => pickDefaultAssistantSelectionKey(assistants), [assistants]);
 
@@ -277,6 +302,7 @@ export const useGuidAssistantSelection = ({
     selectedMode,
     setSelectedMode,
     selectedAcpModel,
+    selectedAcpProviderId,
     setSelectedAcpModel,
     currentAcpCachedModelInfo,
     currentAgentModeOptions,

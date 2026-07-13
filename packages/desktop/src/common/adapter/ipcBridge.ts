@@ -803,6 +803,9 @@ export const fs = {
   ),
   enableSkillsMarket: httpPost<void, void>('/api/skills/market/enable'),
   disableSkillsMarket: httpPost<void, void>('/api/skills/market/disable'),
+  installManagedSkill: httpPost<{ name: string; path: string }, { name: string; content: string }>(
+    '/api/skills/install-managed'
+  ),
 };
 
 // ---------------------------------------------------------------------------

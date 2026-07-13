@@ -33,6 +33,7 @@ export type GuidSendDeps = {
   selectedAssistantBackend: string;
   selectedMode: string;
   selectedAcpModel: string | null;
+  selectedAcpProviderId: string | null;
   currentAcpCachedModelInfo: AcpModelInfo | null;
   current_model: TProviderWithModel | undefined;
 
@@ -80,6 +81,7 @@ export const useGuidSend = (deps: GuidSendDeps): GuidSendResult => {
     selectedAssistantBackend,
     selectedMode,
     selectedAcpModel,
+    selectedAcpProviderId,
     currentAcpCachedModelInfo,
     current_model,
     guidDisabledBuiltinSkills,
@@ -211,6 +213,18 @@ export const useGuidSend = (deps: GuidSendDeps): GuidSendResult => {
     try {
       const conversation = await ipcBridge.conversation.create.invoke({
         name: input,
+        ...(assistantBackend === 'lingcodex' && selectedAcpProviderId && assistantOverrideModel
+          ? {
+              model: {
+                id: selectedAcpProviderId,
+                platform: '',
+                name: '',
+                base_url: '',
+                api_key: '',
+                use_model: assistantOverrideModel,
+              },
+            }
+          : {}),
         assistant: {
           id: assistantConversationId,
           locale: localeKey,
@@ -220,7 +234,9 @@ export const useGuidSend = (deps: GuidSendDeps): GuidSendResult => {
           workspace: finalWorkspace,
           custom_workspace: isCustomWorkspace,
           default_files: files,
-          current_model_id: assistantOverrideModel,
+          ...(assistantBackend === 'lingcodex' && assistantOverrideModel
+            ? { current_model_id: assistantOverrideModel }
+            : {}),
           selected_mcp_server_ids: selectedUserMcpServerIdsToSend,
           selected_session_mcp_servers:
             selectedMcpServerIds !== undefined ? selectedSessionMcpServers : selectedSessionMcpServersToSend,

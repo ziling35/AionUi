@@ -138,6 +138,81 @@ function compareVersions(a: string, b: string): number {
   return 0;
 }
 
+const SKILL_SLUG_PATTERN = /^[a-z0-9][a-z0-9-]{0,63}$/;
+
+function normalizeSkillPayload(body: any) {
+  const slug = String(body?.slug || '')
+    .trim()
+    .toLowerCase();
+  const name = String(body?.name || '').trim();
+  const description = String(body?.description || '').trim();
+  const version = String(body?.version || '1.0.0').trim();
+  const content = String(body?.content || '').trim();
+  if (!SKILL_SLUG_PATTERN.test(slug))
+    throw new Error(
+      '\u6280\u80fd\u6807\u8bc6\u4ec5\u652f\u6301\u5c0f\u5199\u5b57\u6bcd\u3001\u6570\u5b57\u548c\u77ed\u6a2a\u7ebf\uff0c\u6700\u957f 64 \u4f4d'
+    );
+  if (!name) throw new Error('\u6280\u80fd\u540d\u79f0\u4e0d\u80fd\u4e3a\u7a7a');
+  if (!description) throw new Error('\u6280\u80fd\u63cf\u8ff0\u4e0d\u80fd\u4e3a\u7a7a');
+  if (!content) throw new Error('SKILL.md \u5185\u5bb9\u4e0d\u80fd\u4e3a\u7a7a');
+  return {
+    slug,
+    name,
+    description,
+    version,
+    content,
+    isActive: Boolean(body?.isActive),
+    sortOrder: Number(body?.sortOrder || 0),
+  };
+}
+
+app.get('/api/skills/catalog', async (_req, res) => {
+  const skills = await prisma.skillPackage.findMany({
+    where: { isActive: true },
+    orderBy: [{ sortOrder: 'asc' }, { updatedAt: 'desc' }],
+    select: { id: true, slug: true, name: true, description: true, version: true, updatedAt: true },
+  });
+  res.json({ success: true, data: skills });
+});
+
+app.get('/api/skills/catalog/:slug', async (req, res) => {
+  const skill = await prisma.skillPackage.findFirst({ where: { slug: req.params.slug, isActive: true } });
+  if (!skill)
+    return res.status(404).json({ success: false, message: '\u6280\u80fd\u4e0d\u5b58\u5728\u6216\u672a\u53d1\u5e03' });
+  res.json({ success: true, data: skill });
+});
+
+app.get('/api/admin/skills', async (_req, res) => {
+  const skills = await prisma.skillPackage.findMany({ orderBy: [{ sortOrder: 'asc' }, { updatedAt: 'desc' }] });
+  res.json({ success: true, data: skills });
+});
+
+app.post('/api/admin/skills', async (req, res) => {
+  try {
+    const skill = await prisma.skillPackage.create({ data: normalizeSkillPayload(req.body) });
+    res.json({ success: true, data: skill });
+  } catch (error: any) {
+    res.status(400).json({ success: false, message: error?.message || '\u521b\u5efa\u6280\u80fd\u5931\u8d25' });
+  }
+});
+
+app.put('/api/admin/skills/:id', async (req, res) => {
+  try {
+    const skill = await prisma.skillPackage.update({
+      where: { id: req.params.id },
+      data: normalizeSkillPayload(req.body),
+    });
+    res.json({ success: true, data: skill });
+  } catch (error: any) {
+    res.status(400).json({ success: false, message: error?.message || '\u66f4\u65b0\u6280\u80fd\u5931\u8d25' });
+  }
+});
+
+app.delete('/api/admin/skills/:id', async (req, res) => {
+  await prisma.skillPackage.delete({ where: { id: req.params.id } });
+  res.json({ success: true });
+});
+
 function getPublicBaseUrl(req: express.Request): string {
   const configured = process.env.PUBLIC_BASE_URL?.replace(/\/$/, '');
   if (configured) return configured;

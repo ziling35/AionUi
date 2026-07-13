@@ -56,6 +56,7 @@ const createDeps = (): GuidSendDeps => ({
   selectedAssistantBackend: 'claude',
   selectedMode: 'bypassPermissions',
   selectedAcpModel: 'claude-opus',
+  selectedAcpProviderId: null,
   currentAcpCachedModelInfo: null,
   current_model: undefined,
   guidDisabledBuiltinSkills: undefined,
@@ -242,6 +243,25 @@ describe('useGuidSend', () => {
     expect('model' in payload).toBe(false);
     expect(payload.extra.preset_assistant_id).toBeUndefined();
     expect(payload.extra.backend).toBeUndefined();
+  });
+
+  it('sends the selected custom provider with a LingCodex conversation', async () => {
+    const deps = createDeps();
+    deps.selectedAssistantId = 'bare:lingcodex';
+    deps.selectedAssistantBackend = 'lingcodex';
+    deps.selectedAcpModel = 'gpt-5-custom';
+    deps.selectedAcpProviderId = 'custom-provider';
+
+    const { result } = renderHook(() => useGuidSend(deps));
+
+    await act(async () => {
+      await result.current.handleSend();
+    });
+
+    const payload = createConversationInvokeMock.mock.calls[0][0];
+    expect(payload.model?.id).toBe('custom-provider');
+    expect(payload.model?.use_model).toBe('gpt-5-custom');
+    expect(payload.extra.current_model_id).toBe('gpt-5-custom');
   });
 
   it('does not create a conversation without assistant identity', async () => {

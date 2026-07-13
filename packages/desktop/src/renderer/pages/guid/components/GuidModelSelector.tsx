@@ -55,7 +55,8 @@ type GuidModelSelectorProps = {
   // ACP model state
   currentAcpCachedModelInfo: AcpModelInfo | null;
   selectedAcpModel: string | null;
-  setSelectedAcpModel: React.Dispatch<React.SetStateAction<string | null>>;
+  selectedAcpProviderId?: string | null;
+  setSelectedAcpModel: (modelId: string, providerId?: string) => void;
 };
 
 const GuidModelSelector: React.FC<GuidModelSelectorProps> = ({
@@ -66,6 +67,7 @@ const GuidModelSelector: React.FC<GuidModelSelectorProps> = ({
   formatModelLabel,
   currentAcpCachedModelInfo,
   selectedAcpModel,
+  selectedAcpProviderId,
   setSelectedAcpModel,
 }) => {
   const { t } = useTranslation();
@@ -97,7 +99,10 @@ const GuidModelSelector: React.FC<GuidModelSelectorProps> = ({
 
   const acpSelectedLabel = React.useMemo(() => {
     return (
-      currentAcpCachedModelInfo?.available_models?.find((m) => m.id === selectedAcpModel)?.label ||
+      currentAcpCachedModelInfo?.available_models?.find(
+        (model) =>
+          model.id === selectedAcpModel && (!selectedAcpProviderId || model.providerId === selectedAcpProviderId)
+      )?.label ||
       currentAcpCachedModelInfo?.current_model_label ||
       currentAcpCachedModelInfo?.current_model_id ||
       ''
@@ -107,6 +112,7 @@ const GuidModelSelector: React.FC<GuidModelSelectorProps> = ({
     currentAcpCachedModelInfo?.current_model_id,
     currentAcpCachedModelInfo?.current_model_label,
     selectedAcpModel,
+    selectedAcpProviderId,
   ]);
 
   const acpButtonLabel = React.useMemo(() => {
@@ -123,9 +129,16 @@ const GuidModelSelector: React.FC<GuidModelSelectorProps> = ({
   );
   const selectedAcpModelOptionKey = React.useMemo(() => {
     const selectedModelId = selectedAcpModel || currentAcpCachedModelInfo?.current_model_id;
-    const selectedModel = currentAcpCachedModelInfo?.available_models?.find((model) => model.id === selectedModelId);
+    const selectedModel = currentAcpCachedModelInfo?.available_models?.find(
+      (model) => model.id === selectedModelId && (!selectedAcpProviderId || model.providerId === selectedAcpProviderId)
+    );
     return selectedModel ? getAcpModelOptionKey(selectedModel) : selectedModelId;
-  }, [currentAcpCachedModelInfo?.available_models, currentAcpCachedModelInfo?.current_model_id, selectedAcpModel]);
+  }, [
+    currentAcpCachedModelInfo?.available_models,
+    currentAcpCachedModelInfo?.current_model_id,
+    selectedAcpModel,
+    selectedAcpProviderId,
+  ]);
 
   const handleModelDropdownVisibleChange = React.useCallback(
     (visible: boolean) => {
@@ -262,7 +275,7 @@ const GuidModelSelector: React.FC<GuidModelSelectorProps> = ({
                       <Menu.Item
                         key={optionKey}
                         className={optionKey === selectedAcpModelOptionKey ? '!bg-2' : ''}
-                        onClick={() => setSelectedAcpModel(model.id)}
+                        onClick={() => setSelectedAcpModel(model.id, model.providerId)}
                       >
                         <div className='flex items-center gap-8px w-full'>
                           {healthStatus !== 'unknown' && (

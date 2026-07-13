@@ -10,7 +10,7 @@ import { SWRConfig } from 'swr';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { IResponseMessage } from '@/common/adapter/ipcBridge';
 import type { AcpConfigOptionDto, AcpModelInfo } from '@/common/types/platform/acpTypes';
-import { useAcpModelInfo } from '@/renderer/hooks/agent/useAcpModelInfo';
+import { buildLingcodexCloudModelInfo, useAcpModelInfo } from '@/renderer/hooks/agent/useAcpModelInfo';
 import { resetEnsureConversationRuntimeStateForTests } from '@/renderer/pages/conversation/utils/ensureConversationRuntime';
 
 const { ensureRuntimeInvokeMock, setConfigOptionInvokeMock, responseStreamHandlers } = vi.hoisted(() => ({
@@ -109,6 +109,60 @@ const createSwrWrapper = () => {
 
 const renderUseAcpModelInfo = (params: Parameters<typeof useAcpModelInfo>[0]) =>
   renderHook(() => useAcpModelInfo(params), { wrapper: createSwrWrapper() });
+
+describe('buildLingcodexCloudModelInfo', () => {
+  it('includes enabled custom providers and keeps provider identity', () => {
+    const info = buildLingcodexCloudModelInfo({
+      providers: [
+        {
+          id: 'aion-cloud-official',
+          name: 'LingAI Cloud',
+          platform: 'openai',
+          base_url: 'https://cloud.example/v1',
+          api_key: '',
+          models: ['cloud-model'],
+        },
+        {
+          id: 'custom-provider',
+          name: 'Custom Provider',
+          platform: 'new-api',
+          base_url: 'https://custom.example/v1',
+          api_key: 'secret',
+          models: ['custom-model', 'custom-image-model'],
+        },
+      ],
+      getAvailableModels: (provider) => provider.models,
+      formatModelLabel: (_provider, model) => model ?? '',
+      initialModelId: 'custom-model',
+    });
+
+    expect(info?.current_model_id).toBe('custom-model');
+    expect(info?.available_models.map((model) => [model.id, model.providerId])).toEqual([
+      ['cloud-model', 'aion-cloud-official'],
+      ['custom-model', 'custom-provider'],
+    ]);
+  });
+
+  it('ignores disabled providers', () => {
+    const info = buildLingcodexCloudModelInfo({
+      providers: [
+        {
+          id: 'disabled-provider',
+          name: 'Disabled',
+          platform: 'openai',
+          base_url: 'https://disabled.example/v1',
+          api_key: '',
+          models: ['disabled-model'],
+          enabled: false,
+        },
+      ],
+      getAvailableModels: (provider) => provider.models,
+      formatModelLabel: (_provider, model) => model ?? '',
+    });
+
+    expect(info).toBeNull();
+  });
+});
 
 describe('useAcpModelInfo', () => {
   beforeEach(() => {
