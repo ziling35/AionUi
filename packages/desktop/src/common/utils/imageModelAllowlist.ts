@@ -7,18 +7,17 @@
 /**
  * Allowlist for built-in image generation tool.
  *
- * The tool currently only supports "form B" — OpenAI chat completions multimodal
- * output (model returns images via `message.images` or markdown). It does NOT
- * support "form A" (`/v1/images/generations` endpoint) or async/polling APIs.
+ * The tool supports OpenAI-compatible Images API models first
+ * (`/v1/images/generations` and `/v1/images/edits`) and falls back to
+ * chat-completions multimodal output for providers such as Gemini image models.
  *
  * Model selection therefore must be a platform+model allowlist of providers
  * known to work, rather than a coarse name-substring match. Otherwise users
- * see options like `gpt-image-1` / `dall-e-3` / `sd-3.5` in the dropdown that
- * are guaranteed to fail at runtime.
+ * see unrelated image-analysis or vision models in the dropdown that are
+ * guaranteed to fail at runtime.
  *
  * Rules below mirror `useConfigModelListWithImage.ts` — the same providers we
- * auto-supplement with default image models. When #6 lands a form-A adapter,
- * extend this list accordingly.
+ * auto-supplement with default image models.
  */
 
 type ProviderShape = {

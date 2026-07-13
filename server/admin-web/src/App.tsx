@@ -7,6 +7,7 @@ import {
   RocketOutlined,
   SettingOutlined,
   MessageOutlined,
+  DollarOutlined,
 } from '@ant-design/icons';
 import Dashboard from './pages/Dashboard';
 import CardSecrets from './pages/CardSecrets';
@@ -14,6 +15,7 @@ import Users from './pages/Users';
 import Models from './pages/Models';
 import Releases from './pages/Releases';
 import FeedbackReports from './pages/FeedbackReports';
+import Billing from './pages/Billing';
 import './App.css';
 
 const { Header, Content, Sider } = Layout;
@@ -25,6 +27,7 @@ const NAV_ITEMS = [
   { key: '4', path: '/models', label: '模型配置', icon: <SettingOutlined /> },
   { key: '5', path: '/releases', label: '版本发布', icon: <RocketOutlined /> },
   { key: '6', path: '/feedback', label: '问题反馈', icon: <MessageOutlined /> },
+  { key: '7', path: '/billing', label: '充值配置', icon: <DollarOutlined /> },
 ];
 
 function Navigation() {
@@ -108,6 +111,7 @@ function App() {
                   <Route path='/models' element={<Models />} />
                   <Route path='/releases' element={<Releases />} />
                   <Route path='/feedback' element={<FeedbackReports />} />
+                  <Route path='/billing' element={<Billing />} />
                 </Routes>
               </div>
             </Content>

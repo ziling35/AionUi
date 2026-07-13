@@ -1,6 +1,6 @@
 import { mcpService } from '@/common/adapter/ipcBridge';
 import type { IMcpServer, IMcpServerTransport, ISessionMcpServer } from '@/common/config/storage';
-import { getClientBusinessSetting } from '@/renderer/services/clientBusinessSettings';
+import { getClientBusinessSetting, setClientBusinessSetting } from '@/renderer/services/clientBusinessSettings';
 
 type BackendMcpTransport = Exclude<IMcpServerTransport, { type: 'streamable_http' }>;
 
@@ -66,6 +66,19 @@ export const toSessionMcpServer = (server: Pick<IMcpServer, 'id' | 'name' | 'tra
   name: server.name,
   transport: server.transport,
 });
+
+export const replaceBuiltinMcpServer = (servers: IMcpServer[], updatedServer: IMcpServer): IMcpServer[] => {
+  const nextServers = servers.filter(
+    (server) => server.builtin !== true || (server.id !== updatedServer.id && server.name !== updatedServer.name)
+  );
+  return [...nextServers, { ...updatedServer, builtin: true }];
+};
+
+export const persistBuiltinMcpServer = async (updatedServer: IMcpServer): Promise<void> => {
+  const localServers = ((await getClientBusinessSetting('mcp.config').catch((): IMcpServer[] => [])) ||
+    []) as IMcpServer[];
+  await setClientBusinessSetting('mcp.config', replaceBuiltinMcpServer(localServers, updatedServer));
+};
 
 export const ensureBackendMcpCatalog = async (): Promise<{
   userServers: IMcpServer[];

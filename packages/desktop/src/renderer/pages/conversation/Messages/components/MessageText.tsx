@@ -451,7 +451,7 @@ const MessageText: React.FC<{ message: IMessageText; showCopyRow?: boolean; rese
             </CollapsibleContent>
           ) : (
             <div data-testid='message-text-content'>
-              <MarkdownView codeStyle={CODE_STYLE} onLocalFileLink={handleLocalFileLink}>
+              <MarkdownView codeStyle={CODE_STYLE} onLocalFileLink={handleLocalFileLink} enhancedImages>
                 {displayText}
               </MarkdownView>
               {showTypewriterCursor && (

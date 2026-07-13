@@ -30,6 +30,8 @@ ADMIN_WEB_PORT=8080
 PUBLIC_BASE_URL=https://lingai.ziling.site
 ```
 
+`PUBLIC_BASE_URL` 会传给 `admin-api`，用于生成客户端更新地址和易支付回调地址。充值商品、易支付 PID/Key 等支付配置不写入 `.env`，在管理后台“充值配置”页面保存到数据库。
+
 ## 发布安装包
 
 客户端不需要配置更新源。更新源在桌面端打包时内置，正式商用包需要用你的后台域名构建：
@@ -105,3 +107,19 @@ docker compose up -d
 ## 反向代理建议
 
 如使用域名和 HTTPS，建议外层 Nginx/Caddy 只代理到 `127.0.0.1:8080`。不要直接暴露 `admin-api`，前端容器已经通过内部 Docker 网络代理 `/api`。
+
+生图请求通常需要数分钟。外层反向代理、CDN 和面板生成的 Nginx 配置也必须放宽超时；只修改容器内的 Nginx 不够。Nginx 可参考：
+
+```nginx
+location /api/ {
+  proxy_pass http://127.0.0.1:8080/api/;
+  proxy_http_version 1.1;
+  proxy_buffering off;
+  proxy_connect_timeout 60s;
+  proxy_read_timeout 600s;
+  proxy_send_timeout 600s;
+  send_timeout 600s;
+}
+```
+
+如果客户端收到带有 `nginx` 标识的 HTML `504 Gateway Time-out`，但上游日志稍后显示生图成功，说明超时发生在某一层反向代理，而不是生图响应解析阶段。请逐层检查公网 CDN、宝塔/1Panel、宿主机 Nginx 和容器 Nginx。

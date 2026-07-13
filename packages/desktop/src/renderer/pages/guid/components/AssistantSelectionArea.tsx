@@ -21,6 +21,32 @@ type AssistantSelectionAreaProps = {
   onSelectAssistant: (assistantId: string) => void;
 };
 
+const LINGCODEX_BACKEND = 'lingcodex';
+const CODEX_BACKEND = 'codex';
+
+const isAssistantBackend = (assistant: Assistant, backend: string): boolean =>
+  assistantRuntimeKey(assistant) === backend;
+
+const preferLingCodexOverCodex = (assistants: Assistant[]): Assistant[] => {
+  const lingCodex = assistants.find((assistant) => isAssistantBackend(assistant, LINGCODEX_BACKEND));
+  const codexIndex = assistants.findIndex((assistant) => isAssistantBackend(assistant, CODEX_BACKEND));
+
+  if (!lingCodex || codexIndex < 0) {
+    return assistants;
+  }
+
+  const lingCodexIndex = assistants.findIndex((assistant) => assistant.id === lingCodex.id);
+  if (lingCodexIndex < 0 || lingCodexIndex <= codexIndex) {
+    return assistants;
+  }
+
+  const codex = assistants[codexIndex];
+  const reordered = assistants.filter((assistant) => assistant.id !== lingCodex.id && assistant.id !== codex.id);
+  reordered.splice(codexIndex, 0, lingCodex);
+  reordered.push(codex);
+  return reordered;
+};
+
 const AssistantSelectionArea: React.FC<AssistantSelectionAreaProps> = ({
   selectedAssistantId,
   assistants,
@@ -31,18 +57,33 @@ const AssistantSelectionArea: React.FC<AssistantSelectionAreaProps> = ({
   const [moreVisible, setMoreVisible] = useState(false);
   const [search, setSearch] = useState('');
   const selectedId = selectedAssistantId || undefined;
-  const enabledAssistants = useMemo(() => selectableAssistants(assistants), [assistants]);
+  const enabledAssistants = useMemo(() => preferLingCodexOverCodex(selectableAssistants(assistants)), [assistants]);
   const visibleAssistants = useMemo(() => {
-    if (enabledAssistants.length <= 4 || !selectedId) {
-      return enabledAssistants.slice(0, 4);
+    const hasLingCodex = enabledAssistants.some((assistant) => isAssistantBackend(assistant, LINGCODEX_BACKEND));
+    const primaryAssistants = enabledAssistants.filter(
+      (assistant) => !(hasLingCodex && isAssistantBackend(assistant, CODEX_BACKEND))
+    );
+    const selectedAssistant = selectedId
+      ? enabledAssistants.find((assistant) => assistant.id === selectedId)
+      : undefined;
+    const shouldKeepSelectedInOverflow = selectedAssistant
+      ? isAssistantBackend(selectedAssistant, CODEX_BACKEND) && hasLingCodex
+      : false;
+
+    if (primaryAssistants.length <= 4 || !selectedId) {
+      return primaryAssistants.slice(0, 4);
     }
 
-    const selectedIndex = enabledAssistants.findIndex((assistant) => assistant.id === selectedId);
+    if (shouldKeepSelectedInOverflow) {
+      return primaryAssistants.slice(0, 4);
+    }
+
+    const selectedIndex = primaryAssistants.findIndex((assistant) => assistant.id === selectedId);
     if (selectedIndex < 0 || selectedIndex < 4) {
-      return enabledAssistants.slice(0, 4);
+      return primaryAssistants.slice(0, 4);
     }
 
-    return [...enabledAssistants.slice(0, 3), enabledAssistants[selectedIndex]];
+    return [...primaryAssistants.slice(0, 3), primaryAssistants[selectedIndex]];
   }, [enabledAssistants, selectedId]);
   const hasOverflow = enabledAssistants.length > visibleAssistants.length;
   const overflowAssistants = useMemo(() => {
@@ -61,10 +102,12 @@ const AssistantSelectionArea: React.FC<AssistantSelectionAreaProps> = ({
   if (enabledAssistants.length === 0) return null;
 
   const renderAssistantPill = (assistant: Assistant, testId: string) => {
-    const runtimeKey = assistantRuntimeKey(assistant);
     const isAiCliAssistant = assistant.name === 'Aion CLI' || assistant.name === 'AI CLI';
     const isLingAiButler = assistant.id === 'aionui-assistant';
-    const avatar = isAiCliAssistant || isLingAiButler ? { kind: 'image' as const, value: appLogo } : resolveAssistantAvatar(assistant.avatar);
+    const avatar =
+      isAiCliAssistant || isLingAiButler
+        ? { kind: 'image' as const, value: appLogo }
+        : resolveAssistantAvatar(assistant.avatar);
     const isSelected = selectedId === assistant.id;
     const rawLabel = assistant.name_i18n?.[localeKey] || assistant.name;
     const label = isAiCliAssistant ? 'AI CLI' : isLingAiButler ? 'LingAI \u7ba1\u5bb6' : rawLabel;

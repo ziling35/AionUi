@@ -1,6 +1,12 @@
 const fs = require('fs');
 const path = require('path');
 
+const REQUIRED_MANAGED_ACP_VERSIONS = {
+  'codex-acp': '1.1.2',
+  'codex-cli': '0.143.0',
+  'claude-agent-acp': '0.39.0',
+};
+
 function backendBinaryName(platform) {
   return platform === 'win32' ? 'aioncore.exe' : 'aioncore';
 }
@@ -120,7 +126,7 @@ function acpToolPlatformExecutableParts(platform, runtimeKey, toolId) {
   if (platform !== 'win32') return null;
 
   if (toolId === 'codex-acp') {
-    return ['node_modules', '@zed-industries', `codex-acp-${runtimeKey}`, 'bin', 'codex-acp.exe'];
+    return null;
   }
 
   if (toolId === 'claude-agent-acp') {
@@ -159,6 +165,7 @@ function readManifest(manifestPath) {
 function requireManagedAcpTool(baseDir, runtimeKey, platform, toolId, checked, missing) {
   const toolRoot = path.join(baseDir, 'managed-resources', 'acp', toolId);
   const versions = readDirectories(toolRoot);
+  const requiredVersion = REQUIRED_MANAGED_ACP_VERSIONS[toolId];
 
   if (versions.length === 0) {
     const relativePath = bundledPath(runtimeKey, 'managed-resources', 'acp', toolId, '*', runtimeKey, 'manifest.json');
@@ -167,7 +174,21 @@ function requireManagedAcpTool(baseDir, runtimeKey, platform, toolId, checked, m
     return;
   }
 
-  for (const version of versions) {
+  if (requiredVersion && !versions.includes(requiredVersion)) {
+    const relativePath = bundledPath(
+      runtimeKey,
+      'managed-resources',
+      'acp',
+      toolId,
+      requiredVersion,
+      runtimeKey
+    );
+    checked.push(relativePath);
+    missing.push(relativePath);
+    return;
+  }
+
+  for (const version of requiredVersion ? [requiredVersion] : versions) {
     const platformRoot = path.join(toolRoot, version, runtimeKey);
     const manifestRelativePath = bundledPath(
       runtimeKey,

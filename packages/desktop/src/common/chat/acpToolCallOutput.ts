@@ -17,7 +17,8 @@ const isMcpImageContent = (
   return content.type === 'image' && typeof content.data === 'string' && content.data.length > 0;
 };
 
-const imageContentToDataUrl = (item: { data: string; mimeType?: string; mime_type?: string }): string => {
+const imageContentToDataUrl = (item: { data: string; mimeType?: string; mime_type?: string }): string | undefined => {
+  if (item.data.length > INLINE_IMAGE_RESULT_LIMIT) return undefined;
   if (item.data.startsWith('data:image/')) return item.data;
   const mimeType = item.mimeType || item.mime_type || 'image/png';
   return `data:${mimeType};base64,${item.data}`;
@@ -26,11 +27,17 @@ const getImageContentFromArray = (items: unknown): string | undefined => {
   if (!Array.isArray(items)) return undefined;
 
   for (const item of items) {
-    if (isMcpImageContent(item)) return imageContentToDataUrl(item);
+    if (isMcpImageContent(item)) {
+      const dataUrl = imageContentToDataUrl(item);
+      if (dataUrl) return dataUrl;
+    }
 
     if (item && typeof item === 'object') {
       const content = item as Record<string, unknown>;
-      if (isMcpImageContent(content.content)) return imageContentToDataUrl(content.content);
+      if (isMcpImageContent(content.content)) {
+        const dataUrl = imageContentToDataUrl(content.content);
+        if (dataUrl) return dataUrl;
+      }
       const nested = getImageContentFromArray(content.content);
       if (nested) return nested;
     }

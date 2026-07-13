@@ -17,24 +17,44 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import { BUILTIN_IMAGE_GEN_ID, BUILTIN_IMAGE_GEN_NAME } from './constants';
-import { executeImageGeneration } from '@/common/chat/imageGenCore';
+import { executeImageGeneration, type ImageGenResult } from '@/common/chat/imageGenCore';
 import { validateImageGenerationToolRequest } from '@/common/chat/imageGenToolPolicy';
 import type { TProviderWithModel } from '@/common/config/storage';
 
+type LogLevel = 'info' | 'warn' | 'error';
+type LogValue = string | number | boolean | null;
+
+function logImageGen(level: LogLevel, event: string, fields: Record<string, LogValue | undefined> = {}) {
+  const payload: Record<string, LogValue> = {
+    level,
+    event,
+  };
+
+  for (const [key, value] of Object.entries(fields)) {
+    if (value !== undefined) payload[key] = value;
+  }
+
+  console.error(`[ImageGenMCP] ${JSON.stringify(payload)}`);
+}
+
+function readImageEnv(primary: string, legacy?: string): string | undefined {
+  const value = process.env[primary];
+  if (value) return value;
+  return legacy ? process.env[legacy] : undefined;
+}
+
 // Read provider config from environment variables
 function getProviderFromEnv(): TProviderWithModel | null {
-  const platform = process.env.LINGAI_IMG_PLATFORM;
-  const base_url = process.env.LINGAI_IMG_BASE_URL;
-  const api_key = process.env.LINGAI_IMG_API_KEY;
-  const model = process.env.LINGAI_IMG_MODEL;
+  const platform = readImageEnv('LINGAI_IMG_PLATFORM', 'AIONUI_IMG_PLATFORM');
+  const base_url = readImageEnv('LINGAI_IMG_BASE_URL', 'AIONUI_IMG_BASE_URL');
+  const api_key = readImageEnv('LINGAI_IMG_API_KEY', 'AIONUI_IMG_API_KEY');
+  const model = readImageEnv('LINGAI_IMG_MODEL', 'AIONUI_IMG_MODEL');
 
   if (!platform || !model) {
     const missing: string[] = [];
     if (!platform) missing.push('LINGAI_IMG_PLATFORM');
     if (!model) missing.push('LINGAI_IMG_MODEL');
-    console.error(
-      `[ImageGenMCP] Missing env vars: ${missing.join(', ')}. Image generation will not work until a model is selected in Settings > Tools.`
-    );
+    logImageGen('error', 'missing_provider_env', { missing: missing.join(',') });
     return null;
   }
 
@@ -112,10 +132,11 @@ CRITICAL FOR IMAGE-TO-IMAGE: If the user uploads an image and asks for "image-to
           "REQUIRED: You MUST pass the user's active workspace directory here (found in your system prompt environment variables, e.g. the active document's root or the conversation App Data Directory). This ensures the generated image is saved inside the workspace and can be displayed in the UI."
         ),
     },
-    async ({ prompt, image_uris, workspace_dir }) => {
+    async ({ prompt, image_uris, workspace_dir }, extra) => {
+      const startedAt = Date.now();
       const policy = validateImageGenerationToolRequest(prompt);
       if (policy.allowed === false) {
-        console.error(`[ImageGenMCP] Rejected non-generation request: ${policy.reason}`);
+        logImageGen('warn', 'rejected_non_generation_request', { reason: policy.reason });
         return {
           content: [
             {
@@ -140,8 +161,9 @@ CRITICAL FOR IMAGE-TO-IMAGE: If the user uploads an image and asks for "image-to
         };
       }
 
-      const proxy = process.env.LINGAI_IMG_PROXY || undefined;
+      const proxy = readImageEnv('LINGAI_IMG_PROXY', 'AIONUI_IMG_PROXY');
       const workspaceDir = workspace_dir;
+      const hasImages = Array.isArray(image_uris) && image_uris.length > 0;
 
       // Save generated images to a dedicated folder within the workspace
       // so that they are accessible by AionCore's secure filesystem APIs.
@@ -149,23 +171,51 @@ CRITICAL FOR IMAGE-TO-IMAGE: If the user uploads an image and asks for "image-to
       try {
         await fs.promises.mkdir(outputDir, { recursive: true });
       } catch (err) {
-        console.error('[ImageGenMCP] Failed to create output directory:', err);
+        logImageGen('error', 'create_output_dir_failed', {
+          elapsed_ms: Date.now() - startedAt,
+          message: err instanceof Error ? err.message : String(err),
+        });
       }
 
-      console.error(
-        `[ImageGenMCP] Calling model=${provider.use_model}, platform=${provider.platform}, base_url=${provider.base_url ? provider.base_url : '(empty)'}, api_key=${provider.api_key ? 'present' : 'MISSING'}, has_proxy=${!!proxy}`
-      );
+      logImageGen('info', 'tool_call_started', {
+        model: provider.use_model,
+        platform: provider.platform,
+        has_base_url: !!provider.base_url,
+        has_api_key: !!provider.api_key,
+        has_proxy: !!proxy,
+        has_images: hasImages,
+        output_dir: outputDir,
+      });
 
-      const result = await executeImageGeneration(
-        { prompt, image_uris },
-        provider,
-        workspaceDir,
-        proxy,
-        undefined,
-        outputDir
-      );
+      const abortSignal = extra.signal;
+      let result: ImageGenResult;
+      try {
+        result = await executeImageGeneration(
+          { prompt, image_uris },
+          provider,
+          workspaceDir,
+          proxy,
+          abortSignal,
+          outputDir
+        );
+      } catch (error) {
+        const wasAborted = abortSignal.aborted;
+        logImageGen(wasAborted ? 'warn' : 'error', wasAborted ? 'tool_call_aborted' : 'tool_call_failed', {
+          elapsed_ms: Date.now() - startedAt,
+          model: provider.use_model,
+          platform: provider.platform,
+          message: error instanceof Error ? error.message : String(error),
+        });
+        throw error;
+      }
 
       if (!result.success) {
+        logImageGen(result.error === 'cancelled' ? 'warn' : 'error', result.error === 'cancelled' ? 'tool_call_cancelled' : 'tool_call_error', {
+          elapsed_ms: Date.now() - startedAt,
+          model: provider.use_model,
+          platform: provider.platform,
+          error: result.error || 'unknown',
+        });
         // Enrich 404 errors with actionable hints
         let errorText = result.text;
         if (result.error && (result.error.includes('404') || result.error.includes('Not Found'))) {
@@ -177,36 +227,13 @@ CRITICAL FOR IMAGE-TO-IMAGE: If the user uploads an image and asks for "image-to
         };
       }
 
-      // Build content blocks: always include text, and add image block when available.
-      const content: Array<{ type: 'text'; text: string } | { type: 'image'; data: string; mimeType: string }> = [
-        { type: 'text' as const, text: result.text },
-      ];
-
-      // If an image was saved, read it and include as an MCP image content block
-      // so MCP-aware clients can render a preview inline.
-      if (result.imagePath) {
-        try {
-          const imageBuffer = await fs.promises.readFile(result.imagePath);
-          const ext = path.extname(result.imagePath).toLowerCase();
-          const mimeType =
-            ext === '.jpg' || ext === '.jpeg'
-              ? 'image/jpeg'
-              : ext === '.webp'
-                ? 'image/webp'
-                : ext === '.gif'
-                  ? 'image/gif'
-                  : 'image/png';
-          content.push({
-            type: 'image' as const,
-            data: imageBuffer.toString('base64'),
-            mimeType,
-          });
-        } catch (readErr) {
-          console.error('[ImageGenMCP] Failed to read generated image for preview:', readErr);
-        }
-      }
-
-      return { content };
+      logImageGen('info', 'tool_call_completed', {
+        elapsed_ms: Date.now() - startedAt,
+        model: provider.use_model,
+        platform: provider.platform,
+        image_path: result.imagePath || null,
+      });
+      return { content: [{ type: 'text' as const, text: result.text }] };
     }
   );
 

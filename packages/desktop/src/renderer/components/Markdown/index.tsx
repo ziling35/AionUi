@@ -20,6 +20,7 @@ import classNames from 'classnames';
 import React, { useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { convertLatexDelimiters } from '@renderer/utils/chat/latexDelimiters';
+import ImageAttachment from '@renderer/components/media/ImageAttachment';
 import LocalImageView from '@renderer/components/media/LocalImageView';
 import CodeBlock from './CodeBlock';
 import LocalFileLink from './LocalFileLink';
@@ -42,12 +43,22 @@ type MarkdownViewProps = {
   className?: string;
   onRef?: (el?: HTMLDivElement | null) => void;
   onLocalFileLink?: (path: string, reference?: LocalFileLinkReference) => void | Promise<void>;
+  enhancedImages?: boolean;
   /** Enable raw HTML rendering in markdown content. Use with caution — only for trusted sources. */
   allowHtml?: boolean;
 };
 
 const MarkdownView: React.FC<MarkdownViewProps> = React.memo(
-  ({ hiddenCodeCopyButton, codeStyle, className, onRef, onLocalFileLink, allowHtml, children: childrenProp }) => {
+  ({
+    hiddenCodeCopyButton,
+    codeStyle,
+    className,
+    onRef,
+    onLocalFileLink,
+    enhancedImages,
+    allowHtml,
+    children: childrenProp,
+  }) => {
     const { t } = useTranslation();
 
     const normalizedChildren = useMemo(() => {
@@ -130,14 +141,25 @@ const MarkdownView: React.FC<MarkdownViewProps> = React.memo(
         ),
         img: ({ node: _node, ...rest }: Record<string, unknown>) => {
           const imgProps = rest as React.ImgHTMLAttributes<HTMLImageElement>;
+          const rawSrc = imgProps.src || '';
+          const src = isLocalFilePath(rawSrc) ? decodeURIComponent(rawSrc) : rawSrc;
+          if (enhancedImages && src) {
+            return (
+              <ImageAttachment
+                src={src}
+                alt={imgProps.alt || ''}
+                fileName={src.split(/[\\/]/).pop()}
+                className='my-12px'
+              />
+            );
+          }
           if (isLocalFilePath(imgProps.src || '')) {
-            const src = decodeURIComponent(imgProps.src || '');
             return <LocalImageView src={src} alt={imgProps.alt || ''} className={imgProps.className} />;
           }
           return <img {...imgProps} />;
         },
       }),
-      [codeStyle, hiddenCodeCopyButton, handleLinkClick, onLocalFileLink]
+      [codeStyle, enhancedImages, hiddenCodeCopyButton, handleLinkClick, onLocalFileLink]
     );
 
     const rehypePlugins = useMemo(() => (allowHtml ? [rehypeRaw, rehypeKatex] : [rehypeKatex]), [allowHtml]);

@@ -19,6 +19,7 @@ export class OpenAIRotatingClient extends RotatingApiClient<OpenAI> {
       const openaiConfig: any = {
         baseURL: config.baseURL,
         apiKey: cleanedApiKey,
+        timeout: config.timeout,
         defaultHeaders: config.defaultHeaders,
       };
 

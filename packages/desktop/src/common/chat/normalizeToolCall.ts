@@ -159,6 +159,26 @@ function normalizeAcpStatus(status: string): NormalizedToolStatus {
   }
 }
 
+const getStringField = (value: Record<string, unknown> | undefined, keys: string[]): string | undefined => {
+  if (!value) return undefined;
+  for (const key of keys) {
+    const field = value[key];
+    if (typeof field === 'string' && field.trim()) return field.trim();
+  }
+  return undefined;
+};
+
+const buildAcpToolName = (update: AcpToolCallUpdateCompat, rawInput?: Record<string, unknown>): string => {
+  if (typeof update.title === 'string' && update.title.trim()) return update.title.trim();
+
+  const serverName = getStringField(rawInput, ['server_name', 'serverName', 'server']);
+  const toolName = getStringField(rawInput, ['tool_name', 'toolName', 'tool', 'name']);
+  if (serverName && toolName) return `${serverName}:${toolName}`;
+  if (toolName) return toolName;
+
+  return typeof update.kind === 'string' && update.kind.trim() ? update.kind.trim() : 'tool';
+};
+
 const buildParamSummary = (kind: string, rawInput?: Record<string, unknown>): string | undefined => {
   if (!rawInput) return undefined;
 
@@ -166,7 +186,8 @@ const buildParamSummary = (kind: string, rawInput?: Record<string, unknown>): st
     return (rawInput.file_path as string) || (rawInput.path as string) || (rawInput.file_name as string);
   }
   if (kind === 'execute') {
-    return rawInput.command as string;
+    const command = getStringField(rawInput, ['command']);
+    if (command) return command;
   }
   if (kind === 'search' || kind === 'grep') {
     const parts: string[] = [];
@@ -185,8 +206,9 @@ const buildParamSummary = (kind: string, rawInput?: Record<string, unknown>): st
     return (rawInput.file_path as string) || (rawInput.path as string);
   }
 
-  for (const key of ['file_path', 'command', 'path', 'pattern', 'query', 'url']) {
-    if (rawInput[key] && typeof rawInput[key] === 'string') return rawInput[key] as string;
+  for (const key of ['file_path', 'command', 'path', 'pattern', 'query', 'url', 'prompt']) {
+    const value = rawInput[key];
+    if (typeof value === 'string' && value.trim()) return value.trim();
   }
   return undefined;
 };
@@ -231,7 +253,7 @@ export function normalizeAcpToolCall(message: IMessageAcpToolCall): NormalizedTo
   const imagePath = getAcpImagePath(update);
   return {
     key: update.tool_call_id,
-    name: update.title,
+    name: buildAcpToolName(update, rawInput),
     status: normalizeAcpStatus(update.status),
     description: keyParam || (rawInput?.command as string) || update.kind,
     startedAt: message.created_at,

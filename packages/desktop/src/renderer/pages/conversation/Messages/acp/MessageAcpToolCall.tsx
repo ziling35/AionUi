@@ -6,16 +6,14 @@
 
 import type { IMessageAcpToolCall } from '@/common/chat/chatLib';
 import { getAcpImageFileName, getAcpImagePath } from '@/common/chat/acpToolCallOutput';
-import FileChangesPanel from '@/renderer/components/base/FileChangesPanel';
-import LocalImageView from '@/renderer/components/media/LocalImageView';
+import type { ToolCallContentItem } from '@/common/types/platform/acpTypes';
+import FileChangesPanel, { type FileChangeItem } from '@/renderer/components/base/FileChangesPanel';
+import ImageAttachment from '@/renderer/components/media/ImageAttachment';
 import { useDiffPreviewHandlers } from '@/renderer/hooks/file/useDiffPreviewHandlers';
-import { parseDiff } from '@/renderer/utils/file/diffUtils';
-import { downloadFileFromPath } from '@/renderer/utils/file/download';
-import { Button, Card, Message, Tag, Tooltip, Spin } from '@arco-design/web-react';
-import { Download } from '@icon-park/react';
-import React, { useCallback, useState, useEffect } from 'react';
-import { useTranslation } from 'react-i18next';
+import { Card, Spin, Tag } from '@arco-design/web-react';
 import MarkdownView from '@renderer/components/Markdown';
+import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 const StatusTag: React.FC<{ status: string }> = ({ status }) => {
   const getTagProps = () => {
@@ -33,7 +31,13 @@ const StatusTag: React.FC<{ status: string }> = ({ status }) => {
   return <Tag color={color}>{text}</Tag>;
 };
 
-// Diff content display as a separate component to ensure hooks are called unconditionally
+type DiffWorkerMessage = {
+  id: string;
+  error?: unknown;
+  formattedDiff?: string;
+  fileInfo?: FileChangeItem;
+};
+
 const DiffContentView: React.FC<{ old_text: string; new_text: string; path: string }> = ({
   old_text,
   new_text,
@@ -43,7 +47,7 @@ const DiffContentView: React.FC<{ old_text: string; new_text: string; path: stri
   const [diffState, setDiffState] = useState<{
     isLoading: boolean;
     formattedDiff: string;
-    fileInfo: any | null;
+    fileInfo: FileChangeItem | null;
   }>({
     isLoading: true,
     formattedDiff: '',
@@ -51,25 +55,25 @@ const DiffContentView: React.FC<{ old_text: string; new_text: string; path: stri
   });
 
   useEffect(() => {
-    setDiffState(prev => ({ ...prev, isLoading: true }));
+    setDiffState((prev) => ({ ...prev, isLoading: true }));
     const worker = new Worker(new URL('../../../../utils/file/diffWorker.ts', import.meta.url), { type: 'module' });
     const id = Date.now().toString();
-    
-    worker.onmessage = (e) => {
-      if (e.data.id === id) {
-        if (e.data.error) {
-          console.error('Diff generation error:', e.data.error);
-          setDiffState({ isLoading: false, formattedDiff: '', fileInfo: null });
-        } else {
-          setDiffState({
-            isLoading: false,
-            formattedDiff: e.data.formattedDiff,
-            fileInfo: e.data.fileInfo,
-          });
-        }
-        worker.terminate();
+
+    worker.onmessage = (event: MessageEvent<DiffWorkerMessage>) => {
+      if (event.data.id !== id) return;
+      if (event.data.error) {
+        console.error('Diff generation error:', event.data.error);
+        setDiffState({ isLoading: false, formattedDiff: '', fileInfo: null });
+      } else {
+        setDiffState({
+          isLoading: false,
+          formattedDiff: event.data.formattedDiff || '',
+          fileInfo: event.data.fileInfo || null,
+        });
       }
+      worker.terminate();
     };
+
     worker.postMessage({ id, old_text, new_text, path });
     return () => worker.terminate();
   }, [old_text, new_text, path]);
@@ -82,14 +86,14 @@ const DiffContentView: React.FC<{ old_text: string; new_text: string; path: stri
 
   if (diffState.isLoading) {
     return (
-      <div className="flex items-center justify-center p-4 mt-3 bg-1 rounded border">
-        <Spin tip="Generating diff..." />
+      <div className='flex items-center justify-center p-4 mt-3 bg-1 rounded border'>
+        <Spin tip='Generating diff...' />
       </div>
     );
   }
 
   if (!diffState.fileInfo) {
-    return <div className="p-2 text-t-secondary text-sm">Failed to generate diff.</div>;
+    return <div className='p-2 text-t-secondary text-sm'>Failed to generate diff.</div>;
   }
 
   return (
@@ -103,15 +107,14 @@ const DiffContentView: React.FC<{ old_text: string; new_text: string; path: stri
   );
 };
 
-const ContentView: React.FC<{ content: IMessageAcpToolCall['content']['update']['content'][0] }> = ({ content }) => {
+const ContentView: React.FC<{ content: ToolCallContentItem }> = ({ content }) => {
   if (content.type === 'diff') {
     return (
       <DiffContentView old_text={content.old_text || ''} new_text={content.new_text || ''} path={content.path || ''} />
     );
   }
 
-  // 处理 content 类型，包含 text 内容
-  if (content.type === 'content' && content.content && content.content.type === 'text' && content.content.text) {
+  if (content.type === 'content' && content.content?.type === 'text' && content.content.text) {
     return (
       <div className='mt-3'>
         <div className='bg-1 p-3 rounded border overflow-hidden'>
@@ -145,27 +148,14 @@ const MessageAcpToolCall: React.FC<{ message: IMessageAcpToolCall }> = ({ messag
   if (!content?.update) {
     return null;
   }
+
   const { update } = content;
   const { tool_call_id, kind, title, status, rawInput, content: diffContent } = update;
   const imagePath = getAcpImagePath(update);
   const imageAlt = imagePath?.split(/[/\\]/).pop() || t('acp.image.generated_alt');
-  const [messageApi, messageContext] = Message.useMessage();
-  const handleDownloadImage = useCallback(
-    async (path: string) => {
-      try {
-        await downloadFileFromPath(path, getAcpImageFileName(path));
-        messageApi.success(t('acp.image.download_success'));
-      } catch (error) {
-        console.error('[MessageAcpToolCall] Failed to download image:', error);
-        messageApi.error(t('acp.image.download_error'));
-      }
-    },
-    [messageApi, t]
-  );
 
   return (
     <Card className='w-full mb-2' size='small' bordered>
-      {messageContext}
       <div className='flex items-start gap-3'>
         <div className='flex-1 min-w-0'>
           <div className='flex items-center gap-2 mb-2'>
@@ -175,31 +165,19 @@ const MessageAcpToolCall: React.FC<{ message: IMessageAcpToolCall }> = ({ messag
           {rawInput && (
             <div className='text-sm'>
               {typeof rawInput === 'string' ? (
-                <MarkdownView>{`\`\`\`\n${rawInput}\n\`\`\``}</MarkdownView>
+                <MarkdownView>{'````\n' + rawInput + '\n````'}</MarkdownView>
               ) : (
                 <pre className='bg-1 p-2 rounded text-xs overflow-x-auto'>{JSON.stringify(rawInput, null, 2)}</pre>
               )}
             </div>
           )}
           {imagePath && (
-            <div className='group relative mt-3 overflow-hidden rounded border bg-1 p-2'>
-              <LocalImageView
-                src={imagePath}
-                alt={imageAlt}
-                className='max-w-full max-h-[520px] object-contain rounded'
-              />
-              <Tooltip content={t('acp.image.download')}>
-                <Button
-                  aria-label={t('acp.image.download_aria')}
-                  className='!absolute right-10px top-10px !h-28px !w-28px !p-0 opacity-0 shadow-sm transition-opacity group-hover:opacity-90 focus:opacity-100'
-                  type='secondary'
-                  size='mini'
-                  shape='circle'
-                  icon={<Download theme='outline' size='14' />}
-                  onClick={() => void handleDownloadImage(imagePath)}
-                />
-              </Tooltip>
-            </div>
+            <ImageAttachment
+              src={imagePath}
+              alt={imageAlt}
+              fileName={getAcpImageFileName(imagePath)}
+              className='mt-3'
+            />
           )}
           {diffContent && diffContent.length > 0 && (
             <div>

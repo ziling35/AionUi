@@ -40,6 +40,37 @@ describe('normalizeToolCall', () => {
     });
   });
 
+  it('falls back to MCP server and tool when ACP title is empty', () => {
+    const result = normalizeAcpToolCall({
+      id: 'message-2',
+      conversation_id: 'conversation-2',
+      created_at: 23456,
+      type: 'acp_tool_call',
+      content: {
+        update: {
+          sessionUpdate: 'tool_call_update',
+          tool_call_id: 'tool-2',
+          status: 'in_progress',
+          title: '',
+          kind: 'execute',
+          rawInput: {
+            server: 'lingai-image-generation',
+            tool: 'lingai_image_generation',
+            prompt: 'Image-to-Image: Generate a logo',
+          },
+        },
+      },
+    } as unknown as IMessageAcpToolCall);
+
+    expect(result).toMatchObject({
+      key: 'tool-2',
+      name: 'lingai-image-generation:lingai_image_generation',
+      status: 'running',
+      description: 'Image-to-Image: Generate a logo',
+      startedAt: 23456,
+    });
+  });
+
   it('keeps tool call creation time for running elapsed UI', () => {
     const result = normalizeToolCall({
       type: 'tool_call',

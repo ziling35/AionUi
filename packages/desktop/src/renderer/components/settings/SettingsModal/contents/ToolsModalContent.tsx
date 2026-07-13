@@ -27,6 +27,7 @@ import {
   useMcpOAuth,
   useMountedMessage,
 } from '@/renderer/hooks/mcp';
+import { persistBuiltinMcpServer } from '@/renderer/hooks/mcp/catalog';
 import {
   getClientBusinessSetting,
   removeClientBusinessSetting,
@@ -367,6 +368,7 @@ const ToolsModalContent: React.FC = () => {
           original_json,
         },
       });
+      await persistBuiltinMcpServer({ ...updatedServer, builtin: true });
       await saveMcpServers((prevServers) =>
         prevServers.map((server) => (server.id === updatedServer.id ? { ...server, ...updatedServer } : server))
       );

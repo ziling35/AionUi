@@ -6,7 +6,7 @@
 
 import { ipcBridge } from '@/common';
 import type { IMcpServer, TChatConversation, TProviderWithModel } from '@/common/config/storage';
-import { toSessionMcpServer } from '@/renderer/hooks/mcp/catalog';
+import { ensureBackendMcpCatalog, toSessionMcpServer } from '@/renderer/hooks/mcp/catalog';
 import { emitter } from '@/renderer/utils/emitter';
 import { updateWorkspaceTime } from '@/renderer/utils/workspace/workspaceHistory';
 import { Message } from '@arco-design/web-react';
@@ -111,19 +111,21 @@ export const useGuidSend = (deps: GuidSendDeps): GuidSendResult => {
     const assistantBackend = selectedAssistantBackend;
     const enabled_skills_to_send = guidEnabledSkills ?? assistantDefaultSkillIds;
     const excludeBuiltinSkills = guidDisabledBuiltinSkills ?? assistantDefaultDisabledBuiltinSkillIds;
+    const latestMcpCatalog = await ensureBackendMcpCatalog().catch((): undefined => undefined);
+    const currentMcpServers: IMcpServer[] = latestMcpCatalog?.allServers ?? availableMcpServers;
     const selectedAllMcpServerIds = selectedMcpServerIds ?? [];
     const selectedMcpServerIdSet = new Set(selectedAllMcpServerIds);
-    const selectedUserMcpServerIds = availableMcpServers
+    const selectedUserMcpServerIds = currentMcpServers
       .filter((server) => selectedMcpServerIdSet.has(server.id) && server.builtin !== true)
       .map((server) => server.id);
-    const selectedAllSessionMcpServers = availableMcpServers
+    const selectedAllSessionMcpServers = currentMcpServers
       .filter((server) => selectedMcpServerIdSet.has(server.id))
       .map((server) => toSessionMcpServer(server));
-    const selectedSessionMcpServers = availableMcpServers
+    const selectedSessionMcpServers = currentMcpServers
       .filter((server) => selectedMcpServerIdSet.has(server.id) && server.builtin === true)
       .map((server) => toSessionMcpServer(server));
     const defaultSelectedMcpServerIds = assistantDefaultMcpIds;
-    const defaultSelectedUserMcpServerIds = availableMcpServers
+    const defaultSelectedUserMcpServerIds = currentMcpServers
       .filter((server) => (defaultSelectedMcpServerIds ?? []).includes(server.id) && server.builtin !== true)
       .map((server) => server.id);
     const assistantOverrideMcpIds =
@@ -133,7 +135,7 @@ export const useGuidSend = (deps: GuidSendDeps): GuidSendResult => {
     const selectedSessionMcpServersToSend =
       selectedMcpServerIds !== undefined
         ? selectedAllSessionMcpServers
-        : availableMcpServers
+        : currentMcpServers
             .filter((server) => (defaultSelectedMcpServerIds ?? []).includes(server.id))
             .map((server) => toSessionMcpServer(server));
 

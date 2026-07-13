@@ -5,7 +5,7 @@ import dotenv from 'dotenv';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { TextDecoder } from 'node:util';
-import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
+import { createHash, createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -18,6 +18,7 @@ const prisma = new PrismaClient();
 app.use(cors());
 // Default JSON body parser for all routes except audio/transcriptions
 app.use(express.json({ limit: '25mb' }));
+app.use(express.urlencoded({ extended: false }));
 // Raw body for multipart/form-data (audio transcriptions and image edits)
 app.use('/api/proxy/openai/v1/audio/transcriptions', express.raw({ type: 'multipart/form-data', limit: '25mb' }));
 app.use('/api/proxy/openai/v1/images/edits', express.raw({ type: 'multipart/form-data', limit: '50mb' }));
@@ -33,6 +34,92 @@ const DEFAULT_RESET_WINDOW_HOURS = 4;
 const DEFAULT_RESET_WINDOW_VALID_DAYS = 30;
 const LINGCODEX_TOKEN_PREFIX = 'lingcodex_';
 const DEFAULT_LINGCODEX_TOKEN_TTL_SECONDS = 60 * 60;
+
+type ProxyLogLevel = 'info' | 'warn' | 'error';
+type ProxyLogValue = string | number | boolean | null;
+
+function logProxyEvent(level: ProxyLogLevel, event: string, fields: Record<string, ProxyLogValue | undefined> = {}) {
+  const payload: Record<string, ProxyLogValue> = {
+    level,
+    event,
+  };
+
+  for (const [key, value] of Object.entries(fields)) {
+    if (value !== undefined) payload[key] = value;
+  }
+
+  const line = `[Proxy] ${JSON.stringify(payload)}`;
+  if (level === 'error') {
+    console.error(line);
+  } else if (level === 'warn') {
+    console.warn(line);
+  } else {
+    console.info(line);
+  }
+}
+
+function getUpstreamErrorMessage(data: unknown): string | undefined {
+  if (typeof data === 'string') return data.slice(0, 500);
+  if (!isRecord(data)) return undefined;
+
+  const error = data.error;
+  if (typeof error === 'string') return error.slice(0, 500);
+  if (isRecord(error)) {
+    const message = error.message ?? error.msg ?? error.detail ?? error.code;
+    if (typeof message === 'string') return message.slice(0, 500);
+  }
+
+  const message = data.message ?? data.msg ?? data.detail;
+  if (typeof message === 'string') return message.slice(0, 500);
+
+  try {
+    return JSON.stringify(data).slice(0, 500);
+  } catch {
+    return undefined;
+  }
+}
+
+function isTransientImageToolRoutingError(status: number, data: unknown): boolean {
+  return (
+    status === 400 &&
+    /Tool choice [']image_generation['] not found in [']tools['] parameter/i.test(getUpstreamErrorMessage(data) || '')
+  );
+}
+
+async function fetchImageUpstreamWithRoutingRetry(options: {
+  upstreamUrl: string;
+  upstreamKey: string;
+  contentType: string;
+  body: BodyInit;
+  signal: AbortSignal;
+  onRetry: (status: number, data: unknown) => void;
+}): Promise<{ response: Response; responseText: string; data: any }> {
+  for (let attempt = 1; ; attempt += 1) {
+    const response = await fetch(options.upstreamUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': options.contentType,
+        Authorization: `Bearer ${options.upstreamKey}`,
+      },
+      body: options.body,
+      signal: options.signal,
+    });
+    const responseText = await response.text();
+    let data: any = null;
+    try {
+      data = JSON.parse(responseText);
+    } catch {
+      data = null;
+    }
+
+    if (attempt >= 2 || !isTransientImageToolRoutingError(response.status, data)) {
+      return { response, responseText, data };
+    }
+
+    options.onRetry(response.status, data);
+    await new Promise((resolve) => setTimeout(resolve, 500));
+  }
+}
 
 function compareVersions(a: string, b: string): number {
   const pa = a
@@ -316,11 +403,58 @@ function rewriteJsonModelBody(body: unknown, modelId: string): unknown {
   return { ...(body as Record<string, unknown>), model: modelId };
 }
 
+function rewriteMultipartModelBody(body: Buffer, contentType: string, modelId: string): Buffer {
+  const boundaryMatch = contentType.match(/boundary=(?:"([^"]+)"|([^;]+))/i);
+  const boundary = boundaryMatch?.[1] || boundaryMatch?.[2]?.trim();
+  if (!boundary) return body;
+
+  const marker = `--${boundary}`;
+  const raw = body.toString('latin1');
+  const segments = raw.split(marker);
+  let rewritten = false;
+
+  const nextSegments = segments.map((segment) => {
+    const crlfHeaderEnd = segment.indexOf('\r\n\r\n');
+    const delimiter = crlfHeaderEnd >= 0 ? '\r\n\r\n' : '\n\n';
+    const headerEnd = crlfHeaderEnd >= 0 ? crlfHeaderEnd : segment.indexOf(delimiter);
+    if (headerEnd < 0) return segment;
+
+    const header = segment.slice(0, headerEnd);
+    if (!/content-disposition:[^\n]*\bname="model"/i.test(header)) return segment;
+
+    const contentStart = headerEnd + delimiter.length;
+    const content = segment.slice(contentStart);
+    const trailingNewline = content.endsWith('\r\n') ? '\r\n' : content.endsWith('\n') ? '\n' : '';
+    rewritten = true;
+    return `${segment.slice(0, contentStart)}${modelId}${trailingNewline}`;
+  });
+
+  return rewritten ? Buffer.from(nextSegments.join(marker), 'latin1') : body;
+}
+
+function isImageGenerationModelId(modelId: string): boolean {
+  const normalized = modelId.toLowerCase();
+  return (
+    /^gpt-image(?:-|$)/.test(normalized) ||
+    /^dall-e(?:-|$)/.test(normalized) ||
+    /^imagen(?:-|$)/.test(normalized) ||
+    /^flux(?:-|$)/.test(normalized) ||
+    /^sd(?:-|$)/.test(normalized) ||
+    normalized.includes('image-generation') ||
+    normalized.includes('diffusion') ||
+    normalized.includes('stable-diffusion') ||
+    normalized.includes('midjourney') ||
+    normalized.includes('cogview') ||
+    normalized.includes('janus') ||
+    /(?:^|[-_])image(?:[-_]|$)/.test(normalized)
+  );
+}
+
 function isLingCodexTextModelConfig(modelConfig: any): boolean {
   const type = String(modelConfig?.type || 'chat').toLowerCase();
-  if (type === 'embedding' || type === 'image') return false;
+  if (type === 'embedding' || type === 'image' || type === 'audio') return false;
   const modelId = String(modelConfig?.modelId || '').toLowerCase();
-  return !modelId.includes('image');
+  return !isImageGenerationModelId(modelId);
 }
 
 function toOpenAiModelListItem(model: any) {
@@ -339,6 +473,57 @@ function scopedModelWhere(providerIdParam: string, modelId: string): { providerI
   return {
     providerId: providerIdParam === ORPHANED_PROVIDER_ID ? null : providerIdParam,
     modelId,
+  };
+}
+
+type ModelConfigLookupResult =
+  | {
+      ok: true;
+      modelConfig: any;
+    }
+  | {
+      ok: false;
+      status: number;
+      error: { message: string };
+    };
+
+async function resolveModelConfigByRequestModel(modelId: string): Promise<ModelConfigLookupResult> {
+  const routedModel = decodeModelRoutingId(modelId);
+  const modelConfig = routedModel
+    ? await prisma.modelConfig.findFirst({
+        where: { providerId: routedModel.providerId, modelId: routedModel.modelId },
+        include: { provider: true },
+      })
+    : await (async () => {
+        const candidates = await prisma.modelConfig.findMany({
+          where: { modelId },
+          include: { provider: true },
+          take: 2,
+        });
+        if (candidates.length > 1) {
+          return {
+            ambiguous: true,
+          };
+        }
+        return candidates[0] || null;
+      })();
+
+  if (modelConfig && 'ambiguous' in modelConfig) {
+    return {
+      ok: false,
+      status: 409,
+      error: {
+        message: `Model ${modelId} exists under multiple providers. Please use provider-scoped routingModelId.`,
+      },
+    };
+  }
+  if (!modelConfig || !modelConfig.isActive) {
+    return { ok: false, status: 404, error: { message: `Model ${modelId} is not available or inactive.` } };
+  }
+
+  return {
+    ok: true,
+    modelConfig,
   };
 }
 
@@ -832,6 +1017,295 @@ function toUserPayload(user: any) {
   };
 }
 
+const PAYMENT_CONFIG_ID = 'default';
+const PAYMENT_PROVIDER_EPAY = 'epay';
+const PAYMENT_ORDER_PENDING = 'PENDING';
+const PAYMENT_ORDER_PAID = 'PAID';
+const RECHARGE_PRODUCT_BALANCE = 'balance';
+const RECHARGE_PRODUCT_SUBSCRIPTION = 'subscription';
+
+type RechargeProductInputResult =
+  | {
+      ok: true;
+      data: {
+        name: string;
+        description: string | null;
+        productType: string;
+        priceCents: number;
+        amount: number;
+        planType: string;
+        windowHours: number | null;
+        validDays: number | null;
+        badge: string | null;
+        sortOrder: number;
+        enabled: boolean;
+      };
+    }
+  | {
+      ok: false;
+      error: string;
+    };
+
+function normalizeAllowedPaymentTypes(value: unknown): string[] {
+  const raw = Array.isArray(value) ? value.join(',') : typeof value === 'string' ? value : 'alipay,wxpay';
+  const allowed = raw
+    .split(',')
+    .map((item) => item.trim())
+    .filter((item) => /^(alipay|wxpay|qqpay|bank)$/.test(item));
+  return Array.from(new Set(allowed.length > 0 ? allowed : ['alipay', 'wxpay']));
+}
+
+function parsePriceCents(value: unknown, fallback?: number): number {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return Math.max(1, Math.round(value));
+  }
+  if (typeof value === 'string' && value.trim()) {
+    return Math.max(1, Math.round(Number(value)));
+  }
+  if (fallback !== undefined) return fallback;
+  return 0;
+}
+
+function parseYuanToCents(value: unknown, fallback?: number): number {
+  if (value === undefined || value === null || value === '') {
+    return fallback ?? 0;
+  }
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return fallback ?? 0;
+  return Math.max(1, Math.round(parsed * 100));
+}
+
+function centsToYuan(cents: number): string {
+  return (Math.max(0, cents) / 100).toFixed(2);
+}
+
+function normalizeRechargeProductInput(body: any, existing?: any): RechargeProductInputResult {
+  const name = getBoundedString(body?.name, existing?.name || '').slice(0, 80);
+  if (!name) return { ok: false, error: 'Product name is required' };
+
+  const requestedProductType = body?.productType ?? existing?.productType;
+  const productType =
+    requestedProductType === RECHARGE_PRODUCT_SUBSCRIPTION ? RECHARGE_PRODUCT_SUBSCRIPTION : RECHARGE_PRODUCT_BALANCE;
+  const requestedPlanType = body?.planType ?? existing?.planType;
+  const planType =
+    requestedPlanType === QUOTA_PLAN_RESET_WINDOW || productType === RECHARGE_PRODUCT_SUBSCRIPTION
+      ? QUOTA_PLAN_RESET_WINDOW
+      : QUOTA_PLAN_BALANCE;
+  const priceCents =
+    body?.priceYuan !== undefined
+      ? parseYuanToCents(body.priceYuan, existing?.priceCents)
+      : parsePriceCents(body?.priceCents, existing?.priceCents);
+  if (priceCents <= 0) return { ok: false, error: 'Product price must be greater than 0' };
+
+  const amount = getBoundedNumber(body?.amount, existing?.amount ?? 0, 1, 100_000_000);
+  if (amount <= 0) return { ok: false, error: 'Product quota amount must be greater than 0' };
+
+  const windowHours =
+    planType === QUOTA_PLAN_RESET_WINDOW
+      ? getBoundedNumber(body?.windowHours, existing?.windowHours ?? DEFAULT_RESET_WINDOW_HOURS, 1, 24 * 30)
+      : null;
+  const validDays =
+    planType === QUOTA_PLAN_RESET_WINDOW
+      ? getBoundedNumber(body?.validDays, existing?.validDays ?? DEFAULT_RESET_WINDOW_VALID_DAYS, 1, 3650)
+      : null;
+
+  return {
+    ok: true,
+    data: {
+      name,
+      description: Object.hasOwn(body ?? {}, 'description')
+        ? (getOptionalString(body?.description)?.slice(0, 300) ?? null)
+        : (existing?.description ?? null),
+      productType,
+      priceCents,
+      amount,
+      planType,
+      windowHours,
+      validDays,
+      badge: Object.hasOwn(body ?? {}, 'badge')
+        ? (getOptionalString(body?.badge)?.slice(0, 30) ?? null)
+        : (existing?.badge ?? null),
+      sortOrder: getBoundedNumber(body?.sortOrder, existing?.sortOrder ?? 0, 0, 1_000_000),
+      enabled: body?.enabled === undefined ? existing?.enabled !== false : body.enabled !== false,
+    },
+  };
+}
+
+function toRechargeProductPayload(product: any) {
+  return {
+    id: product.id,
+    name: product.name,
+    description: product.description,
+    productType: product.productType,
+    priceCents: product.priceCents,
+    priceYuan: centsToYuan(product.priceCents),
+    amount: product.amount,
+    planType: product.planType,
+    windowHours: product.windowHours,
+    validDays: product.validDays,
+    badge: product.badge,
+    sortOrder: product.sortOrder,
+    enabled: product.enabled,
+    createdAt: product.createdAt?.toISOString?.() ?? product.createdAt,
+    updatedAt: product.updatedAt?.toISOString?.() ?? product.updatedAt,
+  };
+}
+
+async function getPaymentConfig() {
+  return prisma.paymentConfig.findUnique({ where: { id: PAYMENT_CONFIG_ID } });
+}
+
+function isPaymentConfigUsable(config: any): boolean {
+  return Boolean(config?.enabled && config.apiBaseUrl && config.merchantId && config.merchantKey);
+}
+
+function toPaymentConfigPayload(config: any) {
+  const paymentTypes = normalizeAllowedPaymentTypes(config?.allowedTypes);
+  return {
+    id: PAYMENT_CONFIG_ID,
+    provider: config?.provider || PAYMENT_PROVIDER_EPAY,
+    enabled: Boolean(config?.enabled),
+    usable: isPaymentConfigUsable(config),
+    apiBaseUrl: config?.apiBaseUrl || '',
+    merchantId: config?.merchantId || '',
+    merchantKeyConfigured: Boolean(config?.merchantKey),
+    allowedTypes: paymentTypes,
+    siteName: config?.siteName || 'LingAI',
+    updatedAt: config?.updatedAt?.toISOString?.() ?? null,
+  };
+}
+
+function normalizePaymentConfigInput(body: any, existing?: any) {
+  const apiBaseUrl = getOptionalString(body?.apiBaseUrl) ?? existing?.apiBaseUrl ?? null;
+  const merchantId = getOptionalString(body?.merchantId) ?? existing?.merchantId ?? null;
+  const merchantKey = getOptionalString(body?.merchantKey) ?? existing?.merchantKey ?? null;
+  return {
+    provider: PAYMENT_PROVIDER_EPAY,
+    enabled: body?.enabled === undefined ? existing?.enabled === true : body.enabled === true,
+    apiBaseUrl: apiBaseUrl ? apiBaseUrl.replace(/\/+$/, '') : null,
+    merchantId,
+    merchantKey,
+    allowedTypes: normalizeAllowedPaymentTypes(body?.allowedTypes ?? existing?.allowedTypes).join(','),
+    siteName: getBoundedString(body?.siteName, existing?.siteName || 'LingAI').slice(0, 80) || 'LingAI',
+  };
+}
+
+function createPaymentOrderNo(): string {
+  const now = new Date();
+  const stamp = [
+    now.getFullYear(),
+    String(now.getMonth() + 1).padStart(2, '0'),
+    String(now.getDate()).padStart(2, '0'),
+    String(now.getHours()).padStart(2, '0'),
+    String(now.getMinutes()).padStart(2, '0'),
+    String(now.getSeconds()).padStart(2, '0'),
+  ].join('');
+  return `LA${stamp}${randomBytes(5).toString('hex').toUpperCase()}`;
+}
+
+function md5(value: string): string {
+  return createHash('md5').update(value, 'utf8').digest('hex');
+}
+
+function signEpayParams(params: Record<string, unknown>, merchantKey: string): string {
+  const query = Object.keys(params)
+    .filter((key) => key !== 'sign' && key !== 'sign_type')
+    .filter((key) => params[key] !== undefined && params[key] !== null && String(params[key]) !== '')
+    .sort()
+    .map((key) => `${key}=${params[key]}`)
+    .join('&');
+  return md5(`${query}${merchantKey}`);
+}
+
+function verifyEpayParams(params: Record<string, unknown>, merchantKey: string): boolean {
+  const receivedSign = typeof params.sign === 'string' ? params.sign.toLowerCase() : '';
+  if (!receivedSign) return false;
+  return receivedSign === signEpayParams(params, merchantKey).toLowerCase();
+}
+
+function buildEpayPaymentUrl(params: { req: express.Request; config: any; order: any; productName: string }): string {
+  const baseUrl = String(params.config.apiBaseUrl || '').replace(/\/+$/, '');
+  const callbackBase = getPublicBaseUrl(params.req);
+  const payload: Record<string, string> = {
+    pid: String(params.config.merchantId),
+    type: params.order.paymentType,
+    out_trade_no: params.order.orderNo,
+    notify_url: `${callbackBase}/api/pay/epay/notify`,
+    return_url: `${callbackBase}/api/pay/epay/return?orderNo=${encodeURIComponent(params.order.orderNo)}`,
+    name: params.productName,
+    money: centsToYuan(params.order.amountCents),
+    clientip: params.req.ip || '',
+    device: 'pc',
+    param: params.order.userId,
+    sign_type: 'MD5',
+  };
+  payload.sign = signEpayParams(payload, String(params.config.merchantKey));
+  return `${baseUrl}/submit.php?${new URLSearchParams(payload).toString()}`;
+}
+
+function toPaymentOrderPayload(order: any) {
+  return {
+    id: order.id,
+    orderNo: order.orderNo,
+    userId: order.userId,
+    productId: order.productId,
+    product: parseJsonOrNull(order.productSnapshotJson),
+    paymentProvider: order.paymentProvider,
+    paymentType: order.paymentType,
+    amountCents: order.amountCents,
+    amountYuan: centsToYuan(order.amountCents),
+    quotaAmount: order.quotaAmount,
+    planType: order.planType,
+    windowHours: order.windowHours,
+    validDays: order.validDays,
+    status: order.status,
+    providerTradeNo: order.providerTradeNo,
+    paidAt: order.paidAt?.toISOString?.() ?? null,
+    createdAt: order.createdAt?.toISOString?.() ?? order.createdAt,
+  };
+}
+
+async function applyPaidOrder(tx: any, order: any, providerTradeNo?: string | null) {
+  if (order.status === PAYMENT_ORDER_PAID) return order;
+
+  const user = await tx.user.findUnique({ where: { id: order.userId } });
+  if (!user) throw new Error('Order user not found');
+
+  const now = new Date();
+  const isSubscription = order.planType === QUOTA_PLAN_RESET_WINDOW;
+  const userData = isSubscription
+    ? {
+        quota: order.quotaAmount,
+        quotaPlanType: QUOTA_PLAN_RESET_WINDOW,
+        quotaWindowHours: getPositiveInt(order.windowHours, DEFAULT_RESET_WINDOW_HOURS),
+        quotaWindowLimit: order.quotaAmount,
+        quotaWindowUsed: 0,
+        quotaWindowStartedAt: now,
+        quotaWindowEndsAt: addHours(now, getPositiveInt(order.windowHours, DEFAULT_RESET_WINDOW_HOURS)),
+        quotaExpiresAt: addDays(now, getPositiveInt(order.validDays, DEFAULT_RESET_WINDOW_VALID_DAYS)),
+      }
+    : {
+        quota: user.quota + order.quotaAmount,
+        quotaPlanType: QUOTA_PLAN_BALANCE,
+        quotaWindowHours: null,
+        quotaWindowLimit: null,
+        quotaWindowUsed: 0,
+        quotaWindowStartedAt: null,
+        quotaWindowEndsAt: null,
+        quotaExpiresAt: null,
+      };
+
+  await tx.user.update({ where: { id: user.id }, data: userData });
+  return tx.paymentOrder.update({
+    where: { id: order.id },
+    data: {
+      status: PAYMENT_ORDER_PAID,
+      providerTradeNo: providerTradeNo || order.providerTradeNo,
+      paidAt: now,
+    },
+  });
+}
+
 // ─── Auth API ──────────────────────────────────────────────
 
 app.post('/api/auth/register', async (req, res) => {
@@ -910,6 +1384,17 @@ app.post('/api/auth/lingcodex-token', async (req, res) => {
       return res.status(400).json({ error: 'Missing LingCodex model.' });
     }
 
+    const modelLookup = await resolveModelConfigByRequestModel(model);
+    if (!modelLookup.ok) {
+      return res.status(modelLookup.status).json({ error: modelLookup.error.message });
+    }
+    if (!isLingCodexTextModelConfig(modelLookup.modelConfig)) {
+      return res.status(400).json({
+        error:
+          'LingCodex requires a text-capable model. Image generation models must be configured in Settings > Tools and called through the image generation tool.',
+      });
+    }
+
     const secret = getLingCodexTokenSecret();
     if (!secret) {
       return res.status(500).json({ error: 'LingCodex token signing secret is not configured.' });
@@ -929,6 +1414,267 @@ app.post('/api/auth/lingcodex-token', async (req, res) => {
     });
   } catch (error) {
     console.error('Error issuing LingCodex token:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// ─── Recharge / Payment API ─────────────────────────────────────
+
+app.get('/api/recharge/products', async (_req, res) => {
+  try {
+    const [products, config] = await Promise.all([
+      prisma.rechargeProduct.findMany({
+        where: { enabled: true },
+        orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
+      }),
+      getPaymentConfig(),
+    ]);
+
+    res.json({
+      success: true,
+      products: products.map(toRechargeProductPayload),
+      payment: {
+        enabled: isPaymentConfigUsable(config),
+        provider: PAYMENT_PROVIDER_EPAY,
+        allowedTypes: normalizeAllowedPaymentTypes(config?.allowedTypes),
+        siteName: config?.siteName || 'LingAI',
+      },
+    });
+  } catch (error) {
+    console.error('Error fetching recharge products:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+app.post('/api/recharge/orders', async (req, res) => {
+  try {
+    const user = await getAuthenticatedCloudUser(req, res);
+    if (!user) return;
+
+    const productId = getOptionalString(req.body?.productId);
+    const paymentType = getBoundedString(req.body?.paymentType, 'alipay').slice(0, 20);
+    if (!productId) return res.status(400).json({ error: 'Missing productId' });
+
+    const [product, config] = await Promise.all([
+      prisma.rechargeProduct.findFirst({ where: { id: productId, enabled: true } }),
+      getPaymentConfig(),
+    ]);
+    if (!product) return res.status(404).json({ error: 'Recharge product not found' });
+    if (!isPaymentConfigUsable(config)) return res.status(400).json({ error: 'Payment is not configured' });
+
+    const allowedTypes = normalizeAllowedPaymentTypes(config?.allowedTypes);
+    if (!allowedTypes.includes(paymentType)) {
+      return res.status(400).json({ error: 'Unsupported payment type' });
+    }
+
+    const order = await prisma.paymentOrder.create({
+      data: {
+        orderNo: createPaymentOrderNo(),
+        userId: user.id,
+        productId: product.id,
+        productSnapshotJson: JSON.stringify(toRechargeProductPayload(product)),
+        paymentProvider: PAYMENT_PROVIDER_EPAY,
+        paymentType,
+        amountCents: product.priceCents,
+        quotaAmount: product.amount,
+        planType: product.planType,
+        windowHours: product.windowHours,
+        validDays: product.validDays,
+      },
+    });
+    const paymentUrl = buildEpayPaymentUrl({
+      req,
+      config,
+      order,
+      productName: product.name,
+    });
+
+    res.json({
+      success: true,
+      order: toPaymentOrderPayload(order),
+      paymentUrl,
+    });
+  } catch (error) {
+    console.error('Error creating recharge order:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+app.get('/api/recharge/orders/:orderNo', async (req, res) => {
+  try {
+    const user = await getAuthenticatedCloudUser(req, res);
+    if (!user) return;
+
+    const order = await prisma.paymentOrder.findUnique({ where: { orderNo: req.params.orderNo } });
+    if (!order || order.userId !== user.id) return res.status(404).json({ error: 'Order not found' });
+    res.json({ success: true, order: toPaymentOrderPayload(order) });
+  } catch (error) {
+    console.error('Error fetching recharge order:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+async function handleEpayNotify(params: Record<string, unknown>, res: express.Response) {
+  const config = await getPaymentConfig();
+  if (!isPaymentConfigUsable(config)) {
+    res.status(400).send('fail');
+    return;
+  }
+  if (!verifyEpayParams(params, String(config?.merchantKey))) {
+    res.status(400).send('fail');
+    return;
+  }
+
+  const orderNo = getOptionalString(params.out_trade_no);
+  if (!orderNo) {
+    res.status(400).send('fail');
+    return;
+  }
+
+  const order = await prisma.paymentOrder.findUnique({ where: { orderNo } });
+  if (!order) {
+    res.status(404).send('fail');
+    return;
+  }
+
+  const money = Number(params.money);
+  const paidCents = Number.isFinite(money) ? Math.round(money * 100) : 0;
+  const tradeStatus = getOptionalString(params.trade_status) || 'TRADE_SUCCESS';
+  if (paidCents !== order.amountCents || tradeStatus !== 'TRADE_SUCCESS') {
+    res.status(400).send('fail');
+    return;
+  }
+
+  await prisma.$transaction(async (tx) => {
+    const current = await tx.paymentOrder.findUnique({ where: { id: order.id } });
+    if (!current) throw new Error('Order not found');
+    await applyPaidOrder(tx, current, getOptionalString(params.trade_no));
+  });
+
+  res.send('success');
+}
+
+app.get('/api/pay/epay/notify', async (req, res) => {
+  try {
+    await handleEpayNotify(req.query as Record<string, unknown>, res);
+  } catch (error) {
+    console.error('Epay notify error:', error);
+    res.status(500).send('fail');
+  }
+});
+
+app.post('/api/pay/epay/notify', async (req, res) => {
+  try {
+    await handleEpayNotify(req.body as Record<string, unknown>, res);
+  } catch (error) {
+    console.error('Epay notify error:', error);
+    res.status(500).send('fail');
+  }
+});
+
+app.get('/api/pay/epay/return', async (req, res) => {
+  const orderNo = getOptionalString(req.query.orderNo) || getOptionalString(req.query.out_trade_no) || '';
+  const order = orderNo ? await prisma.paymentOrder.findUnique({ where: { orderNo } }).catch(() => null) : null;
+  const paid = order?.status === PAYMENT_ORDER_PAID;
+  res.type('html').send(`<!doctype html>
+<html><head><meta charset="utf-8"><title>LingAI Payment</title></head>
+<body style="font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;padding:32px;">
+<h2>${paid ? '支付成功' : '支付处理中'}</h2>
+<p>订单号：${orderNo || '-'}</p>
+<p>${paid ? '额度已到账，请回到 LingAI 客户端刷新账户。' : '如已完成支付，请稍后回到 LingAI 客户端刷新账户。'}</p>
+</body></html>`);
+});
+
+app.get('/api/payment/config', async (_req, res) => {
+  try {
+    const config = await getPaymentConfig();
+    res.json({ success: true, config: toPaymentConfigPayload(config) });
+  } catch (error) {
+    console.error('Error fetching payment config:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+app.put('/api/payment/config', async (req, res) => {
+  try {
+    const existing = await getPaymentConfig();
+    const data = normalizePaymentConfigInput(req.body, existing);
+    const config = await prisma.paymentConfig.upsert({
+      where: { id: PAYMENT_CONFIG_ID },
+      create: { id: PAYMENT_CONFIG_ID, ...data },
+      update: data,
+    });
+    res.json({ success: true, config: toPaymentConfigPayload(config) });
+  } catch (error) {
+    console.error('Error updating payment config:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+app.get('/api/recharge/admin/products', async (_req, res) => {
+  try {
+    const products = await prisma.rechargeProduct.findMany({
+      orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
+    });
+    res.json({ success: true, products: products.map(toRechargeProductPayload) });
+  } catch (error) {
+    console.error('Error fetching admin recharge products:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+app.post('/api/recharge/admin/products', async (req, res) => {
+  try {
+    const normalized = normalizeRechargeProductInput(req.body);
+    if (!normalized.ok) return res.status(400).json({ error: normalized.error });
+    const product = await prisma.rechargeProduct.create({ data: normalized.data });
+    res.json({ success: true, product: toRechargeProductPayload(product) });
+  } catch (error) {
+    console.error('Error creating recharge product:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+app.put('/api/recharge/admin/products/:id', async (req, res) => {
+  try {
+    const existing = await prisma.rechargeProduct.findUnique({ where: { id: req.params.id } });
+    if (!existing) return res.status(404).json({ error: 'Recharge product not found' });
+    const normalized = normalizeRechargeProductInput(req.body, existing);
+    if (!normalized.ok) return res.status(400).json({ error: normalized.error });
+    const product = await prisma.rechargeProduct.update({ where: { id: existing.id }, data: normalized.data });
+    res.json({ success: true, product: toRechargeProductPayload(product) });
+  } catch (error) {
+    console.error('Error updating recharge product:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+app.delete('/api/recharge/admin/products/:id', async (req, res) => {
+  try {
+    await prisma.rechargeProduct.delete({ where: { id: req.params.id } });
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting recharge product:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+app.get('/api/payment/orders', async (_req, res) => {
+  try {
+    const orders = await prisma.paymentOrder.findMany({
+      orderBy: { createdAt: 'desc' },
+      take: 200,
+      include: { user: { select: { username: true, email: true } } },
+    });
+    res.json({
+      success: true,
+      orders: orders.map((order) => ({
+        ...toPaymentOrderPayload(order),
+        user: order.user,
+      })),
+    });
+  } catch (error) {
+    console.error('Error fetching payment orders:', error);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -2068,40 +2814,19 @@ async function resolveProxyContext(
   if (!modelId) {
     return { ok: false, status: 400, error: { message: 'Missing model in request body or headers.' } };
   }
-  const routedModel = decodeModelRoutingId(modelId);
-  const modelConfig = routedModel
-    ? await prisma.modelConfig.findFirst({
-        where: { providerId: routedModel.providerId, modelId: routedModel.modelId },
-        include: { provider: true },
-      })
-    : await (async () => {
-        const candidates = await prisma.modelConfig.findMany({
-          where: { modelId },
-          include: { provider: true },
-          take: 2,
-        });
-        if (candidates.length > 1) {
-          return {
-            ambiguous: true,
-          };
-        }
-        return candidates[0] || null;
-      })();
-  if (modelConfig && 'ambiguous' in modelConfig) {
-    return {
-      ok: false,
-      status: 409,
-      error: {
-        message: `Model ${modelId} exists under multiple providers. Please use provider-scoped routingModelId.`,
-      },
-    };
-  }
-  if (!modelConfig || !modelConfig.isActive) {
-    return { ok: false, status: 404, error: { message: `Model ${modelId} is not available or inactive.` } };
-  }
+  const modelLookup = await resolveModelConfigByRequestModel(modelId);
+  if (!modelLookup.ok) return modelLookup;
+  const { modelConfig } = modelLookup;
 
   if (auth.lingcodex && !isLingCodexTextModelConfig(modelConfig)) {
-    return { ok: false, status: 400, error: { message: 'LingCodex requires an active text model.' } };
+    return {
+      ok: false,
+      status: 400,
+      error: {
+        message:
+          'LingCodex requires a text-capable model. Image generation models must be configured in Settings > Tools and called through the image generation tool.',
+      },
+    };
   }
 
   if (modelConfig.provider && !modelConfig.provider.enabled) {
@@ -2878,6 +3603,15 @@ app.post('/api/proxy/openai/v1/chat/completions', async (req, res) => {
 
 app.post('/api/proxy/openai/v1/images/generations', async (req, res) => {
   let billing: BillingContext | null = null;
+  const requestId = randomBytes(4).toString('hex');
+  const startedAt = Date.now();
+  const upstreamAbort = new AbortController();
+  const abortUpstream = () => upstreamAbort.abort();
+  req.on('aborted', abortUpstream);
+  res.on('close', () => {
+    if (!res.writableEnded) abortUpstream();
+  });
+
   try {
     // Don't restrict model type for images/generations — many image models
     // are configured as type 'chat' in the DB but still support /images/generations
@@ -2885,6 +3619,12 @@ app.post('/api/proxy/openai/v1/images/generations', async (req, res) => {
     if (!ctx.ok) return res.status(ctx.status).json({ error: ctx.error });
 
     const { user, modelConfig, upstreamKey, upstreamUrl, proxyBody } = ctx;
+    logProxyEvent('info', 'image_generation_started', {
+      request_id: requestId,
+      endpoint: '/images/generations',
+      model_id: modelConfig.modelId,
+      provider_id: modelConfig.providerId || null,
+    });
     billing = await beginBilling({
       userId: user.id,
       deviceId: user.deviceId,
@@ -2893,34 +3633,98 @@ app.post('/api/proxy/openai/v1/images/generations', async (req, res) => {
       requestBody: proxyBody,
     });
 
-    const fetchRes = await fetch(upstreamUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${upstreamKey}`,
-      },
+    const upstreamResult = await fetchImageUpstreamWithRoutingRetry({
+      upstreamUrl,
+      upstreamKey,
+      contentType: 'application/json',
       body: JSON.stringify(proxyBody),
+      signal: upstreamAbort.signal,
+      onRetry: (status, data) => {
+        logProxyEvent('warn', 'image_generation_upstream_retry', {
+          request_id: requestId,
+          endpoint: '/images/generations',
+          status,
+          elapsed_ms: Date.now() - startedAt,
+          model_id: modelConfig.modelId,
+          provider_id: modelConfig.providerId || null,
+          upstream_error: getUpstreamErrorMessage(data),
+        });
+      },
+    });
+    const fetchRes = upstreamResult.response;
+    logProxyEvent('info', 'image_generation_upstream_response', {
+      request_id: requestId,
+      endpoint: '/images/generations',
+      status: fetchRes.status,
+      elapsed_ms: Date.now() - startedAt,
+      model_id: modelConfig.modelId,
+      provider_id: modelConfig.providerId || null,
     });
 
-    const data: any = await fetchRes.json().catch(() => null);
+    const upstreamResponseText = upstreamResult.responseText;
+    const data = upstreamResult.data;
     if (data === null) {
       // Upstream returned non-JSON (e.g. HTML error page)
-      const text = await fetchRes.text().catch(() => '');
       await refundFailedBilling(billing, `non-json upstream status=${fetchRes.status}`);
+      logProxyEvent('warn', 'image_generation_non_json_upstream', {
+        request_id: requestId,
+        endpoint: '/images/generations',
+        status: fetchRes.status,
+        elapsed_ms: Date.now() - startedAt,
+        model_id: modelConfig.modelId,
+        provider_id: modelConfig.providerId || null,
+        upstream_error: upstreamResponseText.substring(0, 500) || undefined,
+      });
       return res.status(fetchRes.status || 502).json({
         error: {
-          message: `Upstream returned non-JSON response (status ${fetchRes.status}): ${text.substring(0, 200)}`,
+          message: `Upstream returned non-JSON response (status ${fetchRes.status}): ${upstreamResponseText.substring(0, 200)}`,
         },
       });
     }
 
     if (!fetchRes.ok) {
       await refundFailedBilling(billing, `upstream status=${fetchRes.status}`);
+      logProxyEvent('warn', 'image_generation_upstream_error', {
+        request_id: requestId,
+        endpoint: '/images/generations',
+        status: fetchRes.status,
+        elapsed_ms: Date.now() - startedAt,
+        model_id: modelConfig.modelId,
+        provider_id: modelConfig.providerId || null,
+        upstream_error: getUpstreamErrorMessage(data),
+      });
       return res.status(fetchRes.status).json(data);
     }
     await settleBilling(billing, { promptTokens: 0, completionTokens: 0 }, proxyBody, 'endpoint=/images/generations');
+    logProxyEvent('info', 'image_generation_completed', {
+      request_id: requestId,
+      endpoint: '/images/generations',
+      status: fetchRes.status,
+      elapsed_ms: Date.now() - startedAt,
+      model_id: modelConfig.modelId,
+      provider_id: modelConfig.providerId || null,
+    });
     res.status(fetchRes.status).json(data);
   } catch (error: any) {
+    if (upstreamAbort.signal.aborted) {
+      logProxyEvent('warn', 'image_generation_client_aborted', {
+        request_id: requestId,
+        endpoint: '/images/generations',
+        elapsed_ms: Date.now() - startedAt,
+      });
+      if (billing) {
+        await refundFailedBilling(billing, 'client aborted image generation request').catch((refundError) => {
+          console.error('Billing refund failed:', refundError);
+        });
+      }
+      return;
+    }
+    logProxyEvent('error', 'image_generation_failed', {
+      request_id: requestId,
+      endpoint: '/images/generations',
+      elapsed_ms: Date.now() - startedAt,
+      message: error?.message || 'Internal Proxy Error',
+    });
     console.error('Image Generation Proxy Error:', error);
     if (billing && !(error instanceof BillingError)) {
       await refundFailedBilling(billing, error.message || 'image generation proxy error').catch((refundError) => {
@@ -2932,6 +3736,8 @@ app.post('/api/proxy/openai/v1/images/generations', async (req, res) => {
         error: { message: error.message || 'Internal Proxy Error' },
       });
     }
+  } finally {
+    req.off('aborted', abortUpstream);
   }
 });
 
@@ -2939,12 +3745,27 @@ app.post('/api/proxy/openai/v1/images/generations', async (req, res) => {
 
 app.post('/api/proxy/openai/v1/images/edits', async (req, res) => {
   let billing: BillingContext | null = null;
+  const requestId = randomBytes(4).toString('hex');
+  const startedAt = Date.now();
+  const upstreamAbort = new AbortController();
+  const abortUpstream = () => upstreamAbort.abort();
+  req.on('aborted', abortUpstream);
+  res.on('close', () => {
+    if (!res.writableEnded) upstreamAbort.abort();
+  });
+
   try {
     // Don't restrict model type — same rationale as /images/generations
     const ctx = await resolveProxyContext(req, undefined, '/images/edits');
     if (!ctx.ok) return res.status(ctx.status).json({ error: ctx.error });
 
     const { user, modelConfig, upstreamKey, upstreamUrl, proxyBody } = ctx;
+    logProxyEvent('info', 'image_edit_started', {
+      request_id: requestId,
+      endpoint: '/images/edits',
+      model_id: modelConfig.modelId,
+      provider_id: modelConfig.providerId || null,
+    });
     billing = await beginBilling({
       userId: user.id,
       deviceId: user.deviceId,
@@ -2953,35 +3774,101 @@ app.post('/api/proxy/openai/v1/images/edits', async (req, res) => {
       requestBody: proxyBody,
     });
 
-    const contentType = req.headers['content-type'] || 'application/json';
-    const fetchRes = await fetch(upstreamUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': contentType,
-        Authorization: `Bearer ${upstreamKey}`,
+    const contentType = getFirstString(req.headers['content-type']) || 'application/json';
+    const upstreamBody = Buffer.isBuffer(proxyBody)
+      ? rewriteMultipartModelBody(proxyBody, contentType, modelConfig.modelId)
+      : JSON.stringify(proxyBody);
+    const upstreamResult = await fetchImageUpstreamWithRoutingRetry({
+      upstreamUrl,
+      upstreamKey,
+      contentType,
+      body: upstreamBody,
+      signal: upstreamAbort.signal,
+      onRetry: (status, data) => {
+        logProxyEvent('warn', 'image_edit_upstream_retry', {
+          request_id: requestId,
+          endpoint: '/images/edits',
+          status,
+          elapsed_ms: Date.now() - startedAt,
+          model_id: modelConfig.modelId,
+          provider_id: modelConfig.providerId || null,
+          upstream_error: getUpstreamErrorMessage(data),
+        });
       },
-      // If it's express.raw (Buffer) we send it directly, otherwise we stringify JSON
-      body: Buffer.isBuffer(proxyBody) ? proxyBody : JSON.stringify(proxyBody),
+    });
+    const fetchRes = upstreamResult.response;
+    const upstreamResponseText = upstreamResult.responseText;
+    const data = upstreamResult.data;
+    logProxyEvent('info', 'image_edit_upstream_response', {
+      request_id: requestId,
+      endpoint: '/images/edits',
+      status: fetchRes.status,
+      elapsed_ms: Date.now() - startedAt,
+      model_id: modelConfig.modelId,
+      provider_id: modelConfig.providerId || null,
     });
 
-    const data: any = await fetchRes.json().catch(() => null);
     if (data === null) {
-      const text = await fetchRes.text().catch(() => '');
       await refundFailedBilling(billing, `non-json upstream status=${fetchRes.status}`);
+      logProxyEvent('warn', 'image_edit_non_json_upstream', {
+        request_id: requestId,
+        endpoint: '/images/edits',
+        status: fetchRes.status,
+        elapsed_ms: Date.now() - startedAt,
+        model_id: modelConfig.modelId,
+        provider_id: modelConfig.providerId || null,
+        upstream_error: upstreamResponseText.substring(0, 500) || undefined,
+      });
       return res.status(fetchRes.status || 502).json({
         error: {
-          message: `Upstream returned non-JSON response (status ${fetchRes.status}): ${text.substring(0, 200)}`,
+          message: `Upstream returned non-JSON response (status ${fetchRes.status}): ${upstreamResponseText.substring(0, 200)}`,
         },
       });
     }
 
     if (!fetchRes.ok) {
       await refundFailedBilling(billing, `upstream status=${fetchRes.status}`);
+      logProxyEvent('warn', 'image_edit_upstream_error', {
+        request_id: requestId,
+        endpoint: '/images/edits',
+        status: fetchRes.status,
+        elapsed_ms: Date.now() - startedAt,
+        model_id: modelConfig.modelId,
+        provider_id: modelConfig.providerId || null,
+        upstream_error: getUpstreamErrorMessage(data),
+      });
       return res.status(fetchRes.status).json(data);
     }
     await settleBilling(billing, { promptTokens: 0, completionTokens: 0 }, proxyBody, 'endpoint=/images/edits');
+    logProxyEvent('info', 'image_edit_completed', {
+      request_id: requestId,
+      endpoint: '/images/edits',
+      status: fetchRes.status,
+      elapsed_ms: Date.now() - startedAt,
+      model_id: modelConfig.modelId,
+      provider_id: modelConfig.providerId || null,
+    });
     res.status(fetchRes.status).json(data);
   } catch (error: any) {
+    if (upstreamAbort.signal.aborted) {
+      logProxyEvent('warn', 'image_edit_client_aborted', {
+        request_id: requestId,
+        endpoint: '/images/edits',
+        elapsed_ms: Date.now() - startedAt,
+      });
+      if (billing) {
+        await refundFailedBilling(billing, 'client aborted image edit request').catch((refundError) => {
+          console.error('Billing refund failed:', refundError);
+        });
+      }
+      return;
+    }
+    logProxyEvent('error', 'image_edit_failed', {
+      request_id: requestId,
+      endpoint: '/images/edits',
+      elapsed_ms: Date.now() - startedAt,
+      message: error?.message || 'Internal Proxy Error',
+    });
     console.error('Image Edits Proxy Error:', error);
     if (billing && !(error instanceof BillingError)) {
       await refundFailedBilling(billing, error.message || 'image edit proxy error').catch((refundError) => {
@@ -2993,6 +3880,8 @@ app.post('/api/proxy/openai/v1/images/edits', async (req, res) => {
         error: { message: error.message || 'Internal Proxy Error' },
       });
     }
+  } finally {
+    req.off('aborted', abortUpstream);
   }
 });
 
